@@ -5,23 +5,26 @@
 import { calculateBalances, getRewardState, MVP_DEFAULT_JURISDICTION_ID } from "../../domain";
 import { DEV_CITIZEN_ID, DEV_OFFICER_ID } from "../session";
 import { deserializeState, PERSIST_KEY, PERSIST_VERSION } from "../persistence";
-import { MIGRATION_SYSTEM_ACTOR } from "../migrations";
+import { MIGRATION_SYSTEM_ACTOR, migrateV1toV2, V1State } from "../migrations";
 import { createMemoryStorage } from "../persistence";
 import { makeStore, snapshot } from "./helpers";
 import v1Envelope from "./fixtures/v1-envelope.json";
 
 const v1 = v1Envelope.state;
-const migrate = () => {
+/** The v1 -> v2 step on its own (later steps are tested in migrationV3.test.ts). */
+const migrate = () => ({ state: migrateV1toV2(v1 as unknown as V1State) });
+/** The whole chain, as the app loads it. */
+const load = () => {
   const r = deserializeState(JSON.stringify(v1Envelope));
   if (r.status !== "ok") throw new Error(`migration failed: ${JSON.stringify(r)}`);
   return r;
 };
 
 describe("v1 -> v2 migration", () => {
-  it("the fixture really is v1 and the current version is 2", () => {
+  it("the fixture really is v1 and loads through the whole migration chain", () => {
     expect(v1Envelope.version).toBe(1);
-    expect(PERSIST_VERSION).toBe(2);
-    expect(migrate().migratedFrom).toBe(1);
+    expect(PERSIST_VERSION).toBe(3);
+    expect(load().migratedFrom).toBe(1);
   });
 
   it("keeps every record, id and link", () => {

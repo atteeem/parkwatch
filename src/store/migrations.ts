@@ -17,6 +17,8 @@ import {
   ReportEvent,
 } from "../domain";
 import { ParkWatchState } from "./state";
+import { demoPhotoUri, isLegacyPlaceholderUri } from "../data/demoPhotos";
+import { SEED_WITHDRAWAL_PAID_COPY } from "./seed";
 
 /** Actor for history that has to be reconstructed but has no known person behind it. */
 export const MIGRATION_SYSTEM_ACTOR: Actor = { role: "SYSTEM", accountId: "parkwatch-migration" };
@@ -119,5 +121,57 @@ export function migrateV1toV2(v1: V1State): ParkWatchState {
     cases: v1.cases.map((c) => migrateCase(c, v1.reports)),
     inspections: Object.fromEntries(Object.entries(v1.inspections).map(([k, i]) => [k, migrateInspection(i)])),
     // ledger, notifications, seq and nextReportNumber are unchanged in v2.
+  };
+}
+
+// ---------------------------------------------------------------------------
+// v2 -> v3: demo-data cleanup (no shape change)
+
+/**
+ * Seeded SYSTEM notifications from older builds that made false claims (e.g.
+ * "AI license plate scanning is now available") or showed invented shift
+ * statistics. Matched by their stable seed ids AND type, never by text, so
+ * real runtime notifications are never touched.
+ */
+export const OBSOLETE_SEED_NOTIFICATION_IDS: readonly string[] = ["seed-shift", "seed-update", "seed-upcoming"];
+
+/** Seeded notification whose copy claimed a real bank transfer. */
+const SEED_WITHDRAWAL_NOTIFICATION_ID = "seed-withdrawal-2";
+
+/** Old seed evidence used random picsum URLs: picsum.photos/seed/<PLATE>-<suffix>/... */
+function legacySeedPhotoUri(e: { uri: string; type: string; captureSource: CaptureSource }, plate: string | undefined): string {
+  if (e.captureSource !== "SEED" || !isLegacyPlaceholderUri(e.uri)) return e.uri;
+  return demoPhotoUri(plate ?? "DEMO", e.type);
+}
+
+export function migrateV2toV3(s: ParkWatchState): ParkWatchState {
+  const plateOfCase = (caseId: string) => {
+    const c = s.cases.find((x) => x.id === caseId);
+    return s.reports.find((r) => r.id === c?.reportId)?.vehicle?.plate.raw;
+  };
+  return {
+    ...s,
+    notifications: s.notifications
+      .filter((n) => !(n.type === "SYSTEM" && OBSOLETE_SEED_NOTIFICATION_IDS.includes(n.id)))
+      .map((n) =>
+        n.type === "SYSTEM" && n.id === SEED_WITHDRAWAL_NOTIFICATION_ID
+          ? { ...n, title: SEED_WITHDRAWAL_PAID_COPY.title, body: SEED_WITHDRAWAL_PAID_COPY.body }
+          : n
+      ),
+    reports: s.reports.map((r) => ({
+      ...r,
+      evidence: r.evidence.map((e) => ({ ...e, uri: legacySeedPhotoUri(e, r.vehicle?.plate.raw) })),
+    })),
+    inspections: Object.fromEntries(
+      Object.entries(s.inspections).map(([caseId, i]) => [
+        caseId,
+        {
+          ...i,
+          officerEvidence: Object.fromEntries(
+            Object.entries(i.officerEvidence).map(([type, e]) => [type, e && { ...e, uri: legacySeedPhotoUri(e, plateOfCase(caseId)) }])
+          ),
+        },
+      ])
+    ),
   };
 }

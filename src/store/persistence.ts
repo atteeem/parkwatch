@@ -1,4 +1,4 @@
-import { migrateV1toV2, V1State } from "./migrations";
+import { migrateV1toV2, migrateV2toV3, V1State } from "./migrations";
 import { ParkWatchState } from "./state";
 
 /**
@@ -14,7 +14,7 @@ import { ParkWatchState } from "./state";
  * actor/source on events, report event log (see migrations.ts).
  */
 export const PERSIST_KEY = "parkwatch:state";
-export const PERSIST_VERSION = 2;
+export const PERSIST_VERSION = 3;
 
 export type PersistedEnvelope = { version: number; savedAt: string; state: ParkWatchState };
 
@@ -64,6 +64,7 @@ export function deserializeState(raw: string | null): DeserializeResult {
 function migrate(version: number, state: unknown): unknown {
   let s = state;
   if (version < 2) s = migrateV1toV2(s as V1State);
+  if (version < 3) s = migrateV2toV3(s as ParkWatchState);
   return s;
 }
 

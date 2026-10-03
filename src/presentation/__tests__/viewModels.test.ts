@@ -17,7 +17,7 @@ describe("view models for the existing screens", () => {
     const reports = selectCitizenReports(seed, DEV_CITIZEN_ID);
     const byId = Object.fromEntries(reports.map((r) => [r.id, r]));
     expect(reports[0].id).toBe("12564"); // newest first
-    expect(byId["12564"]).toMatchObject({ status: "under-review", reward: 5, rewardState: "estimated", plate: "GHC-789", vehicle: "Volvo XC60" });
+    expect(byId["12564"]).toMatchObject({ status: "under-review", reward: 5, rewardState: "estimated", plate: "XKR-418", vehicle: "Volvo XC40" });
     expect(byId["12556"]).toMatchObject({ status: "verified", reward: 5, rewardState: "rewarded" });
     expect(byId["12499"]).toMatchObject({ status: "rejected", rewardState: "none" });
     expect(reports.every((r) => r.images.length === 3)).toBe(true);

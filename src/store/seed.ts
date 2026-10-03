@@ -26,13 +26,21 @@ import {
 import * as cmd from "./commands";
 import { CommandResult } from "./commands";
 import { DEV_CITIZEN_ID, DEV_OFFICER_ID } from "./session";
+import { demoPhotoUri } from "../data/demoPhotos";
 import { EMPTY_STATE, ParkWatchState } from "./state";
+
+/** Copy of the seeded "withdrawal paid" notification (also used to repair old saved demo state). */
+export const SEED_WITHDRAWAL_PAID_COPY = {
+  title: "Withdrawal paid out",
+  body: "Your withdrawal of €25.00 was marked as paid out.",
+} as const;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-const img = (seed: string) => `https://picsum.photos/seed/${seed}/500/500`;
+// Seeded evidence uses local demo URIs (rendered as neutral tiles), never downloaded images.
+const img = (plate: string, slot: string) => demoPhotoUri(plate, slot);
 
 type SeedReport = {
   reportId: string;
@@ -62,7 +70,7 @@ type SeedReport = {
 const REPORTS: SeedReport[] = [
   // --- the demo citizen's own reports (My Reports) ---
   {
-    reportId: "12564", citizenId: DEV_CITIZEN_ID, plate: "GHC-789", make: "Volvo", model: "XC60", color: "Dark Grey",
+    reportId: "12564", citizenId: DEV_CITIZEN_ID, plate: "XKR-418", make: "Volvo", model: "XC40", color: "White",
     violationId: "no-parking", address: "Mannerheimintie 45, Helsinki",
     coordinates: { latitude: 60.1699, longitude: 24.9384 }, notes: "Parked in a no parking zone.",
     priority: "HIGH", distanceMeters: 300, age: 5 * MIN, progress: { to: "NEW" },
@@ -145,17 +153,17 @@ function must<T>(r: Result<T>): T {
 }
 
 function seedDraft(r: SeedReport, capturedAt: string): ReportDraft {
-  const photo = (type: "FRONT" | "SIDE" | "REAR", suffix: string) =>
+  const photo = (type: "FRONT" | "SIDE" | "REAR") =>
     createCitizenEvidence({
       id: `ev-seed-${r.reportId}-${type}`,
       type,
       captureSource: "SEED",
-      uri: img(`${r.plate}-${suffix}`),
+      uri: img(r.plate, type),
       capturedAt,
     });
   return {
     draftId: `seed-draft-${r.reportId}`,
-    photos: { FRONT: photo("FRONT", "a"), SIDE: photo("SIDE", "b"), REAR: photo("REAR", "c") },
+    photos: { FRONT: photo("FRONT"), SIDE: photo("SIDE"), REAR: photo("REAR") },
     violationId: r.violationId,
     location: { address: r.address, coordinates: r.coordinates },
     observedAt: capturedAt,
@@ -227,7 +235,7 @@ export function buildSeedState(now: Date): ParkWatchState {
           caseId,
           type,
           captureSource: "SEED",
-          uri: img(`${r.plate}-officer-${type}`),
+          uri: img(r.plate, type),
           at: t(10 * MIN),
         })
       );
@@ -258,7 +266,7 @@ export function buildSeedState(now: Date): ParkWatchState {
     ...s,
     notifications: [
       ...s.notifications,
-      system("withdrawal-2", "CITIZEN", 2 * HOUR, "Withdrawal completed", "Your withdrawal of €25.00 has been sent to your bank account.", "info"),
+      system("withdrawal-2", "CITIZEN", 2 * HOUR, SEED_WITHDRAWAL_PAID_COPY.title, SEED_WITHDRAWAL_PAID_COPY.body, "info"),
       system("feature", "CITIZEN", 3 * DAY, "New feature available", "You can now add more details to your reports. Check it out!", "bell"),
       system("welcome", "CITIZEN", 6 * DAY, "Welcome bonus", "Thank you for joining! You received a welcome bonus.", "gift"),
     ],
