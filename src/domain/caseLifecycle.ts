@@ -1,5 +1,14 @@
 import { fail, ok, Result } from "./result";
-import { Actor, CaseStatus, EnforcementOutcome, EventSource, IsoTimestamp, OfficerCase, ReportPriority } from "./types";
+import {
+  Actor,
+  CaseStatus,
+  EnforcementOutcome,
+  EnforcementOutcomeCode,
+  EventSource,
+  IsoTimestamp,
+  OfficerCase,
+  ReportPriority,
+} from "./types";
 
 /** Who/what caused a case change, recorded on every event. */
 export type CaseEventContext = { at: IsoTimestamp; actor: Actor; source: EventSource };
@@ -29,6 +38,29 @@ const ALLOWED_TRANSITIONS: Readonly<Record<CaseStatus, readonly CaseStatus[]>> =
 
 export function canTransitionCase(from: CaseStatus, to: CaseStatus): boolean {
   return ALLOWED_TRANSITIONS[from].includes(to);
+}
+
+/**
+ * From which states each enforcement outcome may complete a case.
+ *
+ * - CHARGE_ISSUED only after an on-site INSPECTION (full evidence required).
+ * - REPORT_REJECTED / DUPLICATE can be decided at desk review (from NEW
+ *   onwards), e.g. on Report Details, without visiting the site.
+ * - VEHICLE_MOVED needs the officer to have set off (EN_ROUTE onwards).
+ * - VALID_PERMIT / OTHER need the officer at the vehicle (ON_SITE/INSPECTION),
+ *   except OTHER may also close an en-route case.
+ */
+const COMPLETION_ALLOWED_FROM: Readonly<Record<EnforcementOutcomeCode, readonly CaseStatus[]>> = {
+  CHARGE_ISSUED: ["INSPECTION"],
+  REPORT_REJECTED: ["NEW", "ASSIGNED", "EN_ROUTE", "ON_SITE", "INSPECTION"],
+  DUPLICATE: ["NEW", "ASSIGNED", "EN_ROUTE", "ON_SITE", "INSPECTION"],
+  VEHICLE_MOVED: ["EN_ROUTE", "ON_SITE", "INSPECTION"],
+  VALID_PERMIT: ["ON_SITE", "INSPECTION"],
+  OTHER: ["EN_ROUTE", "ON_SITE", "INSPECTION"],
+};
+
+export function canCompleteCase(from: CaseStatus, code: EnforcementOutcomeCode): boolean {
+  return COMPLETION_ALLOWED_FROM[code].includes(from);
 }
 
 export function createCase(input: {
@@ -93,8 +125,8 @@ export function completeCase(
     if (c.outcome?.code === outcome.code) return ok({ case: c, changed: false });
     return fail("ALREADY_COMPLETED", `Case ${c.id} is already completed with ${c.outcome?.code}.`);
   }
-  if (!canTransitionCase(c.status, "COMPLETED")) {
-    return fail("INVALID_TRANSITION", `Case ${c.id} cannot be completed from ${c.status}.`);
+  if (!canCompleteCase(c.status, outcome.code)) {
+    return fail("INVALID_TRANSITION", `Case ${c.id} cannot be completed with ${outcome.code} from ${c.status}.`);
   }
   const actor: Actor = { role: "OFFICER", accountId: outcome.officerId };
   const next = applyStatus(c, "COMPLETED", { at: outcome.decidedAt, actor, source });

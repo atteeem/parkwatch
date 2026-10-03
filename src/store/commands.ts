@@ -38,6 +38,7 @@ import {
   Result,
   setChecklistItem,
   setInspectionNotes,
+  simulatePlateScan,
   transitionCase,
   VehicleInfo,
 } from "../domain";
@@ -59,6 +60,13 @@ function nextId(state: ParkWatchState, prefix: string): [string, ParkWatchState]
 function findCase(state: ParkWatchState, caseId: string): Result<OfficerCase> {
   const c = state.cases.find((x) => x.id === caseId);
   return c ? ok(c) : fail("NOT_FOUND", `Case ${caseId} not found.`);
+}
+
+/** An officer may not act on a case assigned to a different officer. */
+function refuseIfTakenByOther(c: OfficerCase, officerId: string) {
+  return c.assignedOfficerId && c.assignedOfficerId !== officerId
+    ? fail<never>("CASE_TAKEN", `Case ${c.id} is assigned to another officer.`)
+    : undefined;
 }
 
 const replaceCase = (state: ParkWatchState, c: OfficerCase): ParkWatchState => ({
@@ -224,6 +232,8 @@ export function startEnRoute(
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
+  const taken = refuseIfTakenByOther(found.value, input.officerId);
+  if (taken) return taken;
   const moved = transitionCase(found.value, "EN_ROUTE", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   return moved.ok ? done(replaceCase(state, moved.value), undefined) : moved;
 }
@@ -235,6 +245,8 @@ export function arriveOnSite(
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
+  const taken = refuseIfTakenByOther(found.value, input.officerId);
+  if (taken) return taken;
   const moved = transitionCase(found.value, "ON_SITE", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   return moved.ok ? done(replaceCase(state, moved.value), undefined) : moved;
 }
@@ -250,6 +262,8 @@ export function startInspection(
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
+  const taken = refuseIfTakenByOther(found.value, input.officerId);
+  if (taken) return taken;
   let next = state;
   if (found.value.status !== "INSPECTION") {
     const moved = transitionCase(found.value, "INSPECTION", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
@@ -310,6 +324,19 @@ export function attachOfficerPhoto(
   return r.ok ? done(r.value.state, { evidenceId }) : r;
 }
 
+/**
+ * DEVELOPMENT/MOCK "Scan": there is no OCR/ANPR yet. This only records that
+ * the officer manually confirmed the report's plate (plateMatches = true)
+ * and marks the inspection as having used the simulated control. It never
+ * produces a recognised plate or a confidence score.
+ */
+export function confirmPlateBySimulatedScan(
+  state: ParkWatchState,
+  input: { caseId: string; at: IsoTimestamp }
+): CommandResult<void> {
+  return withInspection(state, input.caseId, (i) => simulatePlateScan(i, input.at));
+}
+
 export function updateInspectionNotes(
   state: ParkWatchState,
   input: { caseId: string; notes: string }
@@ -330,8 +357,11 @@ export function completeCase(
   if (!found.ok) return found;
   const report = state.reports.find((r) => r.id === found.value.reportId);
   if (!report) return fail("NOT_FOUND", `Report ${found.value.reportId} not found.`);
+  const taken = refuseIfTakenByOther(found.value, input.officerId);
+  if (taken) return taken;
+  // Inspection is required (by the domain) only when the case is in INSPECTION;
+  // desk decisions (reject/duplicate) and "vehicle moved" have none.
   const inspection = state.inspections[input.caseId];
-  if (!inspection) return fail("NOT_FOUND", `No inspection for case ${input.caseId}.`);
 
   const result = completeCaseWithOutcome(
     { officerCase: found.value, inspection, report, ledger: state.ledger, notifications: state.notifications },
@@ -342,7 +372,7 @@ export function completeCase(
   if (!changed) return done(state, { changed, creditedCents });
 
   const next: ParkWatchState = {
-    ...putInspection(replaceCase(state, s.officerCase), s.inspection),
+    ...(s.inspection ? putInspection(replaceCase(state, s.officerCase), s.inspection) : replaceCase(state, s.officerCase)),
     reports: state.reports.map((r) => (r.id === s.report.id ? s.report : r)),
     ledger: [...s.ledger],
     notifications: [...s.notifications],

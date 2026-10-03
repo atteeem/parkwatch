@@ -235,7 +235,8 @@ export function buildSeedState(now: Date): ParkWatchState {
     step(cmd.completeCase(s, { ...officer, code: p.outcome, notes: p.officerNotes, at: t(p.after) }));
   }
 
-  // Free-form messages from the designs that are not domain events.
+  // Free-form messages from the designs that are not domain events (citizen only;
+  // officer notifications come only from real case events).
   const system = (
     id: string,
     role: "CITIZEN" | "OFFICER",
@@ -260,9 +261,6 @@ export function buildSeedState(now: Date): ParkWatchState {
       system("withdrawal-2", "CITIZEN", 2 * HOUR, "Withdrawal completed", "Your withdrawal of €25.00 has been sent to your bank account.", "info"),
       system("feature", "CITIZEN", 3 * DAY, "New feature available", "You can now add more details to your reports. Check it out!", "bell"),
       system("welcome", "CITIZEN", 6 * DAY, "Welcome bonus", "Thank you for joining! You received a welcome bonus.", "gift"),
-      system("shift", "OFFICER", 1 * DAY, "Shift Completed", "You completed your shift successfully.\n17 cases • Avg. response 3m 7s", "flag"),
-      system("update", "OFFICER", 2 * DAY, "System Update", "New AI license plate scanning is now available. Check out the new feature.", "bell"),
-      system("upcoming", "OFFICER", 3 * DAY, "Upcoming Shift", "Your shift starts in 1 hour.\n08:00 - 16:00 • City Center District", "calendar"),
     ],
   };
 

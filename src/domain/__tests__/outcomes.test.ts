@@ -101,8 +101,8 @@ describe("outcome applied end-to-end (completeCaseWithOutcome)", () => {
       // officer side
       expect(r.state.officerCase.status).toBe("COMPLETED");
       expect(r.state.officerCase.outcome?.code).toBe(code);
-      expect(r.state.inspection.outcome?.code).toBe(code);
-      expect(r.state.inspection.notes).toBe("n");
+      expect(r.state.inspection!.outcome?.code).toBe(code);
+      expect(r.state.inspection!.notes).toBe("n");
       // citizen status untouched (neither REJECTED nor VERIFIED)
       expect(r.state.report).toEqual(before.report);
       expect(r.state.report.status).toBe("UNDER_REVIEW");

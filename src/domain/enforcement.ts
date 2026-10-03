@@ -22,7 +22,8 @@ import {
 
 export type EnforcementState = {
   officerCase: OfficerCase;
-  inspection: Inspection;
+  /** Required when the case is in INSPECTION; absent for desk/en-route decisions. */
+  inspection?: Inspection;
   report: Report;
   ledger: Ledger;
   notifications: readonly Notification[];
@@ -62,7 +63,7 @@ export function completeCaseWithOutcome(
 ): Result<EnforcementResult> {
   const source = input.source ?? "USER_ACTION";
   const { officerCase, inspection, report } = state;
-  if (officerCase.reportId !== report.id || inspection.caseId !== officerCase.id) {
+  if (officerCase.reportId !== report.id || (inspection && inspection.caseId !== officerCase.id)) {
     return fail("CASE_REPORT_MISMATCH", "Case, inspection and report do not belong together.");
   }
 
@@ -83,8 +84,11 @@ export function completeCaseWithOutcome(
     chargeAmountCents: input.chargeAmountCents,
   });
 
-  const inspected = completeInspection(inspection, outcome);
-  if (!inspected.ok) return inspected;
+  if (officerCase.status === "INSPECTION" && !inspection) {
+    return fail("NOT_FOUND", `Case ${officerCase.id} is in inspection but has no inspection record.`);
+  }
+  const inspected = inspection ? completeInspection(inspection, outcome) : undefined;
+  if (inspected && !inspected.ok) return inspected;
 
   const completed = completeCase(officerCase, outcome, source);
   if (!completed.ok) return completed;
@@ -126,7 +130,7 @@ export function completeCaseWithOutcome(
   return ok({
     state: {
       officerCase: completed.value.case,
-      inspection: inspected.value.inspection,
+      inspection: inspected?.value.inspection,
       report: updatedReport.value.report,
       ledger: rewarded.value.ledger,
       notifications,

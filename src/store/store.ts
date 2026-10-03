@@ -124,8 +124,11 @@ export function createParkWatchStore(options: StoreOptions) {
     updateChecklist: (caseId: string, key: ChecklistKey, value: boolean | null) =>
       run((s) => commands.updateChecklist(s, { caseId, key, value })),
 
-    attachOfficerPhoto: (caseId: string, type: OfficerEvidenceType, uri: string, captureSource: CaptureSource) =>
-      run((s) => commands.attachOfficerPhoto(s, { caseId, type, uri, captureSource, at: now() })),
+    attachOfficerPhoto: (caseId: string, type: OfficerEvidenceType, uri: string, captureSource: CaptureSource, capturedAt?: string) =>
+      run((s) => commands.attachOfficerPhoto(s, { caseId, type, uri, captureSource, at: capturedAt ?? now() })),
+
+    confirmPlateBySimulatedScan: (caseId: string) =>
+      run((s) => commands.confirmPlateBySimulatedScan(s, { caseId, at: now() })),
 
     updateInspectionNotes: (caseId: string, notes: string) =>
       run((s) => commands.updateInspectionNotes(s, { caseId, notes })),
