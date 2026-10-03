@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# native (prebuild output; regenerate with `npx expo prebuild`)
+/ios
+/android
+
+# logs / env / OS
+npm-debug.*
+*.log
+.env
+.env*.local
+.DS_Store
+Thumbs.db
+
+# test output
+coverage/
