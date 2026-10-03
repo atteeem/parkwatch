@@ -102,7 +102,14 @@ function toDomainDraft(input: SubmitReportInput): DomainDraft {
   const photo = (slot: CitizenPhotoSlot, type: "FRONT" | "SIDE" | "REAR") => {
     const uri = uris[slot];
     return uri
-      ? createCitizenEvidence({ id: `${draftId}-${type}`, type, uri, capturedAt: input.photoCapturedAt?.[slot] ?? fallbackAt })
+      ? createCitizenEvidence({
+          id: `${draftId}-${type}`,
+          type,
+          // Draft photos only come from the in-app camera screen.
+          captureSource: "CAMERA",
+          uri,
+          capturedAt: input.photoCapturedAt?.[slot] ?? fallbackAt,
+        })
       : undefined;
   };
   return {
@@ -177,7 +184,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (patch.notes !== undefined) appStore.updateInspectionNotes(caseId, patch.notes);
       },
       setOfficerPhoto: (caseId, key, uri) => {
-        appStore.attachOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri);
+        // Officer slot photos only come from the in-app camera screen.
+        appStore.attachOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri, "CAMERA");
       },
       completeInspection: (id, result) => {
         const selection = result.outcome === "charge" ? "charge" : result.reasonId ?? "other";

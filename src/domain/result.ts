@@ -18,7 +18,8 @@ export type DomainErrorCode =
   | "CASE_REPORT_MISMATCH"
   | "INVALID_DRAFT"
   | "NOT_FOUND"
-  | "CASE_TAKEN";
+  | "CASE_TAKEN"
+  | "EVIDENCE_SOURCE_NOT_ALLOWED";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 

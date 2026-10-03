@@ -1,3 +1,4 @@
+import { migrateV1toV2, V1State } from "./migrations";
 import { ParkWatchState } from "./state";
 
 /**
@@ -5,11 +6,15 @@ import { ParkWatchState } from "./state";
  *
  * { version, savedAt, state } is stored as JSON under one key. Bump
  * PERSIST_VERSION whenever ParkWatchState changes shape, and add a migration
- * in migrate(). Unknown/corrupt data is discarded (MVP mock data only), so a
- * bad payload can never crash startup.
+ * step in migrate(). Older versions are MIGRATED, never discarded. Only
+ * unreadable data (invalid JSON, unknown/future version, wrong shape) is
+ * discarded, so a bad payload can never crash startup.
+ *
+ * v1 -> v2: plate value objects, evidence captureSource, jurisdictionId,
+ * actor/source on events, report event log (see migrations.ts).
  */
 export const PERSIST_KEY = "parkwatch:state";
-export const PERSIST_VERSION = 1;
+export const PERSIST_VERSION = 2;
 
 export type PersistedEnvelope = { version: number; savedAt: string; state: ParkWatchState };
 
@@ -26,7 +31,7 @@ export function serializeState(state: ParkWatchState, savedAt: string): string {
 }
 
 export type DeserializeResult =
-  | { status: "ok"; state: ParkWatchState }
+  | { status: "ok"; state: ParkWatchState; migratedFrom?: number }
   | { status: "empty" }
   | { status: "discarded"; reason: string };
 
@@ -40,16 +45,26 @@ export function deserializeState(raw: string | null): DeserializeResult {
   }
   const envelope = parsed as Partial<PersistedEnvelope>;
   if (typeof envelope?.version !== "number") return { status: "discarded", reason: "missing version" };
-  const migrated = migrate(envelope.version, envelope.state);
-  if (!migrated) return { status: "discarded", reason: `unsupported version ${envelope.version}` };
+  if (envelope.version > PERSIST_VERSION || envelope.version < 1) {
+    return { status: "discarded", reason: `unsupported version ${envelope.version}` };
+  }
+  let migrated: unknown;
+  try {
+    migrated = migrate(envelope.version, envelope.state);
+  } catch {
+    return { status: "discarded", reason: `v${envelope.version} migration failed` };
+  }
   if (!isStateShape(migrated)) return { status: "discarded", reason: "unexpected state shape" };
-  return { status: "ok", state: migrated };
+  return envelope.version === PERSIST_VERSION
+    ? { status: "ok", state: migrated }
+    : { status: "ok", state: migrated, migratedFrom: envelope.version };
 }
 
-/** Upgrade older persisted versions here. Only v1 exists so far. */
-function migrate(version: number, state: unknown): unknown | null {
-  if (version === PERSIST_VERSION) return state;
-  return null;
+/** Apply each migration step from `version` up to PERSIST_VERSION. */
+function migrate(version: number, state: unknown): unknown {
+  let s = state;
+  if (version < 2) s = migrateV1toV2(s as V1State);
+  return s;
 }
 
 function isStateShape(s: unknown): s is ParkWatchState {
@@ -64,7 +79,9 @@ function isStateShape(s: unknown): s is ParkWatchState {
     Array.isArray(x.ledger) &&
     Array.isArray(x.notifications) &&
     typeof x.seq === "number" &&
-    typeof x.nextReportNumber === "number"
+    typeof x.nextReportNumber === "number" &&
+    (x.reports as Record<string, unknown>[]).every((r) => typeof r.jurisdictionId === "string" && Array.isArray(r.events)) &&
+    (x.cases as Record<string, unknown>[]).every((c) => typeof c.jurisdictionId === "string")
   );
 }
 

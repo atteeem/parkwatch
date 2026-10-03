@@ -77,15 +77,15 @@ describe("inspection mutations", () => {
   });
 
   it("re-capturing a slot replaces the previous photo", () => {
-    const a = createOfficerEvidence({ id: "a", type: "LICENSE_PLATE", uri: "file:///a.jpg", capturedAt: T1 });
-    const b = createOfficerEvidence({ id: "b", type: "LICENSE_PLATE", uri: "file:///b.jpg", capturedAt: T2 });
+    const a = createOfficerEvidence({ id: "a", type: "LICENSE_PLATE", captureSource: "CAMERA", uri: "file:///a.jpg", capturedAt: T1 });
+    const b = createOfficerEvidence({ id: "b", type: "LICENSE_PLATE", captureSource: "CAMERA", uri: "file:///b.jpg", capturedAt: T2 });
     const i = unwrap(attachOfficerEvidence(unwrap(attachOfficerEvidence(fresh(), a)), b));
     expect(i.officerEvidence.LICENSE_PLATE?.id).toBe("b");
     expect(countCapturedOfficerEvidence(i)).toBe(1);
   });
 
   it("rejects citizen evidence", () => {
-    const citizenPhoto = createCitizenEvidence({ id: "c", type: "FRONT", uri: "file:///c.jpg", capturedAt: T1 });
+    const citizenPhoto = createCitizenEvidence({ id: "c", type: "FRONT", captureSource: "CAMERA", uri: "file:///c.jpg", capturedAt: T1 });
     const r = attachOfficerEvidence(fresh(), citizenPhoto as unknown as OfficerEvidence);
     expect(errorCode(r)).toBe("EVIDENCE_SOURCE_MISMATCH");
   });

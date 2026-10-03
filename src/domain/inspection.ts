@@ -1,3 +1,4 @@
+import { qualifiesAsRequiredEvidence } from "./evidence";
 import { fail, ok, Result } from "./result";
 import {
   CHECKLIST_KEYS,
@@ -38,11 +39,18 @@ export function simulatePlateScan(i: Inspection, at: IsoTimestamp): Result<Inspe
   return ok({ ...i, checklist: { ...i.checklist, plateMatches: true }, plateScanSimulatedAt: at });
 }
 
-/** Store (or replace) the officer photo for its slot. Citizen evidence is rejected. */
+/**
+ * Store (or replace) the officer photo for its required slot. Citizen
+ * evidence is rejected, and so is a photo-library image: the four slots are
+ * required evidence and must be captured on site (CAMERA, or SEED for demo data).
+ */
 export function attachOfficerEvidence(i: Inspection, evidence: OfficerEvidence): Result<Inspection> {
   if (isLocked(i)) return lockedError(i);
   if ((evidence as { source: string }).source !== "OFFICER") {
     return fail("EVIDENCE_SOURCE_MISMATCH", "Only officer evidence can be attached to an inspection.");
+  }
+  if (!qualifiesAsRequiredEvidence(evidence)) {
+    return fail("EVIDENCE_SOURCE_NOT_ALLOWED", `${evidence.captureSource} images cannot fill a required officer photo slot.`);
   }
   return ok({ ...i, officerEvidence: { ...i.officerEvidence, [evidence.type]: evidence } });
 }
@@ -52,8 +60,12 @@ export function setInspectionNotes(i: Inspection, notes: string): Result<Inspect
   return ok({ ...i, notes });
 }
 
+/** Required slots without a qualifying (CAMERA/SEED) photo. */
 export function getMissingOfficerEvidence(i: Inspection): OfficerEvidenceType[] {
-  return OFFICER_EVIDENCE_TYPES.filter((t) => !i.officerEvidence[t]);
+  return OFFICER_EVIDENCE_TYPES.filter((t) => {
+    const e = i.officerEvidence[t];
+    return !e || !qualifiesAsRequiredEvidence(e);
+  });
 }
 
 /** Derived "Required evidence captured" (checklist row 5). Never stored. */

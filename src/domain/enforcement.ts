@@ -9,7 +9,16 @@ import {
 import { CitizenConsequence, createEnforcementOutcome, getCitizenOutcomeForEnforcementOutcome } from "./outcomes";
 import { applyCitizenConsequenceToReport } from "./report";
 import { fail, ok, Result } from "./result";
-import { Cents, EnforcementOutcomeCode, Inspection, IsoTimestamp, Notification, OfficerCase, Report } from "./types";
+import {
+  Cents,
+  EnforcementOutcomeCode,
+  EventSource,
+  Inspection,
+  IsoTimestamp,
+  Notification,
+  OfficerCase,
+  Report,
+} from "./types";
 
 export type EnforcementState = {
   officerCase: OfficerCase;
@@ -47,8 +56,11 @@ export function completeCaseWithOutcome(
     decidedAt: IsoTimestamp;
     notes?: string;
     chargeAmountCents?: Cents;
+    /** How this outcome entered the system (default: an officer in the app). */
+    source?: EventSource;
   }
 ): Result<EnforcementResult> {
+  const source = input.source ?? "USER_ACTION";
   const { officerCase, inspection, report } = state;
   if (officerCase.reportId !== report.id || inspection.caseId !== officerCase.id) {
     return fail("CASE_REPORT_MISMATCH", "Case, inspection and report do not belong together.");
@@ -63,15 +75,26 @@ export function completeCaseWithOutcome(
     return fail("ALREADY_COMPLETED", `Case ${officerCase.id} is already completed with ${officerCase.outcome?.code}.`);
   }
 
-  const outcome = createEnforcementOutcome(input);
+  const outcome = createEnforcementOutcome({
+    code: input.code,
+    decidedAt: input.decidedAt,
+    officerId: input.officerId,
+    notes: input.notes,
+    chargeAmountCents: input.chargeAmountCents,
+  });
 
   const inspected = completeInspection(inspection, outcome);
   if (!inspected.ok) return inspected;
 
-  const completed = completeCase(officerCase, outcome);
+  const completed = completeCase(officerCase, outcome, source);
   if (!completed.ok) return completed;
 
-  const updatedReport = applyCitizenConsequenceToReport(report, consequence, outcome.decidedAt);
+  const updatedReport = applyCitizenConsequenceToReport(report, consequence, {
+    at: outcome.decidedAt,
+    actor: { role: "OFFICER", accountId: input.officerId },
+    source,
+    outcomeCode: outcome.code,
+  });
   if (!updatedReport.ok) return updatedReport;
 
   const rewarded = applyOutcomeToLedger(state.ledger, consequence, {

@@ -1,0 +1,2170 @@
+{
+  "version": 1,
+  "savedAt": "2026-07-17T18:24:00.000Z",
+  "state": {
+    "reports": [
+      {
+        "id": "12477",
+        "sourceDraftId": "seed-draft-12477",
+        "citizenId": "citizen-demo",
+        "status": "VERIFIED",
+        "violationId": "loading-zone",
+        "location": {
+          "address": "Pohjoisesplanadi 33, Helsinki",
+          "coordinates": {
+            "latitude": 60.1652,
+            "longitude": 24.9478
+          }
+        },
+        "observedAt": "2026-07-13T16:01:00.000Z",
+        "submittedAt": "2026-07-13T16:01:00.000Z",
+        "notes": "Parked in a loading zone.",
+        "evidence": [
+          {
+            "id": "ev-seed-12477-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/JEH-523-a/500/500",
+            "capturedAt": "2026-07-13T16:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12477-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/JEH-523-b/500/500",
+            "capturedAt": "2026-07-13T16:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12477-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/JEH-523-c/500/500",
+            "capturedAt": "2026-07-13T16:01:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "JEH-523",
+          "make": "BMW",
+          "model": "3 Series",
+          "color": "Black",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12477",
+        "resolvedAt": "2026-07-13T16:36:00.000Z"
+      },
+      {
+        "id": "12484",
+        "sourceDraftId": "seed-draft-12484",
+        "citizenId": "citizen-demo",
+        "status": "VERIFIED",
+        "violationId": "bus-stop",
+        "location": {
+          "address": "Elielinaukio 5, Helsinki",
+          "coordinates": {
+            "latitude": 60.1719,
+            "longitude": 24.9414
+          }
+        },
+        "observedAt": "2026-07-13T18:01:00.000Z",
+        "submittedAt": "2026-07-13T18:01:00.000Z",
+        "notes": "Vehicle parked directly in a bus stop and has been there for a while.",
+        "evidence": [
+          {
+            "id": "ev-seed-12484-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/FNA-782-a/500/500",
+            "capturedAt": "2026-07-13T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12484-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/FNA-782-b/500/500",
+            "capturedAt": "2026-07-13T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12484-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/FNA-782-c/500/500",
+            "capturedAt": "2026-07-13T18:01:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "FNA-782",
+          "make": "Mercedes-Benz",
+          "model": "Sprinter",
+          "color": "Black",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "HIGH",
+        "caseId": "c-12484",
+        "resolvedAt": "2026-07-13T18:26:00.000Z"
+      },
+      {
+        "id": "12499",
+        "sourceDraftId": "seed-draft-12499",
+        "citizenId": "citizen-demo",
+        "status": "REJECTED",
+        "violationId": "sidewalk",
+        "location": {
+          "address": "Fredrikinkatu 22, Helsinki",
+          "coordinates": {
+            "latitude": 60.1665,
+            "longitude": 24.9354
+          }
+        },
+        "observedAt": "2026-07-14T18:01:00.000Z",
+        "submittedAt": "2026-07-14T18:01:00.000Z",
+        "notes": "Blocking the sidewalk.",
+        "evidence": [
+          {
+            "id": "ev-seed-12499-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/LTX-561-a/500/500",
+            "capturedAt": "2026-07-14T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12499-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/LTX-561-b/500/500",
+            "capturedAt": "2026-07-14T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12499-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/LTX-561-c/500/500",
+            "capturedAt": "2026-07-14T18:01:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "LTX-561",
+          "make": "Mitsubishi",
+          "model": "Outlander",
+          "color": "Silver",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12499",
+        "resolvedAt": "2026-07-14T18:31:00.000Z"
+      },
+      {
+        "id": "12556",
+        "sourceDraftId": "seed-draft-12556",
+        "citizenId": "citizen-demo",
+        "status": "VERIFIED",
+        "violationId": "crosswalk",
+        "location": {
+          "address": "Kaivokatu 12, Helsinki",
+          "coordinates": {
+            "latitude": 60.1695,
+            "longitude": 24.9412
+          }
+        },
+        "observedAt": "2026-07-15T18:01:00.000Z",
+        "submittedAt": "2026-07-15T18:01:00.000Z",
+        "notes": "Parked on the pedestrian crossing.",
+        "evidence": [
+          {
+            "id": "ev-seed-12556-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/MVP-207-a/500/500",
+            "capturedAt": "2026-07-15T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12556-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/MVP-207-b/500/500",
+            "capturedAt": "2026-07-15T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12556-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/MVP-207-c/500/500",
+            "capturedAt": "2026-07-15T18:01:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "MVP-207",
+          "make": "Toyota",
+          "model": "Corolla",
+          "color": "White",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12556",
+        "resolvedAt": "2026-07-15T18:41:00.000Z"
+      },
+      {
+        "id": "12566",
+        "sourceDraftId": "seed-draft-12566",
+        "citizenId": "citizen-demo",
+        "status": "UNDER_REVIEW",
+        "violationId": "sidewalk",
+        "location": {
+          "address": "Kalevankatu 12, Helsinki"
+        },
+        "observedAt": "2026-07-16T18:01:00.000Z",
+        "submittedAt": "2026-07-16T18:01:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12566-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/ABC-123-a/500/500",
+            "capturedAt": "2026-07-16T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12566-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/ABC-123-b/500/500",
+            "capturedAt": "2026-07-16T18:01:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12566-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/ABC-123-c/500/500",
+            "capturedAt": "2026-07-16T18:01:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "ABC-123",
+          "make": "Toyota",
+          "model": "Corolla",
+          "color": "Black",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12566"
+      },
+      {
+        "id": "12568",
+        "sourceDraftId": "seed-draft-12568",
+        "citizenId": "citizen-nea",
+        "status": "UNDER_REVIEW",
+        "violationId": "blocking-traffic",
+        "location": {
+          "address": "Fredrikinkatu 22, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:43:00.000Z",
+        "submittedAt": "2026-07-17T17:43:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12568-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/BHN-632-a/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12568-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/BHN-632-b/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12568-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/BHN-632-c/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "BHN-632",
+          "make": "Audi",
+          "model": "A4",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12568"
+      },
+      {
+        "id": "12569",
+        "sourceDraftId": "seed-draft-12569",
+        "citizenId": "citizen-ilkka",
+        "status": "UNDER_REVIEW",
+        "violationId": "no-parking",
+        "location": {
+          "address": "Pohjoisesplanadi 33, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:43:00.000Z",
+        "submittedAt": "2026-07-17T17:43:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12569-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/HGT-355-a/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12569-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/HGT-355-b/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12569-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/HGT-355-c/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "HGT-355",
+          "make": "Skoda",
+          "model": "Octavia",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12569"
+      },
+      {
+        "id": "12570",
+        "sourceDraftId": "seed-draft-12570",
+        "citizenId": "citizen-pia",
+        "status": "UNDER_REVIEW",
+        "violationId": "loading-zone",
+        "location": {
+          "address": "Elielinaukio 5, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:43:00.000Z",
+        "submittedAt": "2026-07-17T17:43:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12570-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/KOL-790-a/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12570-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/KOL-790-b/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12570-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/KOL-790-c/500/500",
+            "capturedAt": "2026-07-17T17:43:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "KOL-790",
+          "make": "Ford",
+          "model": "Transit",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12570"
+      },
+      {
+        "id": "12571",
+        "sourceDraftId": "seed-draft-12571",
+        "citizenId": "citizen-elina",
+        "status": "UNDER_REVIEW",
+        "violationId": "sidewalk",
+        "location": {
+          "address": "Kaivokatu 12, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:55:00.000Z",
+        "submittedAt": "2026-07-17T17:55:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12571-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/JBS-236-a/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12571-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/JBS-236-b/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12571-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/JBS-236-c/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "JBS-236",
+          "make": "Mercedes-Benz",
+          "model": "E-Class",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12571"
+      },
+      {
+        "id": "12572",
+        "sourceDraftId": "seed-draft-12572",
+        "citizenId": "citizen-jonas",
+        "status": "UNDER_REVIEW",
+        "violationId": "sidewalk",
+        "location": {
+          "address": "Fredrikinkatu 22, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:55:00.000Z",
+        "submittedAt": "2026-07-17T17:55:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12572-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/NMV-224-a/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12572-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/NMV-224-b/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12572-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/NMV-224-c/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "NMV-224",
+          "make": "Mitsubishi",
+          "model": "Outlander",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "HIGH",
+        "caseId": "c-12572"
+      },
+      {
+        "id": "12573",
+        "sourceDraftId": "seed-draft-12573",
+        "citizenId": "citizen-sara",
+        "status": "UNDER_REVIEW",
+        "violationId": "bus-stop",
+        "location": {
+          "address": "Elielinaukio 5, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:55:00.000Z",
+        "submittedAt": "2026-07-17T17:55:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12573-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/MGC-703-a/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12573-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/MGC-703-b/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12573-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/MGC-703-c/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "MGC-703",
+          "make": "Mercedes-Benz",
+          "model": "Sprinter",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "MEDIUM",
+        "caseId": "c-12573"
+      },
+      {
+        "id": "12574",
+        "sourceDraftId": "seed-draft-12574",
+        "citizenId": "citizen-otto",
+        "status": "UNDER_REVIEW",
+        "violationId": "loading-zone",
+        "location": {
+          "address": "Pohjoisesplanadi 33, Helsinki"
+        },
+        "observedAt": "2026-07-17T17:55:00.000Z",
+        "submittedAt": "2026-07-17T17:55:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "ev-seed-12574-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/FET-853-a/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12574-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/FET-853-b/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12574-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/FET-853-c/500/500",
+            "capturedAt": "2026-07-17T17:55:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "FET-853",
+          "make": "BMW",
+          "model": "3 Series",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12574"
+      },
+      {
+        "id": "12564",
+        "sourceDraftId": "seed-draft-12564",
+        "citizenId": "citizen-demo",
+        "status": "UNDER_REVIEW",
+        "violationId": "no-parking",
+        "location": {
+          "address": "Mannerheimintie 45, Helsinki",
+          "coordinates": {
+            "latitude": 60.1699,
+            "longitude": 24.9384
+          }
+        },
+        "observedAt": "2026-07-17T17:56:00.000Z",
+        "submittedAt": "2026-07-17T17:56:00.000Z",
+        "notes": "Parked in a no parking zone.",
+        "evidence": [
+          {
+            "id": "ev-seed-12564-FRONT",
+            "type": "FRONT",
+            "uri": "https://picsum.photos/seed/GHC-789-a/500/500",
+            "capturedAt": "2026-07-17T17:56:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12564-SIDE",
+            "type": "SIDE",
+            "uri": "https://picsum.photos/seed/GHC-789-b/500/500",
+            "capturedAt": "2026-07-17T17:56:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "ev-seed-12564-REAR",
+            "type": "REAR",
+            "uri": "https://picsum.photos/seed/GHC-789-c/500/500",
+            "capturedAt": "2026-07-17T17:56:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "GHC-789",
+          "make": "Volvo",
+          "model": "XC60",
+          "color": "Dark Grey",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "HIGH",
+        "caseId": "c-12564"
+      },
+      {
+        "id": "12600",
+        "sourceDraftId": "draft-user-1",
+        "citizenId": "citizen-demo",
+        "status": "VERIFIED",
+        "violationId": "no-parking",
+        "location": {
+          "address": "Mannerheimintie 45, Helsinki"
+        },
+        "observedAt": "2026-07-17T18:07:00.000Z",
+        "submittedAt": "2026-07-17T18:03:00.000Z",
+        "notes": "",
+        "evidence": [
+          {
+            "id": "e-front",
+            "type": "FRONT",
+            "uri": "file:///front.jpg",
+            "capturedAt": "2026-07-17T18:07:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "e-side",
+            "type": "SIDE",
+            "uri": "file:///side.jpg",
+            "capturedAt": "2026-07-17T18:07:00.000Z",
+            "source": "CITIZEN"
+          },
+          {
+            "id": "e-rear",
+            "type": "REAR",
+            "uri": "file:///rear.jpg",
+            "capturedAt": "2026-07-17T18:07:00.000Z",
+            "source": "CITIZEN"
+          }
+        ],
+        "vehicle": {
+          "plate": "GHC-789",
+          "make": "Volvo",
+          "model": "XC60",
+          "color": "Dark Grey",
+          "source": "MOCK_DETECTED"
+        },
+        "priority": "NORMAL",
+        "caseId": "c-12600",
+        "resolvedAt": "2026-07-17T18:21:00.000Z"
+      }
+    ],
+    "cases": [
+      {
+        "id": "c-12477",
+        "reportId": "12477",
+        "status": "COMPLETED",
+        "priority": "NORMAL",
+        "distanceMeters": 400,
+        "createdAt": "2026-07-13T16:01:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-13T16:01:00.000Z",
+          "ASSIGNED": "2026-07-13T16:02:00.000Z",
+          "EN_ROUTE": "2026-07-13T16:02:00.000Z",
+          "INSPECTION": "2026-07-13T16:09:00.000Z",
+          "COMPLETED": "2026-07-13T16:36:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-13T16:01:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T16:02:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T16:02:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T16:09:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T16:36:00.000Z",
+            "from": "INSPECTION",
+            "to": "COMPLETED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-13T16:36:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-13T16:36:00.000Z"
+      },
+      {
+        "id": "c-12484",
+        "reportId": "12484",
+        "status": "COMPLETED",
+        "priority": "HIGH",
+        "distanceMeters": 350,
+        "createdAt": "2026-07-13T18:01:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-13T18:01:00.000Z",
+          "ASSIGNED": "2026-07-13T18:02:00.000Z",
+          "EN_ROUTE": "2026-07-13T18:02:00.000Z",
+          "INSPECTION": "2026-07-13T18:09:00.000Z",
+          "COMPLETED": "2026-07-13T18:26:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-13T18:01:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T18:02:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T18:02:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T18:09:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-13T18:26:00.000Z",
+            "from": "INSPECTION",
+            "to": "COMPLETED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-13T18:26:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-13T18:26:00.000Z"
+      },
+      {
+        "id": "c-12499",
+        "reportId": "12499",
+        "status": "COMPLETED",
+        "priority": "NORMAL",
+        "distanceMeters": 800,
+        "createdAt": "2026-07-14T18:01:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-14T18:01:00.000Z",
+          "ASSIGNED": "2026-07-14T18:02:00.000Z",
+          "EN_ROUTE": "2026-07-14T18:02:00.000Z",
+          "INSPECTION": "2026-07-14T18:09:00.000Z",
+          "COMPLETED": "2026-07-14T18:31:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-14T18:01:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-14T18:02:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-14T18:02:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-14T18:09:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-14T18:31:00.000Z",
+            "from": "INSPECTION",
+            "to": "COMPLETED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo",
+        "outcome": {
+          "code": "REPORT_REJECTED",
+          "decidedAt": "2026-07-14T18:31:00.000Z",
+          "officerId": "officer-demo",
+          "notes": "No violation found on site."
+        },
+        "completedAt": "2026-07-14T18:31:00.000Z"
+      },
+      {
+        "id": "c-12556",
+        "reportId": "12556",
+        "status": "COMPLETED",
+        "priority": "NORMAL",
+        "distanceMeters": 500,
+        "createdAt": "2026-07-15T18:01:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-15T18:01:00.000Z",
+          "ASSIGNED": "2026-07-15T18:02:00.000Z",
+          "EN_ROUTE": "2026-07-15T18:02:00.000Z",
+          "INSPECTION": "2026-07-15T18:09:00.000Z",
+          "COMPLETED": "2026-07-15T18:41:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-15T18:01:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-15T18:02:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-15T18:02:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-15T18:09:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-15T18:41:00.000Z",
+            "from": "INSPECTION",
+            "to": "COMPLETED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-15T18:41:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-15T18:41:00.000Z"
+      },
+      {
+        "id": "c-12566",
+        "reportId": "12566",
+        "status": "NEW",
+        "priority": "NORMAL",
+        "distanceMeters": 900,
+        "createdAt": "2026-07-16T18:01:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-16T18:01:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-16T18:01:00.000Z",
+            "to": "NEW"
+          }
+        ]
+      },
+      {
+        "id": "c-12568",
+        "reportId": "12568",
+        "status": "EN_ROUTE",
+        "priority": "NORMAL",
+        "distanceMeters": 700,
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:43:00.000Z",
+          "ASSIGNED": "2026-07-17T17:44:00.000Z",
+          "EN_ROUTE": "2026-07-17T17:44:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:43:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo"
+      },
+      {
+        "id": "c-12569",
+        "reportId": "12569",
+        "status": "ON_SITE",
+        "priority": "NORMAL",
+        "distanceMeters": 1100,
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:43:00.000Z",
+          "ASSIGNED": "2026-07-17T17:44:00.000Z",
+          "EN_ROUTE": "2026-07-17T17:44:00.000Z",
+          "ON_SITE": "2026-07-17T17:48:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:43:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:48:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "ON_SITE",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo"
+      },
+      {
+        "id": "c-12570",
+        "reportId": "12570",
+        "status": "INSPECTION",
+        "priority": "NORMAL",
+        "distanceMeters": 1500,
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:43:00.000Z",
+          "ASSIGNED": "2026-07-17T17:44:00.000Z",
+          "EN_ROUTE": "2026-07-17T17:44:00.000Z",
+          "INSPECTION": "2026-07-17T17:51:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:43:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:44:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:51:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo"
+      },
+      {
+        "id": "c-12571",
+        "reportId": "12571",
+        "status": "ASSIGNED",
+        "priority": "NORMAL",
+        "distanceMeters": 500,
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:55:00.000Z",
+          "ASSIGNED": "2026-07-17T17:56:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:55:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T17:56:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo"
+      },
+      {
+        "id": "c-12572",
+        "reportId": "12572",
+        "status": "NEW",
+        "priority": "HIGH",
+        "distanceMeters": 800,
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:55:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:55:00.000Z",
+            "to": "NEW"
+          }
+        ]
+      },
+      {
+        "id": "c-12573",
+        "reportId": "12573",
+        "status": "NEW",
+        "priority": "MEDIUM",
+        "distanceMeters": 1200,
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:55:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:55:00.000Z",
+            "to": "NEW"
+          }
+        ]
+      },
+      {
+        "id": "c-12574",
+        "reportId": "12574",
+        "status": "NEW",
+        "priority": "NORMAL",
+        "distanceMeters": 1500,
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:55:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:55:00.000Z",
+            "to": "NEW"
+          }
+        ]
+      },
+      {
+        "id": "c-12564",
+        "reportId": "12564",
+        "status": "NEW",
+        "priority": "HIGH",
+        "distanceMeters": 300,
+        "createdAt": "2026-07-17T17:56:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T17:56:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T17:56:00.000Z",
+            "to": "NEW"
+          }
+        ]
+      },
+      {
+        "id": "c-12600",
+        "reportId": "12600",
+        "status": "COMPLETED",
+        "priority": "NORMAL",
+        "distanceMeters": 400,
+        "createdAt": "2026-07-17T18:03:00.000Z",
+        "statusTimestamps": {
+          "NEW": "2026-07-17T18:03:00.000Z",
+          "ASSIGNED": "2026-07-17T18:05:00.000Z",
+          "EN_ROUTE": "2026-07-17T18:05:00.000Z",
+          "INSPECTION": "2026-07-17T18:07:00.000Z",
+          "COMPLETED": "2026-07-17T18:21:00.000Z"
+        },
+        "events": [
+          {
+            "type": "CREATED",
+            "at": "2026-07-17T18:03:00.000Z",
+            "to": "NEW"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T18:05:00.000Z",
+            "from": "NEW",
+            "to": "ASSIGNED",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T18:05:00.000Z",
+            "from": "ASSIGNED",
+            "to": "EN_ROUTE",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T18:07:00.000Z",
+            "from": "EN_ROUTE",
+            "to": "INSPECTION",
+            "officerId": "officer-demo"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "at": "2026-07-17T18:21:00.000Z",
+            "from": "INSPECTION",
+            "to": "COMPLETED",
+            "officerId": "officer-demo"
+          }
+        ],
+        "assignedOfficerId": "officer-demo",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-17T18:21:00.000Z",
+          "officerId": "officer-demo",
+          "notes": "Confirmed",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-17T18:21:00.000Z"
+      }
+    ],
+    "inspections": {
+      "c-12477": {
+        "id": "i-c-12477",
+        "caseId": "c-12477",
+        "startedAt": "2026-07-13T16:09:00.000Z",
+        "checklist": {
+          "vehiclePresent": true,
+          "plateMatches": true,
+          "violationConfirmed": true,
+          "restrictionVerified": true
+        },
+        "officerEvidence": {
+          "VEHICLE_OVERVIEW": {
+            "id": "ev-1",
+            "type": "VEHICLE_OVERVIEW",
+            "uri": "https://picsum.photos/seed/JEH-523-officer-VEHICLE_OVERVIEW/500/500",
+            "capturedAt": "2026-07-13T16:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "LICENSE_PLATE": {
+            "id": "ev-2",
+            "type": "LICENSE_PLATE",
+            "uri": "https://picsum.photos/seed/JEH-523-officer-LICENSE_PLATE/500/500",
+            "capturedAt": "2026-07-13T16:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "PARKING_SIGN": {
+            "id": "ev-3",
+            "type": "PARKING_SIGN",
+            "uri": "https://picsum.photos/seed/JEH-523-officer-PARKING_SIGN/500/500",
+            "capturedAt": "2026-07-13T16:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "VIOLATION_CONTEXT": {
+            "id": "ev-4",
+            "type": "VIOLATION_CONTEXT",
+            "uri": "https://picsum.photos/seed/JEH-523-officer-VIOLATION_CONTEXT/500/500",
+            "capturedAt": "2026-07-13T16:11:00.000Z",
+            "source": "OFFICER"
+          }
+        },
+        "notes": "",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-13T16:36:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-13T16:36:00.000Z"
+      },
+      "c-12484": {
+        "id": "i-c-12484",
+        "caseId": "c-12484",
+        "startedAt": "2026-07-13T18:09:00.000Z",
+        "checklist": {
+          "vehiclePresent": true,
+          "plateMatches": true,
+          "violationConfirmed": true,
+          "restrictionVerified": true
+        },
+        "officerEvidence": {
+          "VEHICLE_OVERVIEW": {
+            "id": "ev-5",
+            "type": "VEHICLE_OVERVIEW",
+            "uri": "https://picsum.photos/seed/FNA-782-officer-VEHICLE_OVERVIEW/500/500",
+            "capturedAt": "2026-07-13T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "LICENSE_PLATE": {
+            "id": "ev-6",
+            "type": "LICENSE_PLATE",
+            "uri": "https://picsum.photos/seed/FNA-782-officer-LICENSE_PLATE/500/500",
+            "capturedAt": "2026-07-13T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "PARKING_SIGN": {
+            "id": "ev-7",
+            "type": "PARKING_SIGN",
+            "uri": "https://picsum.photos/seed/FNA-782-officer-PARKING_SIGN/500/500",
+            "capturedAt": "2026-07-13T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "VIOLATION_CONTEXT": {
+            "id": "ev-8",
+            "type": "VIOLATION_CONTEXT",
+            "uri": "https://picsum.photos/seed/FNA-782-officer-VIOLATION_CONTEXT/500/500",
+            "capturedAt": "2026-07-13T18:11:00.000Z",
+            "source": "OFFICER"
+          }
+        },
+        "notes": "",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-13T18:26:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-13T18:26:00.000Z"
+      },
+      "c-12499": {
+        "id": "i-c-12499",
+        "caseId": "c-12499",
+        "startedAt": "2026-07-14T18:09:00.000Z",
+        "checklist": {
+          "vehiclePresent": true,
+          "plateMatches": true,
+          "violationConfirmed": true,
+          "restrictionVerified": true
+        },
+        "officerEvidence": {
+          "VEHICLE_OVERVIEW": {
+            "id": "ev-9",
+            "type": "VEHICLE_OVERVIEW",
+            "uri": "https://picsum.photos/seed/LTX-561-officer-VEHICLE_OVERVIEW/500/500",
+            "capturedAt": "2026-07-14T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "LICENSE_PLATE": {
+            "id": "ev-10",
+            "type": "LICENSE_PLATE",
+            "uri": "https://picsum.photos/seed/LTX-561-officer-LICENSE_PLATE/500/500",
+            "capturedAt": "2026-07-14T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "PARKING_SIGN": {
+            "id": "ev-11",
+            "type": "PARKING_SIGN",
+            "uri": "https://picsum.photos/seed/LTX-561-officer-PARKING_SIGN/500/500",
+            "capturedAt": "2026-07-14T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "VIOLATION_CONTEXT": {
+            "id": "ev-12",
+            "type": "VIOLATION_CONTEXT",
+            "uri": "https://picsum.photos/seed/LTX-561-officer-VIOLATION_CONTEXT/500/500",
+            "capturedAt": "2026-07-14T18:11:00.000Z",
+            "source": "OFFICER"
+          }
+        },
+        "notes": "No violation found on site.",
+        "outcome": {
+          "code": "REPORT_REJECTED",
+          "decidedAt": "2026-07-14T18:31:00.000Z",
+          "officerId": "officer-demo",
+          "notes": "No violation found on site."
+        },
+        "completedAt": "2026-07-14T18:31:00.000Z"
+      },
+      "c-12556": {
+        "id": "i-c-12556",
+        "caseId": "c-12556",
+        "startedAt": "2026-07-15T18:09:00.000Z",
+        "checklist": {
+          "vehiclePresent": true,
+          "plateMatches": true,
+          "violationConfirmed": true,
+          "restrictionVerified": true
+        },
+        "officerEvidence": {
+          "VEHICLE_OVERVIEW": {
+            "id": "ev-13",
+            "type": "VEHICLE_OVERVIEW",
+            "uri": "https://picsum.photos/seed/MVP-207-officer-VEHICLE_OVERVIEW/500/500",
+            "capturedAt": "2026-07-15T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "LICENSE_PLATE": {
+            "id": "ev-14",
+            "type": "LICENSE_PLATE",
+            "uri": "https://picsum.photos/seed/MVP-207-officer-LICENSE_PLATE/500/500",
+            "capturedAt": "2026-07-15T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "PARKING_SIGN": {
+            "id": "ev-15",
+            "type": "PARKING_SIGN",
+            "uri": "https://picsum.photos/seed/MVP-207-officer-PARKING_SIGN/500/500",
+            "capturedAt": "2026-07-15T18:11:00.000Z",
+            "source": "OFFICER"
+          },
+          "VIOLATION_CONTEXT": {
+            "id": "ev-16",
+            "type": "VIOLATION_CONTEXT",
+            "uri": "https://picsum.photos/seed/MVP-207-officer-VIOLATION_CONTEXT/500/500",
+            "capturedAt": "2026-07-15T18:11:00.000Z",
+            "source": "OFFICER"
+          }
+        },
+        "notes": "",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-15T18:41:00.000Z",
+          "officerId": "officer-demo",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-15T18:41:00.000Z"
+      },
+      "c-12570": {
+        "id": "i-c-12570",
+        "caseId": "c-12570",
+        "startedAt": "2026-07-17T17:51:00.000Z",
+        "checklist": {
+          "vehiclePresent": null,
+          "plateMatches": null,
+          "violationConfirmed": null,
+          "restrictionVerified": null
+        },
+        "officerEvidence": {},
+        "notes": ""
+      },
+      "c-12600": {
+        "id": "i-c-12600",
+        "caseId": "c-12600",
+        "startedAt": "2026-07-17T18:07:00.000Z",
+        "checklist": {
+          "vehiclePresent": true,
+          "plateMatches": true,
+          "violationConfirmed": true,
+          "restrictionVerified": true
+        },
+        "officerEvidence": {
+          "VEHICLE_OVERVIEW": {
+            "id": "ev-17",
+            "type": "VEHICLE_OVERVIEW",
+            "uri": "file:///officer-VEHICLE_OVERVIEW.jpg",
+            "capturedAt": "2026-07-17T18:13:00.000Z",
+            "source": "OFFICER"
+          },
+          "LICENSE_PLATE": {
+            "id": "ev-18",
+            "type": "LICENSE_PLATE",
+            "uri": "file:///officer-LICENSE_PLATE.jpg",
+            "capturedAt": "2026-07-17T18:15:00.000Z",
+            "source": "OFFICER"
+          },
+          "PARKING_SIGN": {
+            "id": "ev-19",
+            "type": "PARKING_SIGN",
+            "uri": "file:///officer-PARKING_SIGN.jpg",
+            "capturedAt": "2026-07-17T18:17:00.000Z",
+            "source": "OFFICER"
+          },
+          "VIOLATION_CONTEXT": {
+            "id": "ev-20",
+            "type": "VIOLATION_CONTEXT",
+            "uri": "file:///officer-VIOLATION_CONTEXT.jpg",
+            "capturedAt": "2026-07-17T18:19:00.000Z",
+            "source": "OFFICER"
+          }
+        },
+        "notes": "Confirmed",
+        "outcome": {
+          "code": "CHARGE_ISSUED",
+          "decidedAt": "2026-07-17T18:21:00.000Z",
+          "officerId": "officer-demo",
+          "notes": "Confirmed",
+          "chargeAmountCents": 6000
+        },
+        "completedAt": "2026-07-17T18:21:00.000Z"
+      }
+    },
+    "ledger": [
+      {
+        "id": "opening-balance:citizen-demo",
+        "idempotencyKey": "opening-balance:citizen-demo",
+        "type": "OPENING_BALANCE",
+        "citizenId": "citizen-demo",
+        "amountCents": 8500,
+        "createdAt": "2026-06-17T18:01:00.000Z"
+      },
+      {
+        "id": "withdrawal-requested:w-seed-1",
+        "idempotencyKey": "withdrawal-requested:w-seed-1",
+        "type": "WITHDRAWAL_REQUESTED",
+        "citizenId": "citizen-demo",
+        "withdrawalId": "w-seed-1",
+        "amountCents": 3000,
+        "createdAt": "2026-07-11T18:01:00.000Z"
+      },
+      {
+        "id": "withdrawal-paid:w-seed-1",
+        "idempotencyKey": "withdrawal-paid:w-seed-1",
+        "type": "WITHDRAWAL_PAID",
+        "citizenId": "citizen-demo",
+        "withdrawalId": "w-seed-1",
+        "amountCents": 3000,
+        "createdAt": "2026-07-11T19:01:00.000Z"
+      },
+      {
+        "id": "withdrawal-requested:w-seed-2",
+        "idempotencyKey": "withdrawal-requested:w-seed-2",
+        "type": "WITHDRAWAL_REQUESTED",
+        "citizenId": "citizen-demo",
+        "withdrawalId": "w-seed-2",
+        "amountCents": 2500,
+        "createdAt": "2026-07-17T15:31:00.000Z"
+      },
+      {
+        "id": "withdrawal-paid:w-seed-2",
+        "idempotencyKey": "withdrawal-paid:w-seed-2",
+        "type": "WITHDRAWAL_PAID",
+        "citizenId": "citizen-demo",
+        "withdrawalId": "w-seed-2",
+        "amountCents": 2500,
+        "createdAt": "2026-07-17T16:01:00.000Z"
+      },
+      {
+        "id": "reward-pending:12477",
+        "idempotencyKey": "reward-pending:12477",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12477",
+        "amountCents": 500,
+        "createdAt": "2026-07-13T16:01:00.000Z"
+      },
+      {
+        "id": "reward-released:12477",
+        "idempotencyKey": "reward-released:12477",
+        "type": "REWARD_RELEASED",
+        "citizenId": "citizen-demo",
+        "reportId": "12477",
+        "amountCents": 500,
+        "createdAt": "2026-07-13T16:36:00.000Z"
+      },
+      {
+        "id": "reward-pending:12484",
+        "idempotencyKey": "reward-pending:12484",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12484",
+        "amountCents": 500,
+        "createdAt": "2026-07-13T18:01:00.000Z"
+      },
+      {
+        "id": "reward-released:12484",
+        "idempotencyKey": "reward-released:12484",
+        "type": "REWARD_RELEASED",
+        "citizenId": "citizen-demo",
+        "reportId": "12484",
+        "amountCents": 500,
+        "createdAt": "2026-07-13T18:26:00.000Z"
+      },
+      {
+        "id": "reward-pending:12499",
+        "idempotencyKey": "reward-pending:12499",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12499",
+        "amountCents": 500,
+        "createdAt": "2026-07-14T18:01:00.000Z"
+      },
+      {
+        "id": "reward-voided:12499",
+        "idempotencyKey": "reward-voided:12499",
+        "type": "REWARD_VOIDED",
+        "citizenId": "citizen-demo",
+        "reportId": "12499",
+        "amountCents": 500,
+        "createdAt": "2026-07-14T18:31:00.000Z"
+      },
+      {
+        "id": "reward-pending:12556",
+        "idempotencyKey": "reward-pending:12556",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12556",
+        "amountCents": 500,
+        "createdAt": "2026-07-15T18:01:00.000Z"
+      },
+      {
+        "id": "reward-released:12556",
+        "idempotencyKey": "reward-released:12556",
+        "type": "REWARD_RELEASED",
+        "citizenId": "citizen-demo",
+        "reportId": "12556",
+        "amountCents": 500,
+        "createdAt": "2026-07-15T18:41:00.000Z"
+      },
+      {
+        "id": "reward-pending:12566",
+        "idempotencyKey": "reward-pending:12566",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12566",
+        "amountCents": 500,
+        "createdAt": "2026-07-16T18:01:00.000Z"
+      },
+      {
+        "id": "reward-pending:12568",
+        "idempotencyKey": "reward-pending:12568",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-nea",
+        "reportId": "12568",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:43:00.000Z"
+      },
+      {
+        "id": "reward-pending:12569",
+        "idempotencyKey": "reward-pending:12569",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-ilkka",
+        "reportId": "12569",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:43:00.000Z"
+      },
+      {
+        "id": "reward-pending:12570",
+        "idempotencyKey": "reward-pending:12570",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-pia",
+        "reportId": "12570",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:43:00.000Z"
+      },
+      {
+        "id": "reward-pending:12571",
+        "idempotencyKey": "reward-pending:12571",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-elina",
+        "reportId": "12571",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:55:00.000Z"
+      },
+      {
+        "id": "reward-pending:12572",
+        "idempotencyKey": "reward-pending:12572",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-jonas",
+        "reportId": "12572",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:55:00.000Z"
+      },
+      {
+        "id": "reward-pending:12573",
+        "idempotencyKey": "reward-pending:12573",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-sara",
+        "reportId": "12573",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:55:00.000Z"
+      },
+      {
+        "id": "reward-pending:12574",
+        "idempotencyKey": "reward-pending:12574",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-otto",
+        "reportId": "12574",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:55:00.000Z"
+      },
+      {
+        "id": "reward-pending:12564",
+        "idempotencyKey": "reward-pending:12564",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12564",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T17:56:00.000Z"
+      },
+      {
+        "id": "reward-pending:12600",
+        "idempotencyKey": "reward-pending:12600",
+        "type": "REWARD_PENDING",
+        "citizenId": "citizen-demo",
+        "reportId": "12600",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T18:03:00.000Z"
+      },
+      {
+        "id": "reward-released:12600",
+        "idempotencyKey": "reward-released:12600",
+        "type": "REWARD_RELEASED",
+        "citizenId": "citizen-demo",
+        "reportId": "12600",
+        "amountCents": 500,
+        "createdAt": "2026-07-17T18:21:00.000Z"
+      },
+      {
+        "id": "withdrawal-requested:w-user-1",
+        "idempotencyKey": "withdrawal-requested:w-user-1",
+        "type": "WITHDRAWAL_REQUESTED",
+        "citizenId": "citizen-demo",
+        "withdrawalId": "w-user-1",
+        "amountCents": 1000,
+        "createdAt": "2026-07-17T18:23:00.000Z"
+      }
+    ],
+    "notifications": [
+      {
+        "id": "REPORT_UNDER_REVIEW:12477",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12477",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-13T16:01:00.000Z",
+        "reportId": "12477",
+        "caseId": "c-12477",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12477",
+        "idempotencyKey": "CASE_ACCEPTED:c-12477",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-13T16:02:00.000Z",
+        "reportId": "12477",
+        "caseId": "c-12477",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_VERIFIED:12477",
+        "idempotencyKey": "REPORT_VERIFIED:12477",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_VERIFIED",
+        "createdAt": "2026-07-13T16:36:00.000Z",
+        "reportId": "12477",
+        "caseId": "c-12477",
+        "amountCents": 500,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "PARKING_CHARGE_ISSUED:c-12477",
+        "idempotencyKey": "PARKING_CHARGE_ISSUED:c-12477",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "PARKING_CHARGE_ISSUED",
+        "createdAt": "2026-07-13T16:36:00.000Z",
+        "reportId": "12477",
+        "caseId": "c-12477",
+        "amountCents": 6000,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12484",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12484",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-13T18:01:00.000Z",
+        "reportId": "12484",
+        "caseId": "c-12484",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12484",
+        "idempotencyKey": "CASE_ACCEPTED:c-12484",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-13T18:02:00.000Z",
+        "reportId": "12484",
+        "caseId": "c-12484",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_VERIFIED:12484",
+        "idempotencyKey": "REPORT_VERIFIED:12484",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_VERIFIED",
+        "createdAt": "2026-07-13T18:26:00.000Z",
+        "reportId": "12484",
+        "caseId": "c-12484",
+        "amountCents": 500,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "PARKING_CHARGE_ISSUED:c-12484",
+        "idempotencyKey": "PARKING_CHARGE_ISSUED:c-12484",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "PARKING_CHARGE_ISSUED",
+        "createdAt": "2026-07-13T18:26:00.000Z",
+        "reportId": "12484",
+        "caseId": "c-12484",
+        "amountCents": 6000,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12499",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12499",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-14T18:01:00.000Z",
+        "reportId": "12499",
+        "caseId": "c-12499",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12499",
+        "idempotencyKey": "CASE_ACCEPTED:c-12499",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-14T18:02:00.000Z",
+        "reportId": "12499",
+        "caseId": "c-12499",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_REJECTED:12499",
+        "idempotencyKey": "REPORT_REJECTED:12499",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_REJECTED",
+        "createdAt": "2026-07-14T18:31:00.000Z",
+        "reportId": "12499",
+        "caseId": "c-12499",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "CASE_CLOSED_WITHOUT_CHARGE:c-12499",
+        "idempotencyKey": "CASE_CLOSED_WITHOUT_CHARGE:c-12499",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_CLOSED_WITHOUT_CHARGE",
+        "createdAt": "2026-07-14T18:31:00.000Z",
+        "reportId": "12499",
+        "caseId": "c-12499",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12556",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12556",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-15T18:01:00.000Z",
+        "reportId": "12556",
+        "caseId": "c-12556",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12556",
+        "idempotencyKey": "CASE_ACCEPTED:c-12556",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-15T18:02:00.000Z",
+        "reportId": "12556",
+        "caseId": "c-12556",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_VERIFIED:12556",
+        "idempotencyKey": "REPORT_VERIFIED:12556",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_VERIFIED",
+        "createdAt": "2026-07-15T18:41:00.000Z",
+        "reportId": "12556",
+        "caseId": "c-12556",
+        "amountCents": 500,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "PARKING_CHARGE_ISSUED:c-12556",
+        "idempotencyKey": "PARKING_CHARGE_ISSUED:c-12556",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "PARKING_CHARGE_ISSUED",
+        "createdAt": "2026-07-15T18:41:00.000Z",
+        "reportId": "12556",
+        "caseId": "c-12556",
+        "amountCents": 6000,
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12566",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12566",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-16T18:01:00.000Z",
+        "reportId": "12566",
+        "caseId": "c-12566",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12568",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12568",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-nea"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "reportId": "12568",
+        "caseId": "c-12568"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12568",
+        "idempotencyKey": "CASE_ACCEPTED:c-12568",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-17T17:44:00.000Z",
+        "reportId": "12568",
+        "caseId": "c-12568"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12569",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12569",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-ilkka"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "reportId": "12569",
+        "caseId": "c-12569"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12569",
+        "idempotencyKey": "CASE_ACCEPTED:c-12569",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-17T17:44:00.000Z",
+        "reportId": "12569",
+        "caseId": "c-12569"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12570",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12570",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-pia"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:43:00.000Z",
+        "reportId": "12570",
+        "caseId": "c-12570"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12570",
+        "idempotencyKey": "CASE_ACCEPTED:c-12570",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-17T17:44:00.000Z",
+        "reportId": "12570",
+        "caseId": "c-12570"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12571",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12571",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-elina"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "reportId": "12571",
+        "caseId": "c-12571"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12572",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12572",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-jonas"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "reportId": "12572",
+        "caseId": "c-12572"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12573",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12573",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-sara"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "reportId": "12573",
+        "caseId": "c-12573"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12574",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12574",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-otto"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:55:00.000Z",
+        "reportId": "12574",
+        "caseId": "c-12574"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12564",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12564",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T17:56:00.000Z",
+        "reportId": "12564",
+        "caseId": "c-12564"
+      },
+      {
+        "id": "seed-withdrawal-2",
+        "idempotencyKey": "seed-withdrawal-2",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-17T16:01:00.000Z",
+        "title": "Withdrawal completed",
+        "body": "Your withdrawal of €25.00 has been sent to your bank account.",
+        "displayHint": "info"
+      },
+      {
+        "id": "seed-feature",
+        "idempotencyKey": "seed-feature",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-14T18:01:00.000Z",
+        "title": "New feature available",
+        "body": "You can now add more details to your reports. Check it out!",
+        "displayHint": "bell",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "seed-welcome",
+        "idempotencyKey": "seed-welcome",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-11T18:01:00.000Z",
+        "title": "Welcome bonus",
+        "body": "Thank you for joining! You received a welcome bonus.",
+        "displayHint": "gift",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "seed-shift",
+        "idempotencyKey": "seed-shift",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-16T18:01:00.000Z",
+        "title": "Shift Completed",
+        "body": "You completed your shift successfully.\n17 cases • Avg. response 3m 7s",
+        "displayHint": "flag",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "seed-update",
+        "idempotencyKey": "seed-update",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-15T18:01:00.000Z",
+        "title": "System Update",
+        "body": "New AI license plate scanning is now available. Check out the new feature.",
+        "displayHint": "bell",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "seed-upcoming",
+        "idempotencyKey": "seed-upcoming",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "SYSTEM",
+        "createdAt": "2026-07-14T18:01:00.000Z",
+        "title": "Upcoming Shift",
+        "body": "Your shift starts in 1 hour.\n08:00 - 16:00 • City Center District",
+        "displayHint": "calendar",
+        "readAt": "2026-07-17T15:01:00.000Z"
+      },
+      {
+        "id": "REPORT_UNDER_REVIEW:12600",
+        "idempotencyKey": "REPORT_UNDER_REVIEW:12600",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_UNDER_REVIEW",
+        "createdAt": "2026-07-17T18:03:00.000Z",
+        "reportId": "12600",
+        "caseId": "c-12600"
+      },
+      {
+        "id": "CASE_ACCEPTED:c-12600",
+        "idempotencyKey": "CASE_ACCEPTED:c-12600",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "CASE_ACCEPTED",
+        "createdAt": "2026-07-17T18:05:00.000Z",
+        "reportId": "12600",
+        "caseId": "c-12600"
+      },
+      {
+        "id": "REPORT_VERIFIED:12600",
+        "idempotencyKey": "REPORT_VERIFIED:12600",
+        "recipient": {
+          "role": "CITIZEN",
+          "accountId": "citizen-demo"
+        },
+        "type": "REPORT_VERIFIED",
+        "createdAt": "2026-07-17T18:21:00.000Z",
+        "reportId": "12600",
+        "caseId": "c-12600",
+        "amountCents": 500
+      },
+      {
+        "id": "PARKING_CHARGE_ISSUED:c-12600",
+        "idempotencyKey": "PARKING_CHARGE_ISSUED:c-12600",
+        "recipient": {
+          "role": "OFFICER",
+          "accountId": "officer-demo"
+        },
+        "type": "PARKING_CHARGE_ISSUED",
+        "createdAt": "2026-07-17T18:21:00.000Z",
+        "reportId": "12600",
+        "caseId": "c-12600",
+        "amountCents": 6000
+      }
+    ],
+    "seq": 21,
+    "nextReportNumber": 12601
+  }
+}

@@ -1,5 +1,5 @@
 import { calculateBalances, EnforcementOutcomeCode, getRewardState } from "../../domain";
-import { PERSIST_KEY } from "../persistence";
+import { PERSIST_KEY, PERSIST_VERSION } from "../persistence";
 import { CITIZEN, draft, expectOk, makeStore, OFFICER, snapshot, submitAndInspect } from "./helpers";
 
 const citizenNotifications = (s: ReturnType<typeof snapshot>) =>
@@ -67,7 +67,7 @@ describe("case flow", () => {
       expectOk(store.updateChecklist(caseId, key, true));
     }
     for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
-      expectOk(store.attachOfficerPhoto(caseId, type, `file:///${type}.jpg`));
+      expectOk(store.attachOfficerPhoto(caseId, type, `file:///${type}.jpg`, "CAMERA"));
     }
     advance(60_000);
     expectOk(store.completeCase(caseId, "CHARGE_ISSUED", OFFICER));
@@ -218,7 +218,7 @@ describe("persistence", () => {
     expectOk(store.submitReport(draft("d1"), CITIZEN));
     await store.flush();
     const envelope = JSON.parse(storage.data[PERSIST_KEY]);
-    expect(envelope.version).toBe(1);
+    expect(envelope.version).toBe(PERSIST_VERSION);
     expect(typeof envelope.savedAt).toBe("string");
     expect(envelope.state.reports).toHaveLength(1);
   });
@@ -229,8 +229,8 @@ describe("persistence", () => {
       storage.data[PERSIST_KEY] = raw;
       const { store } = await makeStore({ storage });
       expect(snapshot(store).reports).toEqual([]);
-      // the unusable payload was replaced by a valid v1 envelope
-      expect(JSON.parse(storage.data[PERSIST_KEY]).version).toBe(1);
+      // the unusable payload was replaced by a valid current-version envelope
+      expect(JSON.parse(storage.data[PERSIST_KEY]).version).toBe(PERSIST_VERSION);
     }
   });
 

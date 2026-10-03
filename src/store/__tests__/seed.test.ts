@@ -73,6 +73,24 @@ describe("seed data consistency", () => {
     for (const c of s.cases.filter((x) => x.status === "INSPECTION")) expect(s.inspections[c.id]).toBeDefined();
   });
 
+  it("seed records are marked SEED, with stable account ids (never display names) as actors", () => {
+    const events = [...s.reports.flatMap((r) => r.events), ...s.cases.flatMap((c) => c.events)];
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.every((e) => e.source === "SEED")).toBe(true);
+    expect(events.every((e) => /^(citizen|officer)-[a-z]+$/.test(e.actor.accountId))).toBe(true);
+    expect(events.some((e) => e.actor.accountId === "officer-demo")).toBe(true);
+    expect(s.reports.flatMap((r) => r.evidence).every((e) => e.captureSource === "SEED")).toBe(true);
+    expect(Object.values(s.inspections).flatMap((i) => Object.values(i.officerEvidence)).every((e) => e?.captureSource === "SEED")).toBe(true);
+  });
+
+  it("seed reports carry jurisdiction, plate value objects and no fake server time", () => {
+    for (const r of s.reports) {
+      expect(r.jurisdictionId).toBe("helsinki-demo");
+      expect(r.vehicle?.plate.normalized).toBe(r.vehicle?.plate.raw.replace("-", ""));
+      expect(r.receivedAt).toBeUndefined();
+    }
+  });
+
   it("new reports are numbered after the seed", () => {
     const max = Math.max(...s.reports.map((r) => Number(r.id)));
     expect(s.nextReportNumber).toBeGreaterThan(max);

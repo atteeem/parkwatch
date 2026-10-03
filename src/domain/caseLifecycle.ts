@@ -1,5 +1,8 @@
 import { fail, ok, Result } from "./result";
-import { CaseStatus, EnforcementOutcome, IsoTimestamp, OfficerCase, ReportPriority } from "./types";
+import { Actor, CaseStatus, EnforcementOutcome, EventSource, IsoTimestamp, OfficerCase, ReportPriority } from "./types";
+
+/** Who/what caused a case change, recorded on every event. */
+export type CaseEventContext = { at: IsoTimestamp; actor: Actor; source: EventSource };
 
 /**
  * The single source of truth for officer case transitions.
@@ -31,19 +34,24 @@ export function canTransitionCase(from: CaseStatus, to: CaseStatus): boolean {
 export function createCase(input: {
   id: string;
   reportId: string;
+  jurisdictionId: string;
   priority: ReportPriority;
   createdAt: IsoTimestamp;
   distanceMeters?: number;
+  /** The action that created the case (normally the citizen's submission). */
+  actor: Actor;
+  source: EventSource;
 }): OfficerCase {
   return {
     id: input.id,
     reportId: input.reportId,
+    jurisdictionId: input.jurisdictionId,
     status: "NEW",
     priority: input.priority,
     distanceMeters: input.distanceMeters,
     createdAt: input.createdAt,
     statusTimestamps: { NEW: input.createdAt },
-    events: [{ type: "CREATED", at: input.createdAt, to: "NEW" }],
+    events: [{ type: "CREATED", at: input.createdAt, to: "NEW", actor: input.actor, source: input.source }],
   };
 }
 
@@ -51,19 +59,22 @@ export function createCase(input: {
  * Move a case to `to`. Invalid transitions return INVALID_TRANSITION and the
  * input case is never mutated. Completion must go through completeCase so an
  * outcome is always recorded.
+ *
+ * ASSIGNED needs an assignee: `assigneeOfficerId`, or the acting officer.
  */
 export function transitionCase(
   c: OfficerCase,
   to: Exclude<CaseStatus, "COMPLETED">,
-  ctx: { at: IsoTimestamp; officerId?: string }
+  ctx: CaseEventContext & { assigneeOfficerId?: string }
 ): Result<OfficerCase> {
   if (!canTransitionCase(c.status, to)) {
     return fail("INVALID_TRANSITION", `Case ${c.id} cannot move from ${c.status} to ${to}.`);
   }
-  if (to === "ASSIGNED" && !ctx.officerId) {
-    return fail("MISSING_OFFICER", "Assigning a case requires an officer id.");
+  const assignee = ctx.assigneeOfficerId ?? (ctx.actor.role === "OFFICER" ? ctx.actor.accountId : undefined);
+  if (to === "ASSIGNED" && !assignee) {
+    return fail("MISSING_OFFICER", "Assigning a case requires an officer.");
   }
-  return ok(applyStatus(c, to, ctx.at, ctx.officerId));
+  return ok(applyStatus(c, to, ctx, to === "ASSIGNED" ? assignee : undefined));
 }
 
 /**
@@ -75,7 +86,8 @@ export function transitionCase(
  */
 export function completeCase(
   c: OfficerCase,
-  outcome: EnforcementOutcome
+  outcome: EnforcementOutcome,
+  source: EventSource = "USER_ACTION"
 ): Result<{ case: OfficerCase; changed: boolean }> {
   if (c.status === "COMPLETED") {
     if (c.outcome?.code === outcome.code) return ok({ case: c, changed: false });
@@ -84,16 +96,17 @@ export function completeCase(
   if (!canTransitionCase(c.status, "COMPLETED")) {
     return fail("INVALID_TRANSITION", `Case ${c.id} cannot be completed from ${c.status}.`);
   }
-  const next = applyStatus(c, "COMPLETED", outcome.decidedAt, outcome.officerId);
+  const actor: Actor = { role: "OFFICER", accountId: outcome.officerId };
+  const next = applyStatus(c, "COMPLETED", { at: outcome.decidedAt, actor, source });
   return ok({ case: { ...next, outcome, completedAt: outcome.decidedAt }, changed: true });
 }
 
-function applyStatus(c: OfficerCase, to: CaseStatus, at: IsoTimestamp, officerId?: string): OfficerCase {
+function applyStatus(c: OfficerCase, to: CaseStatus, ctx: CaseEventContext, assignee?: string): OfficerCase {
   return {
     ...c,
     status: to,
-    assignedOfficerId: to === "ASSIGNED" ? officerId : c.assignedOfficerId,
-    statusTimestamps: { ...c.statusTimestamps, [to]: c.statusTimestamps[to] ?? at },
-    events: [...c.events, { type: "STATUS_CHANGED", at, from: c.status, to, officerId }],
+    assignedOfficerId: assignee ?? c.assignedOfficerId,
+    statusTimestamps: { ...c.statusTimestamps, [to]: c.statusTimestamps[to] ?? ctx.at },
+    events: [...c.events, { type: "STATUS_CHANGED", at: ctx.at, from: c.status, to, actor: ctx.actor, source: ctx.source }],
   };
 }

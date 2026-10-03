@@ -1,4 +1,4 @@
-import { CITIZEN, completeDraft, submittedReport, T0, T2 } from "./fixtures";
+import { CITIZEN, completeDraft, JURISDICTION, OFFICER, submittedReport, T0, T2 } from "./fixtures";
 import {
   applyCitizenConsequenceToReport,
   createEmptyDraft,
@@ -48,7 +48,9 @@ describe("report creation", () => {
       createReportFromDraft(completeDraft(), {
         id: "12600",
         citizenId: CITIZEN,
+        jurisdictionId: JURISDICTION,
         submittedAt: T2,
+        source: "USER_ACTION",
         vehicle: MVP_MOCK_DETECTED_VEHICLE,
       })
     );
@@ -65,7 +67,13 @@ describe("report creation", () => {
 
   it("refuses an incomplete draft", () => {
     expect(
-      errorCode(createReportFromDraft(createEmptyDraft("d"), { id: "x", citizenId: CITIZEN, submittedAt: T2 }))
+      errorCode(createReportFromDraft(createEmptyDraft("d"), {
+        id: "x",
+        citizenId: CITIZEN,
+        jurisdictionId: JURISDICTION,
+        submittedAt: T2,
+        source: "USER_ACTION",
+      }))
     ).toBe("INVALID_DRAFT");
   });
 
@@ -76,20 +84,27 @@ describe("report creation", () => {
   });
 });
 
+const resolveCtx = (outcomeCode: "CHARGE_ISSUED" | "REPORT_REJECTED") => ({
+  at: T2,
+  actor: { role: "OFFICER" as const, accountId: OFFICER },
+  source: "USER_ACTION" as const,
+  outcomeCode,
+});
+
 describe("citizen status changes", () => {
   it("re-applying the same resolved consequence is a no-op", () => {
     const verified = getCitizenOutcomeForEnforcementOutcome("CHARGE_ISSUED");
-    const once = unwrap(applyCitizenConsequenceToReport(submittedReport(), verified, T2));
-    const twice = unwrap(applyCitizenConsequenceToReport(once.report, verified, T2));
+    const once = unwrap(applyCitizenConsequenceToReport(submittedReport(), verified, resolveCtx("CHARGE_ISSUED")));
+    const twice = unwrap(applyCitizenConsequenceToReport(once.report, verified, resolveCtx("CHARGE_ISSUED")));
     expect(once.changed).toBe(true);
     expect(twice.changed).toBe(false);
   });
 
   it("a verified report cannot later become rejected", () => {
     const once = unwrap(
-      applyCitizenConsequenceToReport(submittedReport(), getCitizenOutcomeForEnforcementOutcome("CHARGE_ISSUED"), T2)
+      applyCitizenConsequenceToReport(submittedReport(), getCitizenOutcomeForEnforcementOutcome("CHARGE_ISSUED"), resolveCtx("CHARGE_ISSUED"))
     );
-    const r = applyCitizenConsequenceToReport(once.report, getCitizenOutcomeForEnforcementOutcome("REPORT_REJECTED"), T2);
+    const r = applyCitizenConsequenceToReport(once.report, getCitizenOutcomeForEnforcementOutcome("REPORT_REJECTED"), resolveCtx("REPORT_REJECTED"));
     expect(errorCode(r)).toBe("REPORT_ALREADY_RESOLVED");
   });
 });

@@ -53,7 +53,7 @@ export function submitAndInspect(
   }
   if (opts.photos !== false) {
     for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
-      expectOk(store.attachOfficerPhoto(caseId, type, `file:///${draftId}-${type}.jpg`));
+      expectOk(store.attachOfficerPhoto(caseId, type, `file:///${draftId}-${type}.jpg`, "CAMERA"));
     }
   }
   return { reportId: submitted.value.reportId, caseId };

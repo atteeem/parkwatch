@@ -16,17 +16,20 @@ import {
   createOfficerEvidence,
   createReportFromDraft,
   EnforcementOutcomeCode,
+  EventSource,
   fail,
   findReportForDraft,
   Inspection,
   IsoTimestamp,
   markNotificationsRead,
   markWithdrawalPaid,
+  MVP_DEFAULT_JURISDICTION_ID,
   MVP_MOCK_DETECTED_VEHICLE,
   MVP_MOCK_NEW_CASE_DISTANCE_METERS,
   Notification,
   OfficerCase,
   OfficerEvidenceType,
+  CaptureSource,
   ok,
   recordPendingReward,
   ReportDraft,
@@ -43,6 +46,11 @@ import { ParkWatchState } from "./state";
 export type CommandResult<T> = Result<{ state: ParkWatchState; value: T }>;
 
 const done = <T>(state: ParkWatchState, value: T): CommandResult<T> => ok({ state, value });
+
+/** Event source for a command; defaults to a person acting in the app. */
+type Sourced = { source?: EventSource };
+const srcOf = (input: Sourced): EventSource => input.source ?? "USER_ACTION";
+const officerActor = (officerId: string) => ({ role: "OFFICER" as const, accountId: officerId });
 
 function nextId(state: ParkWatchState, prefix: string): [string, ParkWatchState] {
   return [`${prefix}-${state.seq}`, { ...state, seq: state.seq + 1 }];
@@ -73,6 +81,7 @@ const addNotification = (state: ParkWatchState, n: Notification): ParkWatchState
 
 export type SubmissionOptions = {
   reportId: string;
+  jurisdictionId: string;
   vehicle: VehicleInfo;
   priority: ReportPriority;
   distanceMeters: number;
@@ -85,9 +94,10 @@ export type SubmissionOptions = {
  */
 export function createSubmission(
   state: ParkWatchState,
-  input: { draft: ReportDraft; citizenId: string; at: IsoTimestamp },
+  input: { draft: ReportDraft; citizenId: string; at: IsoTimestamp } & Sourced,
   opts: SubmissionOptions
 ): CommandResult<{ reportId: string; created: boolean }> {
+  const source = srcOf(input);
   const existing = findReportForDraft(state.reports, input.draft.draftId);
   if (existing) return done(state, { reportId: existing.id, created: false });
 
@@ -95,7 +105,9 @@ export function createSubmission(
   const report = createReportFromDraft(input.draft, {
     id: opts.reportId,
     citizenId: input.citizenId,
+    jurisdictionId: opts.jurisdictionId,
     submittedAt: input.at,
+    source,
     vehicle: opts.vehicle,
     priority: opts.priority,
     caseId,
@@ -108,9 +120,13 @@ export function createSubmission(
   const officerCase = createCase({
     id: caseId,
     reportId: opts.reportId,
+    jurisdictionId: opts.jurisdictionId,
     priority: opts.priority,
     createdAt: input.at,
     distanceMeters: opts.distanceMeters,
+    // The case is created by the citizen's submission.
+    actor: { role: "CITIZEN", accountId: input.citizenId },
+    source,
   });
 
   let next: ParkWatchState = {
@@ -138,7 +154,7 @@ export function createSubmission(
  */
 export function submitReport(
   state: ParkWatchState,
-  input: { draft: ReportDraft; citizenId: string; at: IsoTimestamp }
+  input: { draft: ReportDraft; citizenId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<{ reportId: string; created: boolean }> {
   const existing = findReportForDraft(state.reports, input.draft.draftId);
   if (existing) return done(state, { reportId: existing.id, created: false });
@@ -146,6 +162,7 @@ export function submitReport(
   const reportId = String(state.nextReportNumber);
   const result = createSubmission(state, input, {
     reportId,
+    jurisdictionId: MVP_DEFAULT_JURISDICTION_ID,
     vehicle: MVP_MOCK_DETECTED_VEHICLE,
     priority: "NORMAL",
     distanceMeters: MVP_MOCK_NEW_CASE_DISTANCE_METERS,
@@ -160,31 +177,31 @@ export function submitReport(
 /** NEW -> ASSIGNED only (e.g. pre-assigned work; the Accept button uses acceptCase). */
 export function assignCase(
   state: ParkWatchState,
-  input: { caseId: string; officerId: string; at: IsoTimestamp }
+  input: { caseId: string; officerId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
-  const moved = transitionCase(found.value, "ASSIGNED", { at: input.at, officerId: input.officerId });
+  const moved = transitionCase(found.value, "ASSIGNED", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   return moved.ok ? done(replaceCase(state, moved.value), undefined) : moved;
 }
 
 /** NEW -> ASSIGNED (to this officer) -> EN_ROUTE. Accept leads straight to the En Route screen. */
 export function acceptCase(
   state: ParkWatchState,
-  input: { caseId: string; officerId: string; at: IsoTimestamp }
+  input: { caseId: string; officerId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
   let c = found.value;
 
   if (c.status === "NEW") {
-    const assigned = transitionCase(c, "ASSIGNED", { at: input.at, officerId: input.officerId });
+    const assigned = transitionCase(c, "ASSIGNED", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
     if (!assigned.ok) return assigned;
     c = assigned.value;
   } else if (c.assignedOfficerId && c.assignedOfficerId !== input.officerId) {
     return fail("CASE_TAKEN", `Case ${c.id} is assigned to another officer.`);
   }
-  const enRoute = transitionCase(c, "EN_ROUTE", { at: input.at, officerId: input.officerId });
+  const enRoute = transitionCase(c, "EN_ROUTE", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   if (!enRoute.ok) return enRoute;
 
   const key = `CASE_ACCEPTED:${c.id}`;
@@ -203,22 +220,22 @@ export function acceptCase(
 /** ASSIGNED -> EN_ROUTE (when travel starts separately from accepting). */
 export function startEnRoute(
   state: ParkWatchState,
-  input: { caseId: string; officerId: string; at: IsoTimestamp }
+  input: { caseId: string; officerId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
-  const moved = transitionCase(found.value, "EN_ROUTE", { at: input.at, officerId: input.officerId });
+  const moved = transitionCase(found.value, "EN_ROUTE", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   return moved.ok ? done(replaceCase(state, moved.value), undefined) : moved;
 }
 
 /** EN_ROUTE -> ON_SITE (separate "arrived" step; not used by the current UI). */
 export function arriveOnSite(
   state: ParkWatchState,
-  input: { caseId: string; officerId: string; at: IsoTimestamp }
+  input: { caseId: string; officerId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
-  const moved = transitionCase(found.value, "ON_SITE", { at: input.at, officerId: input.officerId });
+  const moved = transitionCase(found.value, "ON_SITE", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
   return moved.ok ? done(replaceCase(state, moved.value), undefined) : moved;
 }
 
@@ -229,13 +246,13 @@ export function arriveOnSite(
  */
 export function startInspection(
   state: ParkWatchState,
-  input: { caseId: string; officerId: string; at: IsoTimestamp }
+  input: { caseId: string; officerId: string; at: IsoTimestamp } & Sourced
 ): CommandResult<void> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
   let next = state;
   if (found.value.status !== "INSPECTION") {
-    const moved = transitionCase(found.value, "INSPECTION", { at: input.at, officerId: input.officerId });
+    const moved = transitionCase(found.value, "INSPECTION", { at: input.at, actor: officerActor(input.officerId), source: srcOf(input) });
     if (!moved.ok) return moved;
     next = replaceCase(next, moved.value);
   }
@@ -279,10 +296,16 @@ export function updateChecklist(
 
 export function attachOfficerPhoto(
   state: ParkWatchState,
-  input: { caseId: string; type: OfficerEvidenceType; uri: string; at: IsoTimestamp }
+  input: { caseId: string; type: OfficerEvidenceType; captureSource: CaptureSource; uri: string; at: IsoTimestamp }
 ): CommandResult<{ evidenceId: string }> {
   const [evidenceId, withId] = nextId(state, "ev");
-  const evidence = createOfficerEvidence({ id: evidenceId, type: input.type, uri: input.uri, capturedAt: input.at });
+  const evidence = createOfficerEvidence({
+    id: evidenceId,
+    type: input.type,
+    captureSource: input.captureSource,
+    uri: input.uri,
+    capturedAt: input.at,
+  });
   const r = withInspection(withId, input.caseId, (i) => attachOfficerEvidence(i, evidence));
   return r.ok ? done(r.value.state, { evidenceId }) : r;
 }
@@ -301,7 +324,7 @@ export function updateInspectionNotes(
  */
 export function completeCase(
   state: ParkWatchState,
-  input: { caseId: string; code: EnforcementOutcomeCode; officerId: string; at: IsoTimestamp; notes?: string }
+  input: { caseId: string; code: EnforcementOutcomeCode; officerId: string; at: IsoTimestamp; notes?: string } & Sourced
 ): CommandResult<{ changed: boolean; creditedCents: number }> {
   const found = findCase(state, input.caseId);
   if (!found.ok) return found;
@@ -312,7 +335,7 @@ export function completeCase(
 
   const result = completeCaseWithOutcome(
     { officerCase: found.value, inspection, report, ledger: state.ledger, notifications: state.notifications },
-    { code: input.code, officerId: input.officerId, decidedAt: input.at, notes: input.notes }
+    { code: input.code, officerId: input.officerId, decidedAt: input.at, notes: input.notes, source: srcOf(input) }
   );
   if (!result.ok) return result;
   const { changed, creditedCents, state: s } = result.value;

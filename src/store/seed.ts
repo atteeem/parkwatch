@@ -11,7 +11,9 @@ import {
   ChecklistKey,
   CHECKLIST_KEYS,
   createCitizenEvidence,
+  createPlateNumber,
   EnforcementOutcomeCode,
+  MVP_DEFAULT_JURISDICTION_ID,
   GeoPoint,
   Notification,
   OFFICER_EVIDENCE_TYPES,
@@ -144,7 +146,13 @@ function must<T>(r: Result<T>): T {
 
 function seedDraft(r: SeedReport, capturedAt: string): ReportDraft {
   const photo = (type: "FRONT" | "SIDE" | "REAR", suffix: string) =>
-    createCitizenEvidence({ id: `ev-seed-${r.reportId}-${type}`, type, uri: img(`${r.plate}-${suffix}`), capturedAt });
+    createCitizenEvidence({
+      id: `ev-seed-${r.reportId}-${type}`,
+      type,
+      captureSource: "SEED",
+      uri: img(`${r.plate}-${suffix}`),
+      capturedAt,
+    });
   return {
     draftId: `seed-draft-${r.reportId}`,
     photos: { FRONT: photo("FRONT", "a"), SIDE: photo("SIDE", "b"), REAR: photo("REAR", "c") },
@@ -174,7 +182,7 @@ export function buildSeedState(now: Date): ParkWatchState {
   step(cmd.confirmWithdrawalPaid(s, { withdrawalId: "w-seed-2", at: at(2 * HOUR) }));
 
   const vehicle = (r: SeedReport): VehicleInfo => ({
-    plate: r.plate, make: r.make, model: r.model, color: r.color, source: "MOCK_DETECTED",
+    plate: createPlateNumber(r.plate, "FI"), make: r.make, model: r.model, color: r.color, source: "MOCK_DETECTED",
   });
 
   for (const r of [...REPORTS].sort((a, b) => b.age - a.age)) {
@@ -182,13 +190,20 @@ export function buildSeedState(now: Date): ParkWatchState {
     step(
       cmd.createSubmission(
         s,
-        { draft: seedDraft(r, submittedAt), citizenId: r.citizenId, at: submittedAt },
-        { reportId: r.reportId, vehicle: vehicle(r), priority: r.priority, distanceMeters: r.distanceMeters }
+        { draft: seedDraft(r, submittedAt), citizenId: r.citizenId, at: submittedAt, source: "SEED" },
+        {
+          reportId: r.reportId,
+          jurisdictionId: MVP_DEFAULT_JURISDICTION_ID,
+          vehicle: vehicle(r),
+          priority: r.priority,
+          distanceMeters: r.distanceMeters,
+        }
       )
     );
     const caseId = `c-${r.reportId}`;
     const t = (msAfter: number) => at(r.age - msAfter);
-    const officer = { caseId, officerId: DEV_OFFICER_ID };
+    // Seeded officer actions are attributed to the stable dev officer id and marked SEED.
+    const officer = { caseId, officerId: DEV_OFFICER_ID, source: "SEED" as const };
     const p = r.progress;
 
     if (p.to === "NEW") continue;
@@ -207,7 +222,15 @@ export function buildSeedState(now: Date): ParkWatchState {
 
     for (const key of CHECKLIST_KEYS) step(cmd.updateChecklist(s, { caseId, key: key as ChecklistKey, value: true }));
     for (const type of OFFICER_EVIDENCE_TYPES) {
-      step(cmd.attachOfficerPhoto(s, { caseId, type, uri: img(`${r.plate}-officer-${type}`), at: t(10 * MIN) }));
+      step(
+        cmd.attachOfficerPhoto(s, {
+          caseId,
+          type,
+          captureSource: "SEED",
+          uri: img(`${r.plate}-officer-${type}`),
+          at: t(10 * MIN),
+        })
+      );
     }
     step(cmd.completeCase(s, { ...officer, code: p.outcome, notes: p.officerNotes, at: t(p.after) }));
   }

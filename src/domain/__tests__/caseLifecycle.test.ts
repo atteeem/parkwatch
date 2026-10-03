@@ -1,4 +1,4 @@
-import { caseInInspection, OFFICER, T0, T1, T2 } from "./fixtures";
+import { caseInInspection, CITIZEN, JURISDICTION, OFFICER, officerCtx, T0, T1, T2 } from "./fixtures";
 import {
   canTransitionCase,
   CaseStatus,
@@ -10,7 +10,16 @@ import {
   unwrap,
 } from "./testHelpers";
 
-const newCase = () => createCase({ id: "c-1", reportId: "r-1", priority: "HIGH", createdAt: T0 });
+const newCase = () =>
+  createCase({
+    id: "c-1",
+    reportId: "r-1",
+    jurisdictionId: JURISDICTION,
+    priority: "HIGH",
+    createdAt: T0,
+    actor: { role: "CITIZEN", accountId: CITIZEN },
+    source: "USER_ACTION",
+  });
 
 describe("case lifecycle: allowed transitions", () => {
   it.each<[CaseStatus, CaseStatus]>([
@@ -61,7 +70,7 @@ describe("case lifecycle: invalid transitions are rejected", () => {
   it("returns INVALID_TRANSITION and leaves the case untouched", () => {
     const c = newCase();
     const snapshot = JSON.stringify(c);
-    const r = transitionCase(c, "INSPECTION", { at: T1, officerId: OFFICER });
+    const r = transitionCase(c, "INSPECTION", officerCtx(T1));
     expect(errorCode(r)).toBe("INVALID_TRANSITION");
     expect(JSON.stringify(c)).toBe(snapshot);
   });
@@ -71,8 +80,10 @@ describe("case lifecycle: invalid transitions are rejected", () => {
     expect(errorCode(completeCase(newCase(), outcome))).toBe("INVALID_TRANSITION");
   });
 
-  it("assigning requires an officer id", () => {
-    expect(errorCode(transitionCase(newCase(), "ASSIGNED", { at: T1 }))).toBe("MISSING_OFFICER");
+  it("assigning requires an officer (system actor without assignee is refused)", () => {
+    const system = { at: T1, actor: { role: "SYSTEM" as const, accountId: "sys" }, source: "SYSTEM" as const };
+    expect(errorCode(transitionCase(newCase(), "ASSIGNED", system))).toBe("MISSING_OFFICER");
+    expect(unwrap(transitionCase(newCase(), "ASSIGNED", { ...system, assigneeOfficerId: OFFICER })).assignedOfficerId).toBe(OFFICER);
   });
 });
 

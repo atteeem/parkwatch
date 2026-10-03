@@ -1,8 +1,12 @@
+import { qualifiesAsRequiredEvidence } from "./evidence";
 import { CitizenConsequence } from "./outcomes";
 import { fail, ok, Result } from "./result";
 import {
+  Actor,
   CITIZEN_EVIDENCE_TYPES,
   CitizenEvidenceType,
+  EnforcementOutcomeCode,
+  EventSource,
   IsoTimestamp,
   Report,
   ReportDraft,
@@ -19,6 +23,8 @@ export type DraftStep = "PHOTOS" | "VIOLATION" | "DETAILS" | "SUBMIT";
 
 export type DraftIssue =
   | { code: "MISSING_PHOTO"; slot: CitizenEvidenceType }
+  /** A photo is present but its capture source cannot satisfy a required slot (e.g. LIBRARY). */
+  | { code: "PHOTO_SOURCE_NOT_ALLOWED"; slot: CitizenEvidenceType }
   | { code: "MISSING_VIOLATION" }
   | { code: "MISSING_LOCATION" }
   | { code: "INVALID_OBSERVED_AT" };
@@ -30,13 +36,16 @@ const isValidIso = (value: string) => !Number.isNaN(Date.parse(value));
 
 /**
  * Validate a draft up to and including `step`.
- * Photos (front/side/rear) -> violation -> non-blank location. Notes and
- * attachments are always optional.
+ * Required photos (front/side/rear, from CAMERA — or SEED for demo data) ->
+ * violation -> non-blank location. Notes and attachments are always
+ * optional, and attachments never count as required photos.
  */
 export function validateDraft(draft: ReportDraft, step: DraftStep): DraftIssue[] {
   const issues: DraftIssue[] = [];
   for (const slot of CITIZEN_EVIDENCE_TYPES) {
-    if (!draft.photos[slot]) issues.push({ code: "MISSING_PHOTO", slot });
+    const photo = draft.photos[slot];
+    if (!photo) issues.push({ code: "MISSING_PHOTO", slot });
+    else if (!qualifiesAsRequiredEvidence(photo)) issues.push({ code: "PHOTO_SOURCE_NOT_ALLOWED", slot });
   }
   if (reaches(step, "VIOLATION") && !draft.violationId) issues.push({ code: "MISSING_VIOLATION" });
   if (reaches(step, "DETAILS")) {
@@ -56,7 +65,13 @@ function earliestCapture(draft: ReportDraft): IsoTimestamp | undefined {
 }
 
 /**
- * Freeze a valid draft into a submitted report (status UNDER_REVIEW).
+ * Freeze a valid draft into a submitted report (status UNDER_REVIEW) with its
+ * first history event, SUBMITTED.
+ *
+ * Times: observedAt = what the device says (draft value, else earliest photo
+ * capture); submittedAt = local submit time. receivedAt is left undefined —
+ * only a backend may set it.
+ *
  * The caller should first check findReportForDraft to keep submission
  * idempotent; this function itself only validates and builds.
  */
@@ -65,7 +80,9 @@ export function createReportFromDraft(
   input: {
     id: string;
     citizenId: string;
+    jurisdictionId: string;
     submittedAt: IsoTimestamp;
+    source: EventSource;
     vehicle?: VehicleInfo;
     priority?: ReportPriority;
     caseId?: string;
@@ -75,10 +92,12 @@ export function createReportFromDraft(
   if (issues.length > 0) {
     return fail("INVALID_DRAFT", `Draft ${draft.draftId} is incomplete: ${issues.map((i) => i.code).join(", ")}.`);
   }
+  const actor: Actor = { role: "CITIZEN", accountId: input.citizenId };
   return ok({
     id: input.id,
     sourceDraftId: draft.draftId,
     citizenId: input.citizenId,
+    jurisdictionId: input.jurisdictionId,
     status: "UNDER_REVIEW",
     violationId: draft.violationId!,
     location: { ...draft.location, address: draft.location.address.trim() },
@@ -89,6 +108,7 @@ export function createReportFromDraft(
     vehicle: input.vehicle,
     priority: input.priority ?? "NORMAL",
     caseId: input.caseId,
+    events: [{ type: "SUBMITTED", at: input.submittedAt, actor, source: input.source }],
   });
 }
 
@@ -99,14 +119,15 @@ export function findReportForDraft(reports: readonly Report[], draftId: string):
 
 /**
  * Apply an enforcement consequence to the citizen report.
- * - status UNRESOLVED: report unchanged (changed=false). Status is never guessed.
- * - RESOLVED: UNDER_REVIEW -> VERIFIED/REJECTED. Re-applying the same result
- *   is a no-op; a conflicting result is REPORT_ALREADY_RESOLVED.
+ * - status UNRESOLVED: report unchanged (changed=false), no event. Status is never guessed.
+ * - RESOLVED: UNDER_REVIEW -> VERIFIED/REJECTED and a STATUS_RESOLVED event is
+ *   appended. Re-applying the same result is a no-op; a conflicting result is
+ *   REPORT_ALREADY_RESOLVED.
  */
 export function applyCitizenConsequenceToReport(
   report: Report,
   consequence: CitizenConsequence,
-  at: IsoTimestamp
+  ctx: { at: IsoTimestamp; actor: Actor; source: EventSource; outcomeCode: EnforcementOutcomeCode }
 ): Result<{ report: Report; changed: boolean }> {
   const mapping = consequence.citizenStatus;
   if (mapping.resolution === "UNRESOLVED") return ok({ report, changed: false });
@@ -114,5 +135,24 @@ export function applyCitizenConsequenceToReport(
   if (report.status !== "UNDER_REVIEW") {
     return fail("REPORT_ALREADY_RESOLVED", `Report ${report.id} is already ${report.status}.`);
   }
-  return ok({ report: { ...report, status: mapping.status, resolvedAt: at }, changed: true });
+  return ok({
+    report: {
+      ...report,
+      status: mapping.status,
+      resolvedAt: ctx.at,
+      events: [
+        ...report.events,
+        {
+          type: "STATUS_RESOLVED",
+          at: ctx.at,
+          actor: ctx.actor,
+          source: ctx.source,
+          from: report.status,
+          to: mapping.status,
+          outcomeCode: ctx.outcomeCode,
+        },
+      ],
+    },
+    changed: true,
+  });
 }

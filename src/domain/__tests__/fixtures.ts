@@ -22,15 +22,18 @@ export const T1 = "2026-07-17T18:20:00.000Z";
 export const T2 = "2026-07-17T18:35:00.000Z";
 export const CITIZEN = "citizen-1";
 export const OFFICER = "officer-1";
+export const JURISDICTION = "helsinki-demo";
+/** Officer acting in the app (case event context). */
+export const officerCtx = (at: string) => ({ at, actor: { role: "OFFICER" as const, accountId: OFFICER }, source: "USER_ACTION" as const });
 
 export function completeDraft(draftId = "draft-1"): ReportDraft {
   const d = createEmptyDraft(draftId);
   return {
     ...d,
     photos: {
-      FRONT: createCitizenEvidence({ id: "e-front", type: "FRONT", uri: "file:///front.jpg", capturedAt: T0 }),
-      SIDE: createCitizenEvidence({ id: "e-side", type: "SIDE", uri: "file:///side.jpg", capturedAt: T0 }),
-      REAR: createCitizenEvidence({ id: "e-rear", type: "REAR", uri: "file:///rear.jpg", capturedAt: T0 }),
+      FRONT: createCitizenEvidence({ id: "e-front", type: "FRONT", captureSource: "CAMERA", uri: "file:///front.jpg", capturedAt: T0 }),
+      SIDE: createCitizenEvidence({ id: "e-side", type: "SIDE", captureSource: "CAMERA", uri: "file:///side.jpg", capturedAt: T0 }),
+      REAR: createCitizenEvidence({ id: "e-rear", type: "REAR", captureSource: "CAMERA", uri: "file:///rear.jpg", capturedAt: T0 }),
     },
     violationId: "no-parking",
     location: { address: "Mannerheimintie 45, Helsinki" },
@@ -39,16 +42,31 @@ export function completeDraft(draftId = "draft-1"): ReportDraft {
 
 export function submittedReport(): Report {
   return unwrap(
-    createReportFromDraft(completeDraft(), { id: "12600", citizenId: CITIZEN, submittedAt: T0, caseId: "c-12600" })
+    createReportFromDraft(completeDraft(), {
+      id: "12600",
+      citizenId: CITIZEN,
+      jurisdictionId: JURISDICTION,
+      submittedAt: T0,
+      source: "USER_ACTION",
+      caseId: "c-12600",
+    })
   );
 }
 
 /** A case that has reached INSPECTION via the MVP path. */
 export function caseInInspection(): OfficerCase {
-  let c = createCase({ id: "c-12600", reportId: "12600", priority: "NORMAL", createdAt: T0 });
-  c = unwrap(transitionCase(c, "ASSIGNED", { at: T1, officerId: OFFICER }));
-  c = unwrap(transitionCase(c, "EN_ROUTE", { at: T1, officerId: OFFICER }));
-  c = unwrap(transitionCase(c, "INSPECTION", { at: T1, officerId: OFFICER }));
+  let c = createCase({
+    id: "c-12600",
+    reportId: "12600",
+    jurisdictionId: JURISDICTION,
+    priority: "NORMAL",
+    createdAt: T0,
+    actor: { role: "CITIZEN", accountId: CITIZEN },
+    source: "USER_ACTION",
+  });
+  c = unwrap(transitionCase(c, "ASSIGNED", officerCtx(T1)));
+  c = unwrap(transitionCase(c, "EN_ROUTE", officerCtx(T1)));
+  c = unwrap(transitionCase(c, "INSPECTION", officerCtx(T1)));
   return c;
 }
 
@@ -60,7 +78,7 @@ export function readyInspection(): Inspection {
     officerEvidence: Object.fromEntries(
       OFFICER_EVIDENCE_TYPES.map((type) => [
         type,
-        createOfficerEvidence({ id: `o-${type}`, type, uri: `file:///${type}.jpg`, capturedAt: T1 }),
+        createOfficerEvidence({ id: `o-${type}`, type, captureSource: "CAMERA", uri: `file:///${type}.jpg`, capturedAt: T1 }),
       ])
     ),
   };

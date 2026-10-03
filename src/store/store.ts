@@ -1,4 +1,13 @@
-import { ChecklistKey, EnforcementOutcomeCode, fail, Notification, OfficerEvidenceType, ReportDraft, Result } from "../domain";
+import {
+  CaptureSource,
+  ChecklistKey,
+  EnforcementOutcomeCode,
+  fail,
+  Notification,
+  OfficerEvidenceType,
+  ReportDraft,
+  Result,
+} from "../domain";
 import * as commands from "./commands";
 import { CommandResult } from "./commands";
 import { deserializeState, KeyValueStorage, PERSIST_KEY, serializeState } from "./persistence";
@@ -69,6 +78,8 @@ export function createParkWatchStore(options: StoreOptions) {
       const loaded = deserializeState(raw);
       if (loaded.status === "ok") {
         state = loaded.state;
+        // Write the upgraded format back right away so migration runs once.
+        if (loaded.migratedFrom !== undefined) persist(loaded.state);
         listeners.forEach((l) => l());
         return "storage";
       }
@@ -113,8 +124,8 @@ export function createParkWatchStore(options: StoreOptions) {
     updateChecklist: (caseId: string, key: ChecklistKey, value: boolean | null) =>
       run((s) => commands.updateChecklist(s, { caseId, key, value })),
 
-    attachOfficerPhoto: (caseId: string, type: OfficerEvidenceType, uri: string) =>
-      run((s) => commands.attachOfficerPhoto(s, { caseId, type, uri, at: now() })),
+    attachOfficerPhoto: (caseId: string, type: OfficerEvidenceType, uri: string, captureSource: CaptureSource) =>
+      run((s) => commands.attachOfficerPhoto(s, { caseId, type, uri, captureSource, at: now() })),
 
     updateInspectionNotes: (caseId: string, notes: string) =>
       run((s) => commands.updateInspectionNotes(s, { caseId, notes })),

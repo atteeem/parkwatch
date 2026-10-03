@@ -13,6 +13,37 @@ export type Cents = number;
 export type GeoPoint = { latitude: number; longitude: number; accuracyMeters?: number };
 
 // ---------------------------------------------------------------------------
+// Audit: who did something (actor) vs how it entered the system (source)
+
+export type ActorRole = "CITIZEN" | "OFFICER" | "SYSTEM";
+
+/** Identity of whoever caused an event. accountId is a stable id, never a display name. */
+export type Actor = { role: ActorRole; accountId: string };
+
+/**
+ * How an event entered the system:
+ * USER_ACTION  - a person did it in the app
+ * SYSTEM       - ParkWatch did it automatically
+ * SEED         - demo/mock seed data
+ * INTEGRATION  - an external system (operator, provider) reported it
+ * MIGRATION    - reconstructed while upgrading persisted data from an older
+ *                version; the original source was not recorded
+ */
+export type EventSource = "USER_ACTION" | "SYSTEM" | "SEED" | "INTEGRATION" | "MIGRATION";
+
+// ---------------------------------------------------------------------------
+// Plate
+
+/**
+ * Licence plate value object.
+ * raw:        as entered/displayed, e.g. "ABC-123"
+ * normalized: canonical comparison key, e.g. "ABC123" (no presentation
+ *             separators, no country-specific formatting)
+ * country:    optional ISO 3166 code, e.g. "FI"
+ */
+export type PlateNumber = { raw: string; normalized: string; country?: string };
+
+// ---------------------------------------------------------------------------
 // Evidence
 
 export const CITIZEN_EVIDENCE_TYPES = ["FRONT", "SIDE", "REAR"] as const;
@@ -30,6 +61,14 @@ export type OfficerEvidenceType = (typeof OFFICER_EVIDENCE_TYPES)[number];
 
 export type EvidenceSource = "CITIZEN" | "OFFICER";
 
+/**
+ * Where the image came from.
+ * CAMERA  - captured in-app at the scene; the only real source for required evidence
+ * LIBRARY - picked from the device photo library; never satisfies a required slot
+ * SEED    - demo/mock data; accepted for seeded records only
+ */
+export type CaptureSource = "CAMERA" | "LIBRARY" | "SEED";
+
 /** Optional citizen extras from the Add Details step (not required evidence). */
 export type CitizenAttachmentType = "ATTACHMENT";
 
@@ -38,6 +77,7 @@ export type Evidence =
       id: string;
       source: "CITIZEN";
       type: CitizenEvidenceType | CitizenAttachmentType;
+      captureSource: CaptureSource;
       uri: string;
       capturedAt: IsoTimestamp;
       /** Optional; not captured in the MVP. */
@@ -47,6 +87,7 @@ export type Evidence =
       id: string;
       source: "OFFICER";
       type: OfficerEvidenceType;
+      captureSource: CaptureSource;
       uri: string;
       capturedAt: IsoTimestamp;
       location?: GeoPoint;
@@ -61,7 +102,7 @@ export type OfficerEvidence = Extract<Evidence, { source: "OFFICER" }>;
 export type VehicleInfoSource = "MOCK_DETECTED" | "OCR_DETECTED" | "CITIZEN_CONFIRMED";
 
 export type VehicleInfo = {
-  plate: string;
+  plate: PlateNumber;
   make?: string;
   model?: string;
   color?: string;
@@ -90,16 +131,39 @@ export type ReportDraft = {
 
 export type ReportPriority = "NORMAL" | "MEDIUM" | "HIGH";
 
+export type ReportEvent =
+  | { type: "SUBMITTED"; at: IsoTimestamp; actor: Actor; source: EventSource }
+  | {
+      type: "STATUS_RESOLVED";
+      at: IsoTimestamp;
+      actor: Actor;
+      source: EventSource;
+      from: CitizenReportStatus;
+      to: CitizenReportStatus;
+      outcomeCode: EnforcementOutcomeCode;
+    };
+
 export type Report = {
   id: string;
   /** The draft this report was created from (submission idempotency). */
   sourceDraftId: string;
   citizenId: string;
+  /** Jurisdiction/organisation boundary for routing and access (MVP: one demo value). */
+  jurisdictionId: string;
   status: CitizenReportStatus;
   violationId: string;
   location: ReportLocation;
+  /** When the citizen/device says the violation was observed (device clock; not trusted). */
   observedAt: IsoTimestamp;
+  /** When the report was submitted locally on the device. */
   submittedAt: IsoTimestamp;
+  /**
+   * Trusted server receipt time. Set ONLY by a backend; always undefined in
+   * the local MVP. Never fake it on the device.
+   */
+  receivedAt?: IsoTimestamp;
+  /** Future duplicate/incident grouping key. Unused in the MVP. */
+  incidentId?: string;
   notes: string;
   evidence: CitizenEvidence[];
   vehicle?: VehicleInfo;
@@ -107,6 +171,8 @@ export type Report = {
   caseId?: string;
   /** Set when a resolved enforcement outcome changed the citizen status. */
   resolvedAt?: IsoTimestamp;
+  /** Append-only report history. */
+  events: ReportEvent[];
 };
 
 // ---------------------------------------------------------------------------
@@ -148,12 +214,15 @@ export type CaseEvent = {
   at: IsoTimestamp;
   from?: CaseStatus;
   to: CaseStatus;
-  officerId?: string;
+  actor: Actor;
+  source: EventSource;
 };
 
 export type OfficerCase = {
   id: string;
   reportId: string;
+  /** Same jurisdiction as its report. */
+  jurisdictionId: string;
   status: CaseStatus;
   priority: ReportPriority;
   /** Mock in the MVP; real routing later. */

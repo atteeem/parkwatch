@@ -114,7 +114,7 @@ export function toCitizenReportView(report: Report, state: ParkWatchState): Citi
   const v = report.vehicle;
   return {
     id: report.id,
-    plate: v?.plate ?? "",
+    plate: v?.plate.raw ?? "",
     vehicle: v ? [v.make, v.model].filter(Boolean).join(" ") || undefined : undefined,
     vehicleColor: v?.color,
     violation: report.violationId,
@@ -164,7 +164,7 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
   return {
     id: c.id,
     reportId: report.id,
-    plate: v?.plate ?? "",
+    plate: v?.plate.raw ?? "",
     vehicle: v ? [v.make, v.model].filter(Boolean).join(" ") || undefined : undefined,
     violation: violationLabel(report.violationId),
     location: report.location.address,
