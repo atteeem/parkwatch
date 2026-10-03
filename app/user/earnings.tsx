@@ -7,15 +7,28 @@ import { colors } from "../../src/constants/colors";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
 import { useApp } from "../../src/context/AppContext";
+import { UserBottomNav } from "../../src/components/UserBottomNav";
+import { formatEuros } from "../../src/presentation/viewModels";
+import { activityDateLabel, EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
 
-const PERIODS = ["All time", "Today", "This week", "This month"];
-const CHART_VALUES = [2, 4, 6, 5, 10, 9, 15, 13, 18, 24, 22, 40];
+const ACTIVITY_ICON = {
+  REWARD_AVAILABLE: "checkmark-circle",
+  REWARD_PENDING: "time",
+  REWARD_CANCELLED: "remove-circle-outline",
+  WITHDRAWAL_REQUESTED: "hourglass-outline",
+  WITHDRAWAL_PAID: "business",
+  OPENING_BALANCE: "wallet-outline",
+} as const;
 
 export default function Earnings() {
   const router = useRouter();
-  const { walletAvailable, walletPending, walletPaidOut } = useApp();
-  const [period, setPeriod] = useState("Today");
-  const max = Math.max(...CHART_VALUES);
+  // All figures below come from the reward ledger (no hardcoded amounts).
+  const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings } = useApp();
+  const [period, setPeriod] = useState<EarningsPeriod>("ALL_TIME");
+  const earnings = getEarnings(period);
+  const max = Math.max(...earnings.buckets, 1);
+  const eur = (v: number) => formatEuros(Math.round(v * 100));
+  const toneColor = { positive: colors.greenDark, negative: colors.textPrimary, pending: "#B47A00", neutral: colors.textSecondary };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -28,12 +41,12 @@ export default function Earnings() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card dark>
           <Text style={styles.hbLabel}>Available balance</Text>
-          <Text style={styles.hbAmount}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>
+          <Text style={styles.hbAmount}>{eur(walletAvailable)}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Ionicons name="checkmark-circle" size={14} color={colors.green} />
             <Text style={styles.readyLabel}>Ready to withdraw</Text>
           </View>
-          <Text style={styles.pendingLabel}>{"\u20ac"}{walletPending.toFixed(2)} pending verification</Text>
+          <Text style={styles.pendingLabel}>{eur(walletPending)} pending verification</Text>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
             <Pressable style={styles.solidBtn} onPress={() => router.push("/user/withdraw")}>
               <Text style={styles.solidBtnLabel}>Withdraw</Text>
@@ -47,9 +60,9 @@ export default function Earnings() {
         </Card>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
-          {PERIODS.map((p) => (
-            <Pressable key={p} onPress={() => setPeriod(p)} style={[styles.periodPill, period === p && styles.periodPillActive]}>
-              <Text style={[styles.periodLabel, period === p && styles.periodLabelActive]}>{p}</Text>
+          {EARNINGS_PERIODS.map((p) => (
+            <Pressable key={p.key} onPress={() => setPeriod(p.key)} style={[styles.periodPill, period === p.key && styles.periodPillActive]}>
+              <Text style={[styles.periodLabel, period === p.key && styles.periodLabelActive]}>{p.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -58,14 +71,13 @@ export default function Earnings() {
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
             <View>
               <Text style={styles.chartLabel}>Earnings</Text>
-              <Text style={styles.chartAmount}>{"\u20ac40.00"}</Text>
-              <Text style={styles.chartSub}>8 verified reports</Text>
+              <Text style={styles.chartAmount}>{earnings.totalText}</Text>
+              <Text style={styles.chartSub}>{earnings.verifiedCount} verified {earnings.verifiedCount === 1 ? "report" : "reports"}</Text>
             </View>
-            <Text style={styles.chartUp}>{"\u2191"}20% month over month</Text>
           </View>
           <View style={styles.chartRow}>
-            {CHART_VALUES.map((v, i) => (
-              <View key={i} style={[styles.bar, { height: 10 + (v / max) * 90 }]} />
+            {earnings.buckets.map((v, i) => (
+              <View key={i} style={[styles.bar, { height: 6 + (v / max) * 94, opacity: v > 0 ? 1 : 0.35 }]} />
             ))}
           </View>
         </Card>
@@ -73,19 +85,19 @@ export default function Earnings() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Ionicons name="wallet" size={18} color={colors.greenDark} />
-            <Text style={styles.summaryValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{eur(walletAvailable)}</Text>
             <Text style={styles.summaryLabel}>Available</Text>
             <Text style={styles.summarySub}>Ready to withdraw</Text>
           </View>
           <View style={styles.summaryItem}>
             <Ionicons name="time" size={18} color="#B47A00" />
-            <Text style={styles.summaryValue}>{"\u20ac"}{walletPending.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{eur(walletPending)}</Text>
             <Text style={styles.summaryLabel}>Pending</Text>
             <Text style={styles.summarySub}>Under verification</Text>
           </View>
           <View style={styles.summaryItem}>
             <Ionicons name="arrow-up-circle" size={18} color={colors.blue} />
-            <Text style={styles.summaryValue}>{"\u20ac"}{walletPaidOut.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{eur(walletPaidOut)}</Text>
             <Text style={styles.summaryLabel}>Paid out</Text>
             <Text style={styles.summarySub}>Total withdrawn</Text>
           </View>
@@ -95,21 +107,25 @@ export default function Earnings() {
           <Text style={{ fontSize: 17, fontWeight: "800" }}>Recent activity</Text>
           <Text style={{ color: colors.greenDark, fontWeight: "700" }}>View all</Text>
         </View>
-        {[
-          { icon: "checkmark-circle", label: "Reward added", sub: "GHC-789 \u2022 Verified report", amount: "+\u20ac5.00", tone: colors.greenDark },
-          { icon: "business", label: "Withdrawal completed", sub: "Bank account \u2022\u2022\u2022\u2022 4821", amount: "-\u20ac25.00", tone: colors.textPrimary },
-          { icon: "time", label: "Reward pending", sub: "JEH-523 \u2022 Under review", amount: "\u20ac5.00", tone: "#B47A00" },
-        ].map((row, i) => (
-          <View key={i} style={styles.activityRow}>
-            <Ionicons name={row.icon as any} size={20} color={row.tone} />
+        {walletActivity.length === 0 && (
+          <Text style={{ fontSize: 13, color: colors.textSecondary }}>No wallet activity yet.</Text>
+        )}
+        {walletActivity.slice(0, 5).map((row) => (
+          <View key={row.id} style={styles.activityRow}>
+            <Ionicons name={ACTIVITY_ICON[row.kind]} size={20} color={toneColor[row.tone]} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{row.label}</Text>
-              <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>{row.sub}</Text>
+              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{row.title}</Text>
+              <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>{row.subtitle}</Text>
+              <Text style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>{activityDateLabel(row)}</Text>
             </View>
-            <Text style={{ fontWeight: "800", color: row.tone }}>{row.amount}</Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ fontWeight: "800", color: toneColor[row.tone] }}>{row.amountText}</Text>
+              <Text style={{ fontSize: 10.5, color: toneColor[row.tone], marginTop: 2 }}>{row.statusText}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>
+      <UserBottomNav />
     </SafeAreaView>
   );
 }
@@ -134,7 +150,6 @@ const styles = StyleSheet.create({
   chartLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
   chartAmount: { fontSize: 24, fontWeight: "800", marginTop: 2 },
   chartSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  chartUp: { fontSize: 11.5, color: colors.greenDark, fontWeight: "700" },
   chartRow: { flexDirection: "row", alignItems: "flex-end", gap: 4, height: 100, marginTop: 16 },
   bar: { flex: 1, backgroundColor: colors.green, borderRadius: 3 },
   summaryRow: { flexDirection: "row", marginTop: 16, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14 },
