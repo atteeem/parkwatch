@@ -1,31 +1,87 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, ScrollView, Image, Pressable, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { radius, shadow } from "../../src/constants/spacing";
+import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
 import { StatusChip } from "../../src/components/StatusChip";
+import { ConfirmDialog } from "../../src/components/ConfirmDialog";
+import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp } from "../../src/context/AppContext";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { formatDistance, straightLineDistance } from "../../src/geo/distance";
+import { officerCaseMarkers } from "../../src/map/mapLogic";
+import { describeDomainError } from "../../src/presentation/errors";
+import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { primaryCaseAction } from "../../src/presentation/officerViews";
+import { showCompletedCase } from "../../src/navigation/officerNavigation";
 
+// OFF-05. Straight-line distance from the officer's foreground GPS only:
+// no routing, no ETA, no traffic (none of which the MVP can know).
 export default function EnRoute() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { officerCases, setCaseStatus, startInspectionDraft } = useApp();
-  const c = officerCases.find((x) => x.id === id);
+  const { getCase, officerId, startInspection, completeCase } = useApp();
+  const c = getCase(id);
+  // Live foreground updates while this screen is open (released on leave).
+  const location = useForegroundLocation({ watch: true });
+  const officerFix = location.permission === "granted" ? location.fix : undefined;
+  const [error, setError] = useState<string | null>(null);
+  const [confirmMoved, setConfirmMoved] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const guard = useMemo(() => createSubmitGuard(), [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!c) return null;
+  if (!c) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BackHeader title="En Route" onBack={() => router.back()} />
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundText}>This case could not be found.</Text>
+          <GreenButton label="Back to Queue" small onPress={() => router.replace("/officer/queue")} style={{ marginTop: 16 }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const handleArrived = () => {
-    setCaseStatus(c.id, "inspection");
-    startInspectionDraft(c.id);
-    router.push({ pathname: "/officer/inspection", params: { id: c.id } });
+  const action = primaryCaseAction(c, officerId);
+  const distance = straightLineDistance(officerFix, c.coordinates);
+  const isMineInTransit = action === "CONTINUE_ROUTE" || action === "START_INSPECTION";
+  const openDetails = () => router.push({ pathname: "/officer/report-details", params: { id: c.id } });
+
+  const handleStartInspection = () => {
+    setError(null);
+    if (action === "CONTINUE_INSPECTION") {
+      router.push({ pathname: "/officer/inspection", params: { id: c.id } });
+      return;
+    }
+    guard.run(() => startInspection(c.id), {
+      onSuccess: () => router.push({ pathname: "/officer/inspection", params: { id: c.id } }),
+      onError: (e) => setError(describeDomainError(e).message),
+    });
+  };
+
+  const handleVehicleMoved = () => {
+    guard.run(() => completeCase(c.id, "VEHICLE_MOVED"), {
+      onSuccess: () => {
+        setConfirmMoved(false);
+        showCompletedCase(router, c.id);
+      },
+      onError: (e) => setDialogError(describeDomainError(e).message),
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.headerRow}>
+        {router.canGoBack() && (
+          <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+          </Pressable>
+        )}
         <Text style={styles.title}>En Route</Text>
         <View style={styles.onDutyChip}>
           <View style={styles.onDutyDot} />
@@ -33,11 +89,8 @@ export default function EnRoute() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 20 }}>
-        <Pressable
-          style={styles.caseCard}
-          onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
-        >
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: Math.max(insets.bottom, 12) + 20 }}>
+        <Pressable style={styles.caseCard} onPress={openDetails}>
           <Image source={{ uri: c.images[0] }} style={styles.caseImg} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -62,33 +115,49 @@ export default function EnRoute() {
             <Text style={styles.navTopLabel}>
               <Ionicons name="navigate" size={13} color={colors.green} /> Navigating to location
             </Text>
-            <View style={styles.openMapsBtn}>
-              <Text style={styles.openMapsLabel}>Open in Maps</Text>
-              <Ionicons name="open-outline" size={13} color="#fff" />
-            </View>
+            {c.coordinates && (
+              <Pressable
+                style={styles.openMapsBtn}
+                onPress={() => router.push({ pathname: "/officer/map", params: { caseId: c.id } })}
+              >
+                <Text style={styles.openMapsLabel}>Open in Maps</Text>
+                <Ionicons name="map-outline" size={13} color="#fff" />
+              </Pressable>
+            )}
           </View>
           <Text style={styles.navAddress}>{c.location}</Text>
 
-          <View style={styles.navMap}>
-            <View style={styles.routeLine} />
-            <View style={styles.destPin}>
-              <Ionicons name="location" size={16} color="#fff" />
+          {c.coordinates ? (
+            <LiveMap
+              style={styles.navMap}
+              interactive={false}
+              following={false}
+              focusPoint={c.coordinates}
+              markers={officerCaseMarkers([c])}
+              userFix={officerFix}
+            />
+          ) : (
+            <View style={[styles.navMap, styles.navMapEmpty]}>
+              <Text style={styles.navBottomLabel}>This report has no GPS position. Use the address.</Text>
             </View>
-            <View style={styles.meDotBig} />
-          </View>
+          )}
 
           <View style={styles.navBottomBar}>
             <View style={{ alignItems: "center" }}>
-              <Text style={styles.navBottomLabel}>ETA</Text>
-              <Text style={styles.navBottomValue}>2 min</Text>
+              <Text style={styles.navBottomLabel}>Distance (straight line)</Text>
+              <Text style={styles.navBottomValue}>{distance !== null ? formatDistance(distance) : "Unknown"}</Text>
             </View>
             <View style={{ alignItems: "center" }}>
-              <Text style={styles.navBottomLabel}>Distance</Text>
-              <Text style={styles.navBottomValue}>{Math.round(c.distance * 1000)} m</Text>
-            </View>
-            <View style={{ alignItems: "center" }}>
-              <Text style={styles.navBottomLabel}>Traffic</Text>
-              <Text style={styles.navBottomValue}>Light</Text>
+              <Text style={styles.navBottomLabel}>Your location</Text>
+              <Text style={styles.navBottomValue}>
+                {officerFix
+                  ? officerFix.accuracyMeters !== undefined
+                    ? `±${Math.round(officerFix.accuracyMeters)} m`
+                    : "On"
+                  : location.permission === "granted"
+                    ? "Locating…"
+                    : "Off"}
+              </Text>
             </View>
           </View>
         </View>
@@ -104,7 +173,7 @@ export default function EnRoute() {
         <View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={styles.originalReportLabel}>Original Report</Text>
-            <Pressable onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}>
+            <Pressable onPress={openDetails}>
               <Text style={styles.viewDetails}>View Details</Text>
             </Pressable>
           </View>
@@ -115,15 +184,60 @@ export default function EnRoute() {
           </View>
         </View>
 
-        <GreenButton label="Start On-site Inspection" icon="clipboard" onPress={handleArrived} trailingIcon={undefined as any} />
-        <Text style={styles.subCaption}>I have arrived at the location</Text>
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={15} color="#B3261E" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-        <GreenButton label="Vehicle moved / not found" variant="destructive" trailingIcon={undefined as any} icon="car" />
-        <Text style={styles.subCaption}>The vehicle is no longer here</Text>
+        {action === "VIEW_RESULT" ? (
+          <GreenButton
+            label="View Result"
+            onPress={() => router.push({ pathname: "/officer/inspection-completed", params: { id: c.id } })}
+          />
+        ) : (
+          <>
+            <GreenButton
+              label={action === "CONTINUE_INSPECTION" ? "Continue Inspection" : "Start On-site Inspection"}
+              icon="clipboard"
+              disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION")}
+              onPress={handleStartInspection}
+              trailingIcon={undefined as any}
+            />
+            <Text style={styles.subCaption}>I have arrived at the location</Text>
 
-        <GreenButton label="Release Case" variant="gray" trailingIcon={undefined as any} icon="close-circle" />
-        <Text style={styles.subCaption}>Close and return case to queue</Text>
+            <GreenButton
+              label="Vehicle moved / not found"
+              variant="destructive"
+              trailingIcon={undefined as any}
+              icon="car"
+              disabled={!isMineInTransit}
+              onPress={() => {
+                setDialogError(null);
+                setConfirmMoved(true);
+              }}
+            />
+            <Text style={styles.subCaption}>The vehicle is no longer here</Text>
+
+            {/* TODO(dev): releasing a case back to the queue is not defined in the
+                domain lifecycle yet (EN_ROUTE -> NEW is not an allowed transition). */}
+            <GreenButton label="Release Case" variant="gray" trailingIcon={undefined as any} icon="close-circle" disabled />
+            <Text style={styles.subCaption}>Returning a case to the queue is not available yet</Text>
+          </>
+        )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={confirmMoved}
+        title="Vehicle moved or not found?"
+        message="The case will be closed as Vehicle moved. No parking charge is issued and the reporter's reward is cancelled. This cannot be undone."
+        confirmLabel="Close Case"
+        destructive
+        error={dialogError}
+        onConfirm={handleVehicleMoved}
+        onCancel={() => setConfirmMoved(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -146,10 +260,13 @@ const styles = StyleSheet.create({
   openMapsBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 6 },
   openMapsLabel: { color: "#fff", fontWeight: "700", fontSize: 11.5 },
   navAddress: { color: "#fff", fontWeight: "800", fontSize: 15, paddingHorizontal: 14, paddingBottom: 10 },
-  navMap: { height: 220, backgroundColor: "#1B1D18", position: "relative" },
-  routeLine: { position: "absolute", width: 3, height: 120, backgroundColor: colors.blue, top: 40, left: 90, transform: [{ rotate: "20deg" }] },
-  destPin: { position: "absolute", top: 30, left: 100, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.red, alignItems: "center", justifyContent: "center" },
-  meDotBig: { position: "absolute", bottom: 30, left: 80, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.blue, borderWidth: 5, borderColor: "rgba(52,120,229,0.3)" },
+  navMap: { height: 220, backgroundColor: "#1B1D18" },
+  navMapEmpty: { alignItems: "center", justifyContent: "center", padding: 20 },
+  backBtn: { position: "absolute", left: 16, top: 8, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center" },
+  notFound: { alignItems: "center", padding: 32 },
+  notFoundText: { color: colors.textSecondary, fontSize: 14 },
+  errorBanner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.redLight, borderRadius: 10, padding: 10 },
+  errorText: { flex: 1, fontSize: 12.5, color: "#B3261E", fontWeight: "600" },
   navBottomBar: { flexDirection: "row", justifyContent: "space-around", padding: 14, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" },
   navBottomLabel: { color: "#8C948E", fontSize: 10.5 },
   navBottomValue: { color: colors.green, fontWeight: "800", fontSize: 14, marginTop: 2 },

@@ -1,25 +1,30 @@
 import React from "react";
 import { View, Text, ScrollView, Pressable, Image, Switch, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { Card } from "../../src/components/Card";
+import { useApp } from "../../src/context/AppContext";
+import { casesStats, myCases } from "../../src/presentation/officerViews";
 
 function Row({
   icon,
   title,
   subtitle,
   destructive,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
   destructive?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.row}>
+    <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
       <View style={[styles.rowIcon, destructive && { backgroundColor: colors.redLight }]}>
         <Ionicons name={icon} size={17} color={destructive ? colors.red : colors.greenDark} />
       </View>
@@ -33,7 +38,15 @@ function Row({
 }
 
 export default function OfficerProfile() {
+  const router = useRouter();
   const [dark, setDark] = React.useState(false);
+  // Shell profile: real counts from this officer's cases only (no gamification,
+  // no response-time stats; those need server timestamps).
+  const { officerCases, officerId } = useApp();
+  const mine = myCases(officerCases, officerId);
+  const all = casesStats(mine);
+  const today = new Date().toDateString();
+  const todays = casesStats(mine.filter((c) => c.completedAt && new Date(c.completedAt).toDateString() === today));
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -67,16 +80,16 @@ export default function OfficerProfile() {
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20, marginBottom: 10 }}>
           <Text style={styles.sectionHeading}>Your Performance</Text>
           <Text style={styles.allTime}>
-            All Time <Ionicons name="chevron-down" size={12} />
+            All Time
           </Text>
         </View>
         <Card>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             {[
-              { icon: "document-text", value: "1,248", label: "Assigned Cases", color: colors.blue },
-              { icon: "checkmark-circle", value: "1,243", label: "Completed Cases", color: colors.greenDark },
-              { icon: "wallet", value: "994", label: "Parking Charges Issued", color: "#B47A00" },
-              { icon: "time", value: "3m 12s", label: "Avg. Response Time", color: colors.purple },
+              { icon: "document-text", value: String(all.total), label: "My Cases", color: colors.blue },
+              { icon: "checkmark-circle", value: String(all.completed), label: "Completed Cases", color: colors.greenDark },
+              { icon: "wallet", value: String(all.issued), label: "Parking Charges Issued", color: "#B47A00" },
+              { icon: "close-circle", value: String(all.rejected), label: "Rejected Reports", color: colors.purple },
             ].map((s) => (
               <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
                 <Ionicons name={s.icon as any} size={18} color={s.color} />
@@ -94,13 +107,12 @@ export default function OfficerProfile() {
               <Text style={styles.onDutyLabel}>On Duty</Text>
             </View>
           </View>
-          <Text style={styles.shiftTime}>08:00 - 16:00 {"\u00b7"} Started 08:00</Text>
+          <Text style={styles.shiftTime}>Cases you closed today</Text>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 14 }}>
             {[
-              { value: "17", label: "Cases Completed" },
-              { value: "14", label: "Charges Issued" },
-              { value: "3", label: "Rejected Reports" },
-              { value: "4m 9s", label: "Avg. Inspection Time" },
+              { value: String(todays.completed), label: "Cases Completed" },
+              { value: String(todays.issued), label: "Charges Issued" },
+              { value: String(todays.rejected), label: "Rejected Reports" },
             ].map((s) => (
               <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
                 <Text style={styles.perfValue}>{s.value}</Text>
@@ -108,11 +120,6 @@ export default function OfficerProfile() {
               </View>
             ))}
           </View>
-          <Pressable style={{ marginTop: 12 }}>
-            <Text style={styles.viewShiftDetails}>
-              View shift details <Ionicons name="chevron-forward" size={12} />
-            </Text>
-          </Pressable>
         </Card>
 
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
@@ -130,9 +137,7 @@ export default function OfficerProfile() {
         <Card noPadding>
           <Row icon="stats-chart" title="Monthly Statistics" subtitle="Detailed performance overview" />
           <View style={styles.divider} />
-          <Row icon="folder" title="Case History" subtitle="View your inspection history" />
-          <View style={styles.divider} />
-          <Row icon="ribbon" title="Achievement Badges" subtitle="View your earned badges and milestones" />
+          <Row icon="folder" title="Case History" subtitle="View your inspection history" onPress={() => router.replace("/officer/cases")} />
         </Card>
 
         <Text style={styles.sectionLabel}>APP</Text>

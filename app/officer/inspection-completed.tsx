@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,53 +7,80 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
+import { BackHeader } from "../../src/components/Header";
 import { useApp } from "../../src/context/AppContext";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { filterQueue, sortQueue, toCompletionSummary, withDistances } from "../../src/presentation/officerViews";
+import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNavigation";
 
+// OFF-09. Rendered entirely from the stored case: the charge line appears
+// only for CHARGE_ISSUED and the photo count is the real one.
 export default function InspectionCompleted() {
   const router = useRouter();
-  const { id, outcome } = useLocalSearchParams<{ id: string; outcome: string }>();
-  const { officerCases } = useApp();
-  const c = officerCases.find((x) => x.id === id);
-  const charged = outcome === "charge";
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { getCase, getCaseDetail, getInspection, officerCases, officerId } = useApp();
+  const location = useForegroundLocation();
+  const c = getCase(id);
+  const summary = c ? toCompletionSummary(c, getInspection(c.id), getCaseDetail(c.id)?.outcomeNotes) : null;
 
-  if (!c) return null;
+  if (!c || !summary) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BackHeader title="Case Result" onBack={() => resetToOfficerHome(router)} />
+        <Text style={styles.stateText}>{!c ? "This case could not be found." : "This case has not been completed yet."}</Text>
+      </SafeAreaView>
+    );
+  }
 
   const handleNextCase = () => {
-    const next = officerCases.find((x) => x.status === "new");
-    if (next) {
-      router.replace({ pathname: "/officer/report-details", params: { id: next.id } });
-    } else {
+    const fix = location.permission === "granted" ? location.fix : undefined;
+    const next = sortQueue(filterQueue(withDistances(officerCases, fix), "New", officerId)).find((x) => x.id !== c.id);
+    if (next) openNextCase(router, next.id);
+    else {
+      resetToOfficerHome(router);
       router.replace("/officer/queue");
     }
   };
 
+  const rows: { label: string; value?: string }[] = [
+    ...(summary.photosText ? [{ label: "On-site inspection" }, { label: "Officer photos", value: summary.photosText }] : []),
+    { label: summary.outcomeLabel, value: summary.chargeText },
+    { label: "Case status", value: "Closed" },
+  ];
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <View style={{ flex: 1, padding: 24, alignItems: "center" }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, alignItems: "center" }}>
         <View style={styles.successCircle}>
           <Ionicons name="checkmark" size={40} color={colors.greenDark} />
         </View>
-        <Text style={styles.title}>Inspection Completed</Text>
-        <Text style={styles.subtitle}>Thank you! Your inspection has been recorded.</Text>
+        <Text style={styles.title}>{summary.photosText ? "Inspection Completed" : "Case Closed"}</Text>
+        <Text style={styles.subtitle}>Thank you! The outcome has been recorded.</Text>
 
         <Card style={{ width: "100%", marginTop: 22 }}>
           <View style={{ flexDirection: "row" }}>
             <Image source={{ uri: c.images[0] }} style={styles.img} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.location}>
-                <Ionicons name="location" size={12} color={colors.greenDark} /> {c.location}
+                <Ionicons name="location" size={12} color={colors.greenDark} /> {summary.location}
               </Text>
-              <Text style={styles.meta}>{new Date().toLocaleDateString()} at {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+              {summary.completedAtText && <Text style={styles.meta}>{summary.completedAtText}</Text>}
               <Text style={styles.fieldLabel}>Vehicle</Text>
-              <Text style={styles.fieldValue}>{c.plate}</Text>
+              <Text style={styles.fieldValue}>{summary.plate}</Text>
               <Text style={styles.fieldLabel}>Violation</Text>
-              <Text style={styles.fieldValue}>{c.violation}</Text>
+              <Text style={styles.fieldValue}>{summary.violation}</Text>
               <Text style={styles.fieldLabel}>Report ID</Text>
-              <Text style={styles.fieldValue}>#{c.reportId}</Text>
-              {charged && (
+              <Text style={styles.fieldValue}>#{summary.reportId}</Text>
+              {summary.chargeText && (
                 <>
                   <Text style={styles.fieldLabel}>Parking charge</Text>
-                  <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{"\u20ac60"}</Text>
+                  <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{summary.chargeText}</Text>
+                </>
+              )}
+              {summary.notes && (
+                <>
+                  <Text style={styles.fieldLabel}>Notes</Text>
+                  <Text style={styles.fieldValue}>{summary.notes}</Text>
                 </>
               )}
             </View>
@@ -62,12 +89,7 @@ export default function InspectionCompleted() {
 
         <Text style={styles.summaryHeading}>Case Summary</Text>
         <View style={{ width: "100%", gap: 8 }}>
-          {[
-            { label: "On-site inspection", value: null },
-            { label: "Officer photos", value: "4 / 4" },
-            { label: charged ? "Parking charge issued" : "Case closed", value: charged ? "\u20ac60" : null },
-            { label: "Case status", value: "Closed" },
-          ].map((row) => (
+          {rows.map((row) => (
             <View key={row.label} style={styles.summaryRow}>
               <Text style={styles.summaryRowLabel}>{row.label}</Text>
               {row.value && <Text style={styles.summaryRowValue}>{row.value}</Text>}
@@ -76,16 +98,17 @@ export default function InspectionCompleted() {
           ))}
         </View>
 
-        <View style={{ width: "100%", marginTop: "auto", gap: 10 }}>
+        <View style={{ width: "100%", marginTop: "auto", paddingTop: 20, gap: 10 }}>
           <GreenButton label="Next Case" icon="navigate" onPress={handleNextCase} />
-          <GreenButton label="Return to Home" variant="outline" icon="home" onPress={() => router.replace("/officer/home")} />
+          <GreenButton label="Return to Home" variant="outline" icon="home" onPress={() => resetToOfficerHome(router)} />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  stateText: { padding: 24, color: colors.textSecondary, fontSize: 14, textAlign: "center" },
   safe: { flex: 1, backgroundColor: colors.background },
   successCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center", marginTop: 20 },
   title: { fontSize: 22, fontWeight: "800", marginTop: 16 },

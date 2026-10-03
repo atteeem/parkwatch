@@ -4,6 +4,10 @@
 // re-implement any of this.
 
 import {
+  CHECKLIST_KEYS,
+  countCapturedOfficerEvidence,
+  isInspectionComplete,
+  isRequiredEvidenceCaptured,
   calculateBalances,
   CaseStatus as DomainCaseStatus,
   ChecklistKey,
@@ -168,7 +172,6 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
     vehicle: v ? [v.make, v.model].filter(Boolean).join(" ") || undefined : undefined,
     violation: violationLabel(report.violationId),
     location: report.location.address,
-    distance: (c.distanceMeters ?? 0) / 1000,
     priority: PRIORITY_TO_VIEW[c.priority],
     status: CASE_STATUS_TO_VIEW[c.status],
     reporterReliability: reporter.reliability,
@@ -187,6 +190,10 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
     coordinates: report.location.coordinates
       ? { latitude: report.location.coordinates.latitude, longitude: report.location.coordinates.longitude }
       : undefined,
+    assignedOfficerId: c.assignedOfficerId,
+    decidedBy: c.outcome?.officerId,
+    photoCount: report.evidence.length,
+    submittedAt: report.submittedAt,
   };
 }
 
@@ -212,6 +219,18 @@ export type InspectionView = {
   notes: string;
   result?: string;
   completedAt?: string;
+  /** false when the case has no inspection record (e.g. not started). */
+  exists: boolean;
+  /** Checklist items answered "yes" (0-4). */
+  checklistConfirmed: number;
+  /** Qualifying (CAMERA/SEED) officer photos (0-4). */
+  photosCaptured: number;
+  /** Derived "Required evidence captured" (all four qualifying photos). */
+  evidenceComplete: boolean;
+  /** Ready for CHARGE_ISSUED: all checks yes + all four photos. */
+  readyForCharge: boolean;
+  /** The plate check was confirmed with the simulated (non-OCR) Scan control. */
+  plateConfirmedBySimulatedScan: boolean;
 };
 
 export function toInspectionView(caseId: string, inspection: Inspection | undefined): InspectionView {
@@ -231,6 +250,12 @@ export function toInspectionView(caseId: string, inspection: Inspection | undefi
     notes: inspection?.notes ?? "",
     result: code ? (code === "CHARGE_ISSUED" ? "charge" : OUTCOME_TO_REASON_ID[code]) : undefined,
     completedAt: inspection?.completedAt,
+    exists: !!inspection,
+    checklistConfirmed: inspection ? CHECKLIST_KEYS.filter((k) => inspection.checklist[k] === true).length : 0,
+    photosCaptured: inspection ? countCapturedOfficerEvidence(inspection) : 0,
+    evidenceComplete: inspection ? isRequiredEvidenceCaptured(inspection) : false,
+    readyForCharge: inspection ? isInspectionComplete(inspection) : false,
+    plateConfirmedBySimulatedScan: !!inspection?.plateScanSimulatedAt,
   };
 }
 
@@ -259,7 +284,7 @@ function notificationCopy(n: DomainNotification, state: ParkWatchState): { title
       return {
         title: "Report verified",
         body:
-          `Your report ${ref} has been verified and a fine has been issued.` +
+          `Your report ${ref} has been verified and a parking charge has been issued.` +
           (n.amountCents ? `\n+ ${formatEuros(n.amountCents)} added to your balance` : ""),
       };
     case "REPORT_REJECTED":
@@ -300,6 +325,7 @@ export function toNotificationView(n: DomainNotification, state: ParkWatchState,
     time: formatNotificationTime(n.createdAt, now),
     kind,
     unread: n.readAt === undefined,
+    ...(n.caseId ? { caseId: n.caseId } : {}),
     ...notificationCopy(n, state),
   };
 }
@@ -314,4 +340,38 @@ export function selectNotifications(
     .filter((n) => n.recipient.role === recipient.role && n.recipient.accountId === recipient.accountId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map((n) => toNotificationView(n, state, now));
+}
+
+// ---------------------------------------------------------------------------
+// Officer case detail (OFF-04 / OFF-05 / OFF-09)
+
+export type CaseDetailView = {
+  case: OfficerCaseView;
+  vehicleColor?: string;
+  /** "MOCK_DETECTED" etc. — where the plate came from. */
+  plateSource?: string;
+  coordinates?: { latitude: number; longitude: number; accuracyMeters?: number };
+  submittedAtText: string;
+  /** Officer outcome notes (completed cases). */
+  outcomeNotes?: string;
+};
+
+/** Read-only detail lookup for officer screens / deep links (never mutates). */
+export function selectCaseDetail(state: ParkWatchState, caseId: string, now: Date): CaseDetailView | undefined {
+  const c = state.cases.find((x) => x.id === caseId);
+  if (!c) return undefined;
+  const view = toOfficerCaseView(c, state, now);
+  const report = state.reports.find((r) => r.id === c.reportId);
+  if (!view || !report) return undefined;
+  const coords = report.location.coordinates;
+  return {
+    case: view,
+    vehicleColor: report.vehicle?.color,
+    plateSource: report.vehicle?.source,
+    coordinates: coords
+      ? { latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracyMeters }
+      : undefined,
+    submittedAtText: formatRelativeTime(report.submittedAt, now),
+    outcomeNotes: c.outcome?.notes,
+  };
 }

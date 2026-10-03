@@ -1,15 +1,16 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { DevSettings } from "react-native";
-import { ReportDraft, Result, validateWithdrawal } from "../domain";
+import { EnforcementOutcomeCode, ReportDraft, Result, validateWithdrawal } from "../domain";
 import { Notification } from "../data/mockNotifications";
-import { CaseStatus, OfficerCase, UserReport } from "../data/types";
+import { OfficerCase, UserReport } from "../data/types";
 import {
   CHECK_KEY_TO_DOMAIN,
   InspectionCheckKey,
   InspectionView,
   OFFICER_PHOTO_KEY_TO_TYPE,
   OfficerPhotoKey,
-  RESULT_SELECTION_TO_OUTCOME,
+  CaseDetailView,
+  selectCaseDetail,
   selectCitizenReports,
   selectNotifications,
   selectOfficerCases,
@@ -59,22 +60,22 @@ type AppContextValue = {
   /** Simulated withdrawal REQUEST (no real transfer). */
   withdraw: (amountCents: number) => Result<{ withdrawalId: string }>;
 
-  // officer
+  // officer — every action returns its Result; screens must not navigate on failure.
+  officerId: string;
   officerCases: OfficerCase[];
-  getCase: (id: string) => OfficerCase | undefined;
-  acceptCase: (id: string) => boolean;
-  setCaseStatus: (id: string, status: CaseStatus) => boolean;
-  startInspectionDraft: (caseId: string) => void;
+  /** Read-only; undefined for unknown ids (never mutates). */
+  getCase: (id: string | undefined | null) => OfficerCase | undefined;
+  getCaseDetail: (id: string | undefined | null) => CaseDetailView | undefined;
   getInspection: (caseId: string) => OfficerInspectionDraft;
-  updateInspection: (
-    caseId: string,
-    patch: Partial<Record<InspectionCheckKey, boolean | null>> & { notes?: string }
-  ) => void;
-  setOfficerPhoto: (caseId: string, key: OfficerPhotoKey, uri: string) => void;
-  completeInspection: (
-    id: string,
-    result: { outcome: "charge" | "closed"; reasonId?: string; chargeAmount?: number; notes?: string }
-  ) => boolean;
+  acceptCase: (id: string) => Result<void>;
+  startEnRoute: (id: string) => Result<void>;
+  startInspection: (id: string) => Result<void>;
+  setChecklistItem: (caseId: string, key: InspectionCheckKey, value: boolean | null) => Result<void>;
+  /** DEVELOPMENT/MOCK plate confirmation (no OCR). */
+  confirmPlateBySimulatedScan: (caseId: string) => Result<void>;
+  setOfficerPhoto: (caseId: string, key: OfficerPhotoKey, uri: string, capturedAt?: string) => Result<{ evidenceId: string }>;
+  /** Record the enforcement outcome (charge amount always from config). */
+  completeCase: (caseId: string, code: EnforcementOutcomeCode, notes?: string) => Result<{ changed: boolean }>;
 
   // notifications
   userNotifications: Notification[];
@@ -127,36 +128,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       validateWithdrawal: (amountCents) => validateWithdrawal(state.ledger, DEV_CITIZEN_ID, amountCents),
       withdraw: (amountCents) => appStore.requestWithdrawal(DEV_CITIZEN_ID, amountCents),
 
+      officerId: DEV_OFFICER_ID,
       officerCases,
-      getCase: (id) => officerCases.find((c) => c.id === id),
-      acceptCase: (id) => appStore.acceptCase(id, DEV_OFFICER_ID).ok,
-      setCaseStatus: (id, status) => {
-        if (status === "en-route") return appStore.startEnRoute(id, DEV_OFFICER_ID).ok;
-        if (status === "inspection") return appStore.startInspection(id, DEV_OFFICER_ID).ok;
-        return false; // other moves go through their dedicated actions
-      },
-      startInspectionDraft: (caseId) => {
-        appStore.ensureInspection(caseId);
-      },
+      getCase: (id) => (id ? officerCases.find((c) => c.id === id) : undefined),
+      getCaseDetail: (id) => (id ? selectCaseDetail(state, id, now) : undefined),
       getInspection: (caseId) => toInspectionView(caseId, state.inspections[caseId]),
-      updateInspection: (caseId, patch) => {
-        for (const [key, domainKey] of Object.entries(CHECK_KEY_TO_DOMAIN) as [InspectionCheckKey, typeof CHECK_KEY_TO_DOMAIN[InspectionCheckKey]][]) {
-          if (key in patch) appStore.updateChecklist(caseId, domainKey, patch[key] ?? null);
-        }
-        if (patch.notes !== undefined) appStore.updateInspectionNotes(caseId, patch.notes);
-      },
-      setOfficerPhoto: (caseId, key, uri) => {
-        // Officer slot photos only come from the in-app camera screen.
-        appStore.attachOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri, "CAMERA");
-      },
-      completeInspection: (id, result) => {
-        const selection = result.outcome === "charge" ? "charge" : result.reasonId ?? "other";
-        const code = RESULT_SELECTION_TO_OUTCOME[selection];
-        if (!code) return false;
-        // The charge amount comes from domain config, not from the screen.
-        const r = appStore.completeCase(id, code, DEV_OFFICER_ID, result.notes);
-        if (!r.ok) console.warn("[ParkWatch] case not completed:", r.error.message);
-        return r.ok;
+      acceptCase: (id) => appStore.acceptCase(id, DEV_OFFICER_ID),
+      startEnRoute: (id) => appStore.startEnRoute(id, DEV_OFFICER_ID),
+      startInspection: (id) => appStore.startInspection(id, DEV_OFFICER_ID),
+      setChecklistItem: (caseId, key, value) => appStore.updateChecklist(caseId, CHECK_KEY_TO_DOMAIN[key], value),
+      confirmPlateBySimulatedScan: (caseId) => appStore.confirmPlateBySimulatedScan(caseId),
+      // Officer slot photos only come from the in-app camera screen.
+      setOfficerPhoto: (caseId, key, uri, capturedAt) =>
+        appStore.attachOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri, "CAMERA", capturedAt),
+      completeCase: (caseId, code, notes) => {
+        const r = appStore.completeCase(caseId, code, DEV_OFFICER_ID, notes);
+        return r.ok ? { ok: true, value: { changed: r.value.changed } } : r;
       },
 
       userNotifications: selectNotifications(state, citizen, now),

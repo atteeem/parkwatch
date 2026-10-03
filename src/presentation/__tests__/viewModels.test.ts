@@ -30,7 +30,11 @@ describe("view models for the existing screens", () => {
   it("officer cases carry legacy status, km distance, labels, relative time and charge in euros", () => {
     const cases = selectOfficerCases(seed, now);
     const first = cases[0];
-    expect(first).toMatchObject({ id: "c-12564", status: "new", priority: "high", distance: 0.3, violation: "No parking zone", reportedAgo: "5 min ago", reporterName: "Mika S." });
+    expect(first).toMatchObject({ id: "c-12564", status: "new", priority: "high", violation: "No parking zone", reportedAgo: "5 min ago", reporterName: "Mika S." });
+    // No mock distance on the view: distance is computed from real GPS on screen.
+    expect(first).not.toHaveProperty("distance");
+    expect(first.coordinates).toBeDefined();
+    expect(first.photoCount).toBeGreaterThan(0);
     expect(cases.find((c) => c.id === "c-12484")).toMatchObject({ status: "completed", chargeAmount: 60, outcomeCode: "CHARGE_ISSUED" });
     expect(cases.find((c) => c.id === "c-12568")?.status).toBe("en-route");
   });

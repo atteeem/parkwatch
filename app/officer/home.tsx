@@ -9,14 +9,25 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
 import { useApp } from "../../src/context/AppContext";
+import { LiveMap } from "../../src/components/map/LiveMap";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { officerCaseMarkers } from "../../src/map/mapLogic";
+import { formatDistance } from "../../src/geo/distance";
+import { myCases, officerHomeSummary, withDistances } from "../../src/presentation/officerViews";
 
 export default function OfficerHome() {
   const router = useRouter();
-  const { officerCases, officerNotifications } = useApp();
-  const nearest = officerCases.find((c) => c.status === "new");
-  const active = officerCases.filter((c) => ["assigned", "en-route", "on-site", "inspection"].includes(c.status)).slice(0, 3);
+  const { officerCases, officerNotifications, officerId } = useApp();
+  // Never prompts here; uses a position only if permission was already granted.
+  const location = useForegroundLocation();
+  const officerFix = location.permission === "granted" ? location.fix : undefined;
+  const summary = officerHomeSummary(withDistances(officerCases, officerFix), officerId);
+  const nearest = summary.nearest;
+  const active = summary.active.slice(0, 3);
   const unread = officerNotifications.filter((n) => n.unread).length;
-  const highPriorityCount = officerCases.filter((c) => c.priority === "high" && c.status === "new").length;
+  const mine = myCases(officerCases, officerId);
+  const completedByMe = mine.filter((c) => c.status === "completed").length;
+  const openCase = (id: string) => router.push({ pathname: "/officer/report-details", params: { id } });
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -47,23 +58,30 @@ export default function OfficerHome() {
 
         <View style={styles.statsRow}>
           <Text style={styles.statChip}>
-            <Ionicons name="document-text" size={13} color={colors.textSecondary} /> {officerCases.length} nearby reports
+            <Ionicons name="document-text" size={13} color={colors.textSecondary} /> {summary.openCount} open reports
           </Text>
           <Text style={styles.statChip}>
-            <Ionicons name="alert-circle" size={13} color={colors.red} /> {highPriorityCount} high priority
+            <Ionicons name="alert-circle" size={13} color={colors.red} /> {summary.highPriorityCount} high priority
           </Text>
         </View>
 
+        {!nearest && (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No new reports right now.</Text>
+          </View>
+        )}
+
         {nearest && (
-          <Pressable
-            style={styles.nearestCard}
-            onPress={() => router.push({ pathname: "/officer/report-details", params: { id: nearest.id } })}
-          >
+          <Pressable style={styles.nearestCard} onPress={() => openCase(nearest.id)}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={styles.nearestEyebrow}>NEAREST NEW REPORT</Text>
-              <Text style={styles.nearestDistance}>
-                {nearest.distance.toFixed(1)}km away <Ionicons name="navigate" size={11} />
-              </Text>
+              <Text style={styles.nearestEyebrow}>{nearest.distanceMeters !== null ? "NEAREST NEW REPORT" : "NEXT NEW REPORT"}</Text>
+              {nearest.distanceMeters !== null ? (
+                <Text style={styles.nearestDistance}>
+                  {formatDistance(nearest.distanceMeters)} away <Ionicons name="navigate" size={11} />
+                </Text>
+              ) : (
+                <Text style={styles.nearestNoGps}>Location off: distance unknown</Text>
+              )}
             </View>
             <View style={{ flexDirection: "row", marginTop: 10 }}>
               <Image source={{ uri: nearest.images[0] }} style={styles.nearestImg} />
@@ -93,17 +111,19 @@ export default function OfficerHome() {
         <View style={styles.mapSection}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={typography.sectionHeading}>Live Map</Text>
-            <Pressable onPress={() => router.push("/officer/map")}>
+            <Pressable onPress={() => router.replace("/officer/map")}>
               <Text style={styles.viewFullMap}>View full map</Text>
             </Pressable>
           </View>
-          <Pressable style={styles.mapPreview} onPress={() => router.push("/officer/map")}>
-            <View style={[styles.marker, { backgroundColor: colors.amber, top: 20, left: 30 }]}><Text style={styles.markerLabel}>3</Text></View>
-            <View style={[styles.marker, { backgroundColor: colors.red, top: 60, left: 140 }]}><Ionicons name="alert" size={12} color="#fff" /></View>
-            <View style={[styles.marker, { backgroundColor: colors.green, top: 100, left: 40 }]}><Text style={styles.markerLabel}>2</Text></View>
-            <View style={[styles.marker, { backgroundColor: colors.green, top: 110, left: 210 }]}><Text style={styles.markerLabel}>4</Text></View>
-            <View style={[styles.marker, { backgroundColor: colors.amber, top: 25, left: 230 }]}><Text style={styles.markerLabel}>2</Text></View>
-            <View style={styles.meDot} />
+          <Pressable style={styles.mapPreviewWrap} onPress={() => router.replace("/officer/map")}>
+            {/* Static preview of the live map: real case markers, no gestures, never prompts. */}
+            <LiveMap
+              style={styles.mapPreview}
+              interactive={false}
+              markers={officerCaseMarkers(officerCases)}
+              userFix={officerFix}
+              following={false}
+            />
           </Pressable>
           <View style={styles.legendRow}>
             <Text style={styles.legendItem}><Ionicons name="ellipse" size={9} color={colors.green} /> New reports</Text>
@@ -115,13 +135,18 @@ export default function OfficerHome() {
         <View style={{ marginTop: 20 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <Text style={typography.sectionHeading}>Active Cases</Text>
-            <Pressable onPress={() => router.push("/officer/cases")}>
+            <Pressable onPress={() => router.replace("/officer/cases")}>
               <Text style={styles.viewFullMap}>View All</Text>
             </Pressable>
           </View>
           <View style={{ marginTop: 10 }}>
+            {active.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No active cases. Accept a report to start.</Text>
+              </View>
+            )}
             {active.map((c) => (
-              <CaseCard key={c.id} item={c} onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })} />
+              <CaseCard key={c.id} item={c} distanceMeters={c.distanceMeters} onPress={() => openCase(c.id)} />
             ))}
           </View>
         </View>
@@ -129,10 +154,11 @@ export default function OfficerHome() {
         <View style={styles.shiftCard}>
           <Text style={styles.shiftTitle}>Shift Overview</Text>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
+            {/* Real counts only; response-time stats need server timestamps (not in the MVP). */}
             {[
-              { icon: "time", value: "18m", label: "Avg. Response Time", delta: "\u2193 5m vs yesterday" },
-              { icon: "document-text", value: "22", label: "Cases Assigned", delta: "\u2191 6 vs yesterday" },
-              { icon: "checkmark-done", value: "27", label: "Cases completed", delta: "\u2191 5 vs yesterday" },
+              { icon: "document-text", value: String(summary.openCount), label: "Open reports" },
+              { icon: "navigate", value: String(summary.active.length), label: "My active cases" },
+              { icon: "checkmark-done", value: String(completedByMe), label: "Cases completed" },
             ].map((s) => (
               <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
                 <View style={styles.shiftIcon}>
@@ -140,7 +166,6 @@ export default function OfficerHome() {
                 </View>
                 <Text style={styles.shiftValue}>{s.value}</Text>
                 <Text style={styles.shiftLabel}>{s.label}</Text>
-                <Text style={styles.shiftDelta}>{s.delta}</Text>
               </View>
             ))}
           </View>
@@ -176,10 +201,11 @@ const styles = StyleSheet.create({
   viewReportLabel: { fontWeight: "800", fontSize: 12.5, color: "#06210F" },
   mapSection: { marginTop: 20 },
   viewFullMap: { color: colors.greenDark, fontWeight: "700", fontSize: 13 },
-  mapPreview: { height: 180, backgroundColor: "#EAF0EC", borderRadius: radius.card, marginTop: 10, overflow: "hidden" },
-  marker: { position: "absolute", width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", ...shadow.card },
-  markerLabel: { color: "#fff", fontWeight: "800", fontSize: 11 },
-  meDot: { position: "absolute", top: 80, left: 130, width: 14, height: 14, borderRadius: 7, backgroundColor: colors.blue, borderWidth: 4, borderColor: "rgba(52,120,229,0.25)" },
+  mapPreviewWrap: { marginTop: 10, borderRadius: radius.card, overflow: "hidden" },
+  mapPreview: { height: 180, backgroundColor: "#EAF0EC" },
+  nearestNoGps: { fontSize: 11, fontWeight: "600", color: "#8A6300" },
+  emptyCard: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 16, marginTop: 12 },
+  emptyText: { fontSize: 13, color: colors.textSecondary, textAlign: "center" },
   legendRow: { flexDirection: "row", gap: 14, marginTop: 10, flexWrap: "wrap" },
   legendItem: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
   shiftCard: { marginTop: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 16, ...shadow.card },

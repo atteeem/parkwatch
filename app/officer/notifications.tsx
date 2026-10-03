@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
@@ -22,7 +23,8 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 };
 
 export default function OfficerNotifications() {
-  const { officerNotifications, markOfficerNotificationsRead } = useApp();
+  const router = useRouter();
+  const { officerNotifications, markOfficerNotificationsRead, getCase } = useApp();
   useEffect(() => {
     const t = setTimeout(markOfficerNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -34,9 +36,10 @@ export default function OfficerNotifications() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
         <Text style={typography.screenTitle}>Notifications</Text>
-        <Text style={typography.screenSubtitle}>Stay updated with your reports and earnings</Text>
+        <Text style={typography.screenSubtitle}>Updates about your cases</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        {officerNotifications.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>
             <Text style={styles.groupLabel}>{group}</Text>
@@ -44,8 +47,15 @@ export default function OfficerNotifications() {
               .filter((n) => n.group === group)
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
+                // Tap opens the case only if it still exists.
+                const openable = !!n.caseId && !!getCase(n.caseId);
                 return (
-                  <View key={n.id} style={styles.card}>
+                  <Pressable
+                    key={n.id}
+                    style={styles.card}
+                    disabled={!openable}
+                    onPress={() => openable && router.push({ pathname: "/officer/report-details", params: { id: n.caseId! } })}
+                  >
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
                       <Ionicons name={k.icon} size={18} color={k.fg} />
                     </View>
@@ -57,7 +67,7 @@ export default function OfficerNotifications() {
                       <Text style={styles.body}>{n.body}</Text>
                     </View>
                     {n.unread && <View style={styles.dot} />}
-                  </View>
+                  </Pressable>
                 );
               })}
           </View>
@@ -70,6 +80,7 @@ export default function OfficerNotifications() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  empty: { color: colors.textSecondary, fontSize: 13, textAlign: "center", marginTop: 20 },
   groupLabel: { fontSize: 16, fontWeight: "800", marginBottom: 10 },
   card: {
     flexDirection: "row",

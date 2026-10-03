@@ -14,6 +14,8 @@ export type LiveMapProps = {
   /** Bump this number to animate back to the user (Recenter). */
   recenterToken?: number;
   onMarkerPress?: (id: string) => void;
+  /** Center the camera on this point (e.g. a case opened from "Open in Maps"). Takes precedence over the user position for the starting view. */
+  focusPoint?: { latitude: number; longitude: number };
   /** false = static preview (no gestures). */
   interactive?: boolean;
   style?: StyleProp<ViewStyle>;

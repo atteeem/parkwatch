@@ -20,11 +20,17 @@ export function describeDomainError(error: DomainError | { code: string; message
       return { kind: "BANNER", message: "Some required details are missing. Please check your report and try again." };
     case "NOT_FOUND":
       return { kind: "NOT_FOUND", message: "We couldn't find that item." };
-    case "INVALID_TRANSITION":
-    case "ALREADY_COMPLETED":
     case "CASE_TAKEN":
+      return { kind: "BANNER", message: "This case is assigned to another officer." };
+    case "ALREADY_COMPLETED":
+      return { kind: "BANNER", message: "This case has already been completed with a different result." };
+    case "INSPECTION_NOT_READY":
+      return { kind: "BANNER", message: "Confirm all four checks and take all four officer photos before issuing a parking charge." };
+    case "INSPECTION_COMPLETED":
+      return { kind: "BANNER", message: "This inspection is already completed and can't be changed." };
+    case "INVALID_TRANSITION":
     case "REPORT_ALREADY_RESOLVED":
-      return { kind: "BANNER", message: "This action is no longer possible. The item may have changed — please refresh." };
+      return { kind: "BANNER", message: "This action isn't possible at the case's current stage." };
     case "INVALID_AMOUNT":
       return { kind: "INLINE", message: "Enter a valid amount." };
     case "BELOW_MINIMUM":

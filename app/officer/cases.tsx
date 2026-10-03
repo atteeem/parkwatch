@@ -8,30 +8,34 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { StatusChip } from "../../src/components/StatusChip";
 import { useApp } from "../../src/context/AppContext";
+import { caseChip, CasesTab, casesStats, filterCasesTab, myCases, sortCases } from "../../src/presentation/officerViews";
 
-const TABS = ["All", "Completed", "Issued", "Rejected"] as const;
+const TABS: readonly CasesTab[] = ["All", "Completed", "Issued", "Rejected"];
 
+const EMPTY_TEXT: Record<CasesTab, string> = {
+  All: "No cases yet. Cases you accept or decide appear here.",
+  Completed: "No completed cases yet.",
+  Issued: "No parking charges issued yet.",
+  Rejected: "No rejected reports.",
+};
+
+// OFF-10: this officer's cases (assigned to or decided by them), newest first.
 export default function MyCases() {
   const router = useRouter();
-  const { officerCases } = useApp();
-  const [tab, setTab] = useState<(typeof TABS)[number]>("All");
+  const { officerCases, officerId } = useApp();
+  const [tab, setTab] = useState<CasesTab>("All");
 
-  const completed = officerCases.filter((c) => c.status === "completed");
-  const issued = completed.filter((c) => c.chargeAmount);
-  const rejected = officerCases.filter((c) => c.status === "rejected");
-
-  const list =
-    tab === "Completed" ? completed : tab === "Issued" ? issued : tab === "Rejected" ? rejected : officerCases;
+  const mine = myCases(officerCases, officerId);
+  const stats = casesStats(mine);
+  const list = sortCases(filterCasesTab(mine, tab), "NEWEST");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.headerRow}>
-        <Ionicons name="menu" size={20} color={colors.textPrimary} />
-        <View style={{ alignItems: "center" }}>
+        <View style={{ alignItems: "center", flex: 1 }}>
           <Text style={styles.title}>My Cases</Text>
           <Text style={styles.subtitle}>View your inspection history</Text>
         </View>
-        <Ionicons name="filter" size={20} color={colors.textPrimary} />
       </View>
 
       <View style={styles.tabsRow}>
@@ -45,10 +49,10 @@ export default function MyCases() {
 
       <View style={styles.statsCard}>
         {[
-          { icon: "clipboard", value: String(officerCases.length), label: "Total cases", color: colors.greenDark },
-          { icon: "checkmark-circle", value: String(completed.length), label: "Completed", color: colors.greenDark },
-          { icon: "document-text", value: String(issued.length), label: "Charges issued", color: colors.blue },
-          { icon: "close-circle", value: String(rejected.length), label: "Rejected", color: colors.red },
+          { icon: "clipboard", value: String(stats.total), label: "Total cases", color: colors.greenDark },
+          { icon: "checkmark-circle", value: String(stats.completed), label: "Completed", color: colors.greenDark },
+          { icon: "document-text", value: String(stats.issued), label: "Charges issued", color: colors.blue },
+          { icon: "close-circle", value: String(stats.rejected), label: "Rejected", color: colors.red },
         ].map((s) => (
           <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
             <Ionicons name={s.icon as any} size={18} color={s.color} />
@@ -59,39 +63,47 @@ export default function MyCases() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {list.map((c) => (
-          <Pressable
-            key={c.id}
-            style={styles.caseCard}
-            onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
-          >
-            <Image source={{ uri: c.images[0] }} style={styles.caseImg} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.plate}>{c.plate}</Text>
-              <Text style={styles.meta}>
-                <Ionicons name="location" size={11} /> {c.location}
-              </Text>
-              <Text style={styles.meta}>
-                <Ionicons name="calendar" size={11} /> {c.reportedAgo}
-              </Text>
-              <Text style={styles.meta}>
-                <Ionicons name="chatbubble-outline" size={11} /> {c.violation}
-              </Text>
-              <View style={styles.idChip}>
-                <Text style={styles.idChipLabel}>Report ID #{c.reportId}</Text>
+        {list.length === 0 && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
+        {list.map((c) => {
+          const chip = caseChip(c);
+          const charged = c.outcomeCode === "CHARGE_ISSUED" && c.chargeAmount !== undefined;
+          return (
+            <Pressable
+              key={c.id}
+              style={styles.caseCard}
+              onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
+            >
+              <Image source={{ uri: c.images[0] }} style={styles.caseImg} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.plate}>{c.plate}</Text>
+                <Text style={styles.meta}>
+                  <Ionicons name="location" size={11} /> {c.location}
+                </Text>
+                <Text style={styles.meta}>
+                  <Ionicons name="calendar" size={11} /> {c.reportedAgo}
+                </Text>
+                <Text style={styles.meta}>
+                  <Ionicons name="chatbubble-outline" size={11} /> {c.violation}
+                </Text>
+                <View style={styles.idChip}>
+                  <Text style={styles.idChipLabel}>Report ID #{c.reportId}</Text>
+                </View>
               </View>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <StatusChip label={c.chargeAmount ? "Charge issued" : c.status === "completed" ? "Closed" : "Rejected"} tone={c.chargeAmount ? "green" : "grey"} />
-              {c.chargeAmount ? (
-                <>
-                  <Text style={styles.chargeAmount}>{"\u20ac"}{c.chargeAmount}</Text>
-                  <Text style={styles.chargeLabel}>Parking charge</Text>
-                </>
-              ) : null}
-            </View>
-          </Pressable>
-        ))}
+              <View style={{ alignItems: "flex-end" }}>
+                <StatusChip status={chip.status} label={chip.label} tone={chip.tone} />
+                {charged ? (
+                  <>
+                    <Text style={styles.chargeAmount}>
+                      {"€"}
+                      {c.chargeAmount}
+                    </Text>
+                    <Text style={styles.chargeLabel}>Parking charge</Text>
+                  </>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>
@@ -100,6 +112,7 @@ export default function MyCases() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: "center", marginTop: 20 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 6 },
   title: { fontSize: 19, fontWeight: "800" },
   subtitle: { fontSize: 11.5, color: colors.textSecondary, marginTop: 2 },

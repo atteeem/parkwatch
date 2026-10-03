@@ -17,11 +17,12 @@ export function LiveMap({
   recenterToken = 0,
   onMarkerPress,
   interactive = true,
+  focusPoint,
   style,
 }: LiveMapProps) {
   const mapRef = useRef<MapView>(null);
   const lastCentered = useRef<LatLng | undefined>(undefined);
-  const startRegion = useMemo(() => initialRegion(userFix, markers), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const startRegion = useMemo(() => initialRegion(focusPoint ?? userFix, markers), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const centerOn = (p: LatLng) => {
     lastCentered.current = { latitude: p.latitude, longitude: p.longitude };
@@ -32,6 +33,11 @@ export function LiveMap({
   useEffect(() => {
     if (shouldFollowCamera(following, lastCentered.current, userFix)) centerOn(userFix!);
   }, [following, userFix]);
+
+  // Focus a specific point (case location) when it is given or changes.
+  useEffect(() => {
+    if (focusPoint) centerOn(focusPoint);
+  }, [focusPoint?.latitude, focusPoint?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Explicit Recenter always moves, even for a small offset.
   useEffect(() => {

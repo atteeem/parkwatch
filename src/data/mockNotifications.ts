@@ -12,4 +12,6 @@ export type Notification = {
   time: string;
   kind: NotifKind;
   unread: boolean;
+  /** Case this notification is about (officer notifications), for tap-to-open. */
+  caseId?: string;
 };

@@ -45,7 +45,6 @@ export type OfficerCase = {
   vehicle?: string;
   violation: string;
   location: string;
-  distance: number; // km
   priority: CasePriority;
   status: CaseStatus;
   reporterReliability: ReporterReliability;
@@ -62,6 +61,14 @@ export type OfficerCase = {
   completedAt?: string;
   /** Report location from the citizen's device GPS, if captured. */
   coordinates?: { latitude: number; longitude: number };
+  /** Officer the case is assigned to, if any. */
+  assignedOfficerId?: string;
+  /** Officer who recorded the outcome (completed cases). */
+  decidedBy?: string;
+  /** Number of citizen evidence photos (required + attachments). */
+  photoCount: number;
+  /** ISO submission time of the report (for sorting). */
+  submittedAt: string;
 };
 
 export const VIOLATION_TYPES = [

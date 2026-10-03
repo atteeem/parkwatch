@@ -4,10 +4,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius, shadow } from "../constants/spacing";
 import { OfficerCase } from "../data/types";
+import { formatDistance } from "../geo/distance";
 import { VehicleThumbnail } from "./VehicleThumbnail";
 import { StatusChip } from "./StatusChip";
 
-export function CaseCard({ item, onPress }: { item: OfficerCase; onPress?: () => void }) {
+/**
+ * Officer case card. Distance is the straight-line distance from the
+ * officer's real position, shown ONLY when known (never a mock value).
+ */
+export function CaseCard({
+  item,
+  distanceMeters,
+  onPress,
+}: {
+  item: OfficerCase;
+  distanceMeters?: number | null;
+  onPress?: () => void;
+}) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <VehicleThumbnail uri={item.images[0]} size={58} radius={14} />
@@ -22,13 +35,20 @@ export function CaseCard({ item, onPress }: { item: OfficerCase; onPress?: () =>
         <Text style={styles.meta} numberOfLines={1}>
           <Ionicons name="location" size={11} color={colors.textSecondary} /> {item.location}
         </Text>
-        <Text style={styles.metaSmall}>
-          {item.distance.toFixed(1)} km away {"\u00b7"} {item.reportedAgo}
+        <Text style={styles.metaSmall} numberOfLines={1}>
+          {item.reportedAgo} {"·"} {item.photoCount} photos
+          {distanceMeters != null ? ` · ${formatDistance(distanceMeters)} away` : ""}
+        </Text>
+        <Text style={styles.reliability} numberOfLines={1}>
+          <Ionicons name="shield-checkmark" size={10} color={colors.greenDark} /> Reporter reliability: {item.reporterReliability}
         </Text>
       </View>
       <View style={styles.right}>
         <StatusChip status={item.status} />
-        <Ionicons name="chevron-forward" size={18} color={colors.textLight} style={{ marginTop: 8 }} />
+        <View style={styles.viewCase}>
+          <Text style={styles.viewCaseLabel}>View Case</Text>
+          <Ionicons name="chevron-forward" size={12} color="#06210F" />
+        </View>
       </View>
     </Pressable>
   );
@@ -37,18 +57,30 @@ export function CaseCard({ item, onPress }: { item: OfficerCase; onPress?: () =>
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.white,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 14,
+    padding: 12,
     marginBottom: 12,
     ...shadow.card,
   },
   topRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  plate: { fontSize: 16.5, fontWeight: "800", color: colors.textPrimary },
-  violation: { fontSize: 13.5, fontWeight: "600", color: colors.textSecondary, marginTop: 3 },
-  meta: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
-  metaSmall: { fontSize: 11.5, color: colors.textLight, marginTop: 3 },
-  right: { alignItems: "flex-end", justifyContent: "space-between" },
+  plate: { fontSize: 16, fontWeight: "800", color: colors.textPrimary },
+  violation: { fontSize: 13, fontWeight: "600", color: colors.textPrimary, marginTop: 2 },
+  meta: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
+  metaSmall: { fontSize: 11, color: colors.textLight, marginTop: 2 },
+  reliability: { fontSize: 11, color: colors.greenDark, fontWeight: "600", marginTop: 2 },
+  right: { alignItems: "flex-end", justifyContent: "space-between", alignSelf: "stretch", marginLeft: 8, gap: 8 },
+  viewCase: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: colors.green,
+    borderRadius: radius.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  viewCaseLabel: { fontSize: 11.5, fontWeight: "700", color: "#06210F" },
 });
