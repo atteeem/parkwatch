@@ -4,13 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { colors } from "../constants/colors";
 
-const ITEMS: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; path: string }[] = [
-  { key: "home", label: "Home", icon: "home", path: "/user/home" },
-  { key: "parking", label: "Parking", icon: "pricetag", path: "/user/parking" },
-  { key: "report", label: "Report", icon: "camera", path: "/user/report/photos" },
-  { key: "reports", label: "Reports", icon: "document-text", path: "/user/reports" },
-  { key: "profile", label: "Profile", icon: "person", path: "/user/profile" },
-];
+import { isUserNavItemActive, USER_NAV_ITEMS } from "./userNavItems";
 
 export function UserBottomNav() {
   const router = useRouter();
@@ -18,9 +12,8 @@ export function UserBottomNav() {
 
   return (
     <View style={styles.bar}>
-      {ITEMS.map((item) => {
-        const active =
-          item.key === "report" ? pathname.startsWith("/user/report") : pathname === item.path;
+      {USER_NAV_ITEMS.map((item) => {
+        const active = isUserNavItemActive(item, pathname);
         return (
           <Pressable key={item.key} style={styles.item} onPress={() => router.push(item.path as any)}>
             <Ionicons name={item.icon as any} size={22} color={active ? colors.greenDark : colors.black} />

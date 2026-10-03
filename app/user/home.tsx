@@ -37,10 +37,6 @@ export default function UserHome() {
             <Ionicons name="time-outline" size={16} color={colors.textPrimary} />
             <Text style={styles.shortcutLabel}>Report History</Text>
           </Pressable>
-          <Pressable style={styles.shortcut}>
-            <Ionicons name="document-outline" size={16} color={colors.textPrimary} />
-            <Text style={styles.shortcutLabel}>Orders</Text>
-          </Pressable>
         </ScrollView>
 
         <View style={styles.section}>
