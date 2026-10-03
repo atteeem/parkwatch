@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,9 +8,11 @@ import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { describeDomainError } from "../../src/presentation/errors";
 import { createSubmitGuard } from "../../src/presentation/submitGuard";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
+import { formatDateTime } from "../../src/presentation/time";
 import { InspectionCheckKey, OfficerPhotoKey } from "../../src/presentation/viewModels";
 
 const CHECK_ROWS: {
@@ -116,7 +118,7 @@ export default function OnSiteInspection() {
           <Ionicons name="location" size={15} color={colors.greenDark} />
           <View style={{ flex: 1, marginLeft: 8 }}>
             <Text style={styles.locationTitle}>{c.location}</Text>
-            <Text style={styles.locationSub}>#{c.reportId}</Text>
+            <Text style={styles.locationSub}>#{c.reportId} {"•"} {formatDateTime(c.submittedAt)}</Text>
           </View>
           <View style={styles.plateChip}>
             <Text style={styles.plateChipLabel}>{c.plate}</Text>
@@ -124,7 +126,7 @@ export default function OnSiteInspection() {
         </View>
 
         <View>
-          <Image source={{ uri: c.images[0] }} style={styles.mainImage} />
+          <EvidencePhoto uri={c.images[0]} style={styles.mainImage} />
           <View style={styles.imageCounter}>
             <Text style={styles.imageCounterLabel}>1 / {c.images.length}</Text>
           </View>
@@ -144,35 +146,44 @@ export default function OnSiteInspection() {
               <Text style={{ color: colors.greenDark }}>{totalCompleted}</Text> / {CHECK_ROWS.length + 1} completed
             </Text>
           </View>
+          <Text style={styles.checkHint}>Tap to confirm. Tap again to record "not confirmed".</Text>
           {CHECK_ROWS.map((row) => {
-            const done = inspection[row.key] === true;
-            const scanned = row.scan && done && inspection.plateConfirmedBySimulatedScan;
+            // Three states, kept distinct for the audit trail: yes / no / unanswered.
+            const value = inspection[row.key];
+            const yes = value === true;
+            const no = value === false;
+            const confirmedPlate = row.scan && yes && inspection.plateConfirmedBySimulatedScan;
+            const next = yes ? false : no ? null : true;
             return (
               <Pressable
                 key={row.key}
-                style={[styles.checkRow, done && styles.checkRowDone]}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: done }}
-                onPress={() => report(setChecklistItem(c.id, row.key, done ? null : true))}
+                style={[styles.checkRow, yes && styles.checkRowDone, no && styles.checkRowNo]}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.title}: ${yes ? "confirmed" : no ? "not confirmed" : "not answered"}`}
+                onPress={() => report(setChecklistItem(c.id, row.key, next))}
               >
-                <Ionicons name={row.icon} size={20} color={done ? "#06210F" : colors.textSecondary} />
+                <Ionicons name={row.icon} size={20} color={yes ? "#06210F" : no ? colors.red : colors.textSecondary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[styles.checkTitle, done && { color: "#06210F" }]}>{row.title}</Text>
-                  <Text style={[styles.checkBody, done && { color: "#0B3D22" }]}>
-                    {scanned ? "Confirmed by simulated scan (dev only, no plate recognition)" : row.body}
+                  <Text style={[styles.checkTitle, yes && { color: "#06210F" }]}>{row.title}</Text>
+                  <Text style={[styles.checkBody, yes && { color: "#0B3D22" }, no && styles.checkBodyNo]}>
+                    {no ? "Not confirmed" : confirmedPlate ? "Plate confirmed against the report" : row.body}
                   </Text>
                 </View>
-                {row.scan && !done ? (
+                {row.scan && value == null ? (
                   <Pressable
                     style={styles.scanBtn}
                     hitSlop={6}
-                    accessibilityLabel="Simulated plate scan"
+                    accessibilityLabel="Confirm plate"
                     onPress={() => report(confirmPlateBySimulatedScan(c.id))}
                   >
-                    <Text style={styles.scanLabel}>Scan</Text>
+                    <Text style={styles.scanLabel}>Confirm Plate</Text>
                   </Pressable>
                 ) : (
-                  <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} size={22} color={done ? "#06210F" : colors.border} />
+                  <Ionicons
+                    name={yes ? "checkmark-circle" : no ? "close-circle" : "ellipse-outline"}
+                    size={22}
+                    color={yes ? "#06210F" : no ? colors.red : colors.border}
+                  />
                 )}
               </Pressable>
             );
@@ -207,20 +218,23 @@ export default function OnSiteInspection() {
               return (
                 <Pressable
                   key={t.key}
-                  style={[styles.photoSlot, uri && styles.photoSlotDone]}
+                  style={styles.photoCell}
+                  accessibilityLabel={`${t.label} photo`}
                   onPress={() =>
                     router.push({ pathname: "/officer/violation-photo", params: { id: c.id, target: t.key } })
                   }
                 >
-                  {uri ? (
-                    <Image source={{ uri }} style={StyleSheet.absoluteFillObject as any} />
-                  ) : (
-                    <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
-                  )}
-                  <Text style={[styles.photoLabel, uri && styles.photoLabelDone]} numberOfLines={1}>
+                  <View style={[styles.photoSlot, uri && styles.photoSlotDone]}>
+                    {uri ? (
+                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFillObject} compact />
+                    ) : (
+                      <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
+                    )}
+                  </View>
+                  <Text style={styles.photoLabel} numberOfLines={2}>
                     {t.label}
                   </Text>
-                  {!uri && <Text style={styles.requiredLabel}>Required for a charge</Text>}
+                  <Text style={[styles.requiredLabel, uri && { color: colors.greenDark }]}>{uri ? "Captured" : "Required"}</Text>
                 </Pressable>
               );
             })}
@@ -229,12 +243,15 @@ export default function OnSiteInspection() {
       </ScrollView>
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
         <Text style={styles.readyHint}>
-          {inspection.readyForCharge
-            ? "Ready: all checks confirmed and all four photos taken."
-            : "A parking charge needs all four checks and four photos. Closing without a charge does not."}
+          {!inspection.hasActivity
+            ? "Record at least one check or photo to continue."
+            : inspection.readyForCharge
+              ? "Ready: all checks confirmed and all four photos taken."
+              : "A parking charge needs all four checks and four photos. Closing without a charge does not."}
         </Text>
         <GreenButton
           label="Continue"
+          disabled={!inspection.hasActivity}
           onPress={() => router.push({ pathname: "/officer/inspection-result", params: { id: c.id } })}
         />
       </View>
@@ -256,13 +273,17 @@ const styles = StyleSheet.create({
   completedLabel: { fontSize: 12.5, color: colors.textSecondary, fontWeight: "600" },
   checkRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14, marginBottom: 10 },
   checkRowDone: { backgroundColor: colors.green, borderColor: colors.green },
+  checkRowNo: { backgroundColor: colors.redLight, borderColor: "#F2B8B5" },
+  checkBodyNo: { color: "#B3261E", fontWeight: "700" },
+  checkHint: { fontSize: 11.5, color: colors.textLight, marginTop: -4, marginBottom: 10 },
   checkTitle: { fontWeight: "700", fontSize: 14 },
   checkBody: { fontSize: 11.5, color: colors.textSecondary, marginTop: 2 },
   scanBtn: { borderWidth: 1.5, borderColor: colors.greenDark, borderRadius: radius.chip, paddingHorizontal: 12, paddingVertical: 6 },
   scanLabel: { color: colors.greenDark, fontWeight: "700", fontSize: 12 },
-  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  photoGrid: { flexDirection: "row", gap: 8 },
+  photoCell: { flex: 1, alignItems: "center" },
   photoSlot: {
-    width: "47%",
+    width: "100%",
     aspectRatio: 1,
     borderRadius: radius.card,
     borderWidth: 1.5,
@@ -275,9 +296,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundSunk,
   },
   photoSlotDone: { borderStyle: "solid", borderColor: colors.green },
-  photoLabel: { fontWeight: "700", fontSize: 12, textAlign: "center", position: "absolute", bottom: 20 },
-  photoLabelDone: { color: "#fff", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 6, borderRadius: 6 },
-  requiredLabel: { fontSize: 10, color: colors.textLight, position: "absolute", bottom: 6 },
+  photoLabel: { fontWeight: "700", fontSize: 11, textAlign: "center", marginTop: 6 },
+  requiredLabel: { fontSize: 10.5, color: colors.textLight, marginTop: 1 },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 10, backgroundColor: colors.background },
   readyHint: { fontSize: 11.5, color: colors.textSecondary, textAlign: "center", marginBottom: 8 },
   stateBox: { alignItems: "center", padding: 32 },

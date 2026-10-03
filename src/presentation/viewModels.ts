@@ -6,6 +6,7 @@
 import {
   CHECKLIST_KEYS,
   countCapturedOfficerEvidence,
+  hasInspectionActivity,
   isInspectionComplete,
   isRequiredEvidenceCaptured,
   calculateBalances,
@@ -221,6 +222,10 @@ export type InspectionView = {
   completedAt?: string;
   /** false when the case has no inspection record (e.g. not started). */
   exists: boolean;
+  /** Checklist items answered "no" (explicitly NOT confirmed; kept distinct from unanswered). */
+  checklistNotConfirmed: number;
+  /** A checklist answer or an officer photo exists (required to open Inspection Result). */
+  hasActivity: boolean;
   /** Checklist items answered "yes" (0-4). */
   checklistConfirmed: number;
   /** Qualifying (CAMERA/SEED) officer photos (0-4). */
@@ -252,6 +257,8 @@ export function toInspectionView(caseId: string, inspection: Inspection | undefi
     completedAt: inspection?.completedAt,
     exists: !!inspection,
     checklistConfirmed: inspection ? CHECKLIST_KEYS.filter((k) => inspection.checklist[k] === true).length : 0,
+    checklistNotConfirmed: inspection ? CHECKLIST_KEYS.filter((k) => inspection.checklist[k] === false).length : 0,
+    hasActivity: inspection ? hasInspectionActivity(inspection) : false,
     photosCaptured: inspection ? countCapturedOfficerEvidence(inspection) : 0,
     evidenceComplete: inspection ? isRequiredEvidenceCaptured(inspection) : false,
     readyForCharge: inspection ? isInspectionComplete(inspection) : false,

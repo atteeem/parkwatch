@@ -115,3 +115,12 @@ export function completeInspection(
     changed: true,
   });
 }
+
+/**
+ * Any inspection activity recorded: a checklist answer (yes OR no) or an
+ * officer photo. Required before the officer can record an outcome from the
+ * inspection (a desk decision does not go through the inspection at all).
+ */
+export function hasInspectionActivity(i: Inspection): boolean {
+  return CHECKLIST_KEYS.some((k) => i.checklist[k] === true || i.checklist[k] === false) || Object.keys(i.officerEvidence).length > 0;
+}

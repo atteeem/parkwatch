@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, TextInput, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { CLOSE_WITHOUT_CHARGE_REASONS } from "../../src/data/types";
 import { describeDomainError } from "../../src/presentation/errors";
 import { createSubmitGuard } from "../../src/presentation/submitGuard";
@@ -71,6 +72,24 @@ export default function InspectionResult() {
     );
   }
 
+  // Direct links cannot skip the inspection: some activity must be recorded first.
+  if (!inspection.hasActivity) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BackHeader title="Inspection Result" onBack={goBack} />
+        <View style={styles.stateBox}>
+          <Text style={styles.stateText}>Record at least one inspection check or officer photo before choosing an outcome.</Text>
+          <GreenButton
+            label="Back to Inspection"
+            small
+            style={{ marginTop: 16 }}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: "/officer/inspection", params: { id: c.id } }))}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const chargeAllowed = inspection.readyForCharge;
 
   const handleSubmit = () => {
@@ -90,7 +109,7 @@ export default function InspectionResult() {
       <BackHeader title="Inspection Result" subtitle="Choose the outcome of your on-site inspection" onBack={goBack} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 150 + insets.bottom, gap: 16 }}>
         <View style={styles.summaryCard}>
-          <Image source={{ uri: c.images[0] }} style={styles.summaryImg} />
+          <EvidencePhoto uri={c.images[0]} style={styles.summaryImg} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.summaryLocation}>
               <Ionicons name="location" size={13} color={colors.greenDark} /> {c.location}

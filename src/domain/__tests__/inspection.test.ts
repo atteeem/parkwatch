@@ -9,6 +9,7 @@ import {
   createOfficerEvidence,
   errorCode,
   getMissingOfficerEvidence,
+  hasInspectionActivity,
   Inspection,
   isChecklistConfirmed,
   isInspectionComplete,
@@ -119,5 +120,32 @@ describe("inspection completion", () => {
     const second = unwrap(completeInspection(first.inspection, outcome("CHARGE_ISSUED")));
     expect(second.changed).toBe(false);
     expect(second.inspection).toBe(first.inspection);
+  });
+});
+
+describe("inspection activity (gate for Inspection Result)", () => {
+  it("a fresh inspection has no activity", () => {
+    expect(hasInspectionActivity(fresh())).toBe(false);
+  });
+
+  it("a NO answer counts as activity and stays distinct from unanswered", () => {
+    const no = unwrap(setChecklistItem(fresh(), "vehiclePresent", false));
+    expect(hasInspectionActivity(no)).toBe(true);
+    expect(no.checklist.vehiclePresent).toBe(false);
+    const cleared = unwrap(setChecklistItem(no, "vehiclePresent", null));
+    expect(cleared.checklist.vehiclePresent).toBeNull();
+    expect(hasInspectionActivity(cleared)).toBe(false);
+  });
+
+  it("one officer photo counts as activity but is far from charge-ready", () => {
+    const photo = createOfficerEvidence({ id: "e1", type: "PARKING_SIGN", captureSource: "CAMERA", uri: "file:///s.jpg", capturedAt: T1 });
+    const i = unwrap(attachOfficerEvidence(fresh(), photo));
+    expect(hasInspectionActivity(i)).toBe(true);
+    expect(isInspectionComplete(i)).toBe(false);
+  });
+
+  it("a NO answer blocks the charge even with all four photos", () => {
+    const i = unwrap(setChecklistItem(readyInspection(), "restrictionVerified", false));
+    expect(isInspectionComplete(i)).toBe(false);
   });
 });
