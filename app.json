@@ -27,7 +27,13 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ParkWatch lets you attach optional extra photos from your library to a report. Required evidence photos are always taken with the camera."
+        }
+      ]
     ]
   }
 }

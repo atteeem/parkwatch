@@ -163,7 +163,7 @@ export function submitReport(
   const result = createSubmission(state, input, {
     reportId,
     jurisdictionId: MVP_DEFAULT_JURISDICTION_ID,
-    vehicle: MVP_MOCK_DETECTED_VEHICLE,
+    vehicle: input.draft.vehicle ?? MVP_MOCK_DETECTED_VEHICLE,
     priority: "NORMAL",
     distanceMeters: MVP_MOCK_NEW_CASE_DISTANCE_METERS,
   });

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, Image, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { colors } from "../../../src/constants/colors";
 import { radius } from "../../../src/constants/spacing";
 import { BackHeader } from "../../../src/components/Header";
@@ -11,23 +12,54 @@ import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { VIOLATION_TYPES } from "../../../src/data/types";
+import { validateDraft } from "../../../src/domain";
+import { draftIssueMessages } from "../../../src/presentation/errors";
+import { draftObservedAt } from "../../../src/presentation/reportDraft";
+
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function AddDetails() {
   const router = useRouter();
-  const { draft, setLocation, setDateTime, setNotes } = useReportDraft();
-  const [address, setAddress] = useState(draft.location ?? "");
-  const [notes, setLocalNotes] = useState(draft.notes ?? "");
+  const { draft, setLocation, setNotes, addAttachment, removeAttachment } = useReportDraft();
+  const [showErrors, setShowErrors] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
-  const violationInfo = VIOLATION_TYPES.find((v) => v.id === draft.violation);
-  const now = new Date();
-  const dateStr = draft.date ?? now.toLocaleDateString("en-GB").split("/").join(".");
-  const timeStr = draft.time ?? now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const violationInfo = VIOLATION_TYPES.find((v) => v.id === draft.violationId);
+  // observedAt: when the citizen saw the violation (device time; defaults to photo capture time).
+  const observed = draftObservedAt(draft);
+  const observedDate = observed ? new Date(observed) : undefined;
+  const dateStr = observedDate
+    ? `${pad(observedDate.getDate())}.${pad(observedDate.getMonth() + 1)}.${observedDate.getFullYear()}`
+    : "—";
+  const timeStr = observedDate ? `${pad(observedDate.getHours())}:${pad(observedDate.getMinutes())}` : "—";
+
+  const issues = validateDraft(draft, "DETAILS");
+  const messages = draftIssueMessages(issues);
 
   const handleContinue = () => {
-    setLocation(address || "Current location, Helsinki");
-    setDateTime(dateStr, timeStr);
-    setNotes(notes);
+    if (issues.length > 0) {
+      setShowErrors(true); // stay here; nothing the user entered is cleared
+      return;
+    }
     router.push("/user/report/review");
+  };
+
+  const pickAttachment = async () => {
+    setAttachError(null);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > MAX_ATTACHMENT_BYTES) {
+        setAttachError("That image is larger than 10 MB.");
+        return;
+      }
+      // Stored as LIBRARY evidence in the attachments list, never in a required photo slot.
+      addAttachment(asset.uri);
+    } catch {
+      setAttachError("Could not open your photo library. Please try again.");
+    }
   };
 
   return (
@@ -50,17 +82,18 @@ export default function AddDetails() {
 
         <Card>
           <Text style={styles.sectionTitle}>Location</Text>
-          <View style={styles.addressRow}>
+          <View style={[styles.addressRow, showErrors && messages.location ? styles.addressRowError : null]}>
             <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
             <TextInput
-              value={address}
-              onChangeText={setAddress}
+              value={draft.location.address}
+              onChangeText={setLocation}
               placeholder="Enter address or tap map"
               placeholderTextColor={colors.textLight}
               style={styles.addressInput}
             />
             <Ionicons name="map-outline" size={18} color={colors.textSecondary} />
           </View>
+          {showErrors && messages.location ? <Text style={styles.errorText}>{messages.location}</Text> : null}
           <View style={styles.mapPreview}>
             <View style={styles.mapDot} />
           </View>
@@ -86,22 +119,38 @@ export default function AddDetails() {
             numberOfLines={5}
             placeholder="Describe the situation..."
             placeholderTextColor={colors.textLight}
-            value={notes}
-            onChangeText={setLocalNotes}
+            value={draft.notes}
+            onChangeText={setNotes}
           />
         </View>
 
         <View>
           <Text style={styles.sectionTitle}>Attachments (optional)</Text>
-          <Text style={styles.helper}>Add any extra photos or documents.</Text>
-          <Pressable style={styles.attachBox}>
+          <Text style={styles.helper}>Add extra photos from your library. They don't replace the three camera photos.</Text>
+          {draft.attachments.length > 0 && (
+            <View style={styles.attachRow}>
+              {draft.attachments.map((a) => (
+                <View key={a.id}>
+                  <Image source={{ uri: a.uri }} style={styles.attachThumb} />
+                  <Pressable style={styles.attachRemove} onPress={() => removeAttachment(a.id)} hitSlop={8}>
+                    <Ionicons name="close" size={12} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+          <Pressable style={styles.attachBox} onPress={pickAttachment}>
             <Ionicons name="image-outline" size={18} color={colors.greenDark} />
             <Text style={styles.attachLabel}>Add photo</Text>
             <Text style={styles.attachHint}>JPG, PNG up to 10 MB</Text>
           </Pressable>
+          {attachError ? <Text style={styles.errorText}>{attachError}</Text> : null}
         </View>
       </ScrollView>
       <View style={styles.bottomBar}>
+        {showErrors && issues.length > 0 && !messages.location ? (
+          <Text style={[styles.errorText, { marginBottom: 8 }]}>{Object.values(messages)[0]}</Text>
+        ) : null}
         <GreenButton label="Continue" onPress={handleContinue} />
       </View>
     </SafeAreaView>
@@ -128,7 +177,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 10,
   },
+  addressRowError: { borderColor: colors.red },
   addressInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
+  errorText: { color: "#B3261E", fontSize: 12, fontWeight: "600", marginTop: 6 },
   mapPreview: {
     height: 120,
     borderRadius: radius.card,
@@ -159,6 +210,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
     textAlignVertical: "top",
+  },
+  attachRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  attachThumb: { width: 60, height: 60, borderRadius: 10 },
+  attachRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   attachBox: {
     borderWidth: 1.5,

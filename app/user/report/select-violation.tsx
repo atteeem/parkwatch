@@ -35,7 +35,7 @@ export default function SelectViolation() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
         <View style={styles.grid}>
           {VIOLATION_TYPES.map((v) => {
-            const selected = draft.violation === v.id;
+            const selected = draft.violationId === v.id;
             return (
               <Pressable
                 key={v.id}
@@ -60,7 +60,7 @@ export default function SelectViolation() {
         </View>
       </ScrollView>
       <View style={styles.bottomBar}>
-        <GreenButton label="Continue" disabled={!draft.violation} onPress={() => router.push("/user/report/add-details")} />
+        <GreenButton label="Continue" disabled={!draft.violationId} onPress={() => router.push("/user/report/add-details")} />
       </View>
     </SafeAreaView>
   );

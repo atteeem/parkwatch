@@ -1,81 +1,62 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useReducer } from "react";
+import { CitizenEvidenceType, ReportDraft } from "../domain";
+import { draftReducer, newDraftId, newDraftState } from "../presentation/reportDraft";
 
 // In-progress CITIZEN report draft only. Officer inspection state lives in
 // the store, keyed by case, and never touches this context.
 
-export type CitizenPhotoSlot = "front" | "side" | "rear";
-
-export type ReportDraft = {
-  /** Stable id for this draft; submitting the same draft twice is a no-op. */
-  draftId: string;
-  photos: Partial<Record<CitizenPhotoSlot, string>>;
-  /** ISO capture time per photo slot. */
-  photoCapturedAt: Partial<Record<CitizenPhotoSlot, string>>;
-  violation?: string;
-  location?: string;
-  date?: string;
-  time?: string;
-  notes?: string;
-  attachments: string[];
-};
-
-const newDraftId = () => `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-const emptyDraft = (): ReportDraft => ({
-  draftId: newDraftId(),
-  photos: {},
-  photoCapturedAt: {},
-  attachments: [],
-});
-
 type ReportContextValue = {
   draft: ReportDraft;
-  setPhoto: (slot: CitizenPhotoSlot, uri: string) => void;
-  setViolation: (violation: string) => void;
-  setLocation: (location: string) => void;
-  setDateTime: (date: string, time: string) => void;
+  /** Set once this draft has been submitted (it is then finished). */
+  submittedReportId?: string;
+  /** Intentional "new report" entry points only (Home CTA, Report tab, My Reports +). */
+  startNewReport: () => void;
+  capturePhoto: (slot: CitizenEvidenceType, uri: string, capturedAt: string) => void;
+  setViolation: (violationId: string) => void;
+  setLocation: (address: string) => void;
   setNotes: (notes: string) => void;
   addAttachment: (uri: string) => void;
-  resetDraft: () => void;
+  removeAttachment: (evidenceId: string) => void;
+  markSubmitted: (reportId: string) => void;
 };
 
 const ReportContext = createContext<ReportContextValue | null>(null);
 
 export function ReportProvider({ children }: { children: React.ReactNode }) {
-  const [draft, setDraft] = useState<ReportDraft>(emptyDraft);
+  const [state, dispatch] = useReducer(draftReducer, undefined, () => newDraftState(newDraftId()));
 
-  const setPhoto = useCallback((slot: CitizenPhotoSlot, uri: string) => {
-    const capturedAt = new Date().toISOString();
-    setDraft((d) => ({
-      ...d,
-      photos: { ...d.photos, [slot]: uri },
-      photoCapturedAt: { ...d.photoCapturedAt, [slot]: capturedAt },
-    }));
-  }, []);
-  const setViolation = useCallback((violation: string) => {
-    setDraft((d) => ({ ...d, violation }));
-  }, []);
-  const setLocation = useCallback((location: string) => {
-    setDraft((d) => ({ ...d, location }));
-  }, []);
-  const setDateTime = useCallback((date: string, time: string) => {
-    setDraft((d) => ({ ...d, date, time }));
-  }, []);
-  const setNotes = useCallback((notes: string) => {
-    setDraft((d) => ({ ...d, notes }));
-  }, []);
-  const addAttachment = useCallback((uri: string) => {
-    setDraft((d) => ({ ...d, attachments: [...d.attachments, uri] }));
-  }, []);
-  const resetDraft = useCallback(() => setDraft(emptyDraft()), []);
-
-  return (
-    <ReportContext.Provider
-      value={{ draft, setPhoto, setViolation, setLocation, setDateTime, setNotes, addAttachment, resetDraft }}
-    >
-      {children}
-    </ReportContext.Provider>
+  const startNewReport = useCallback(() => dispatch({ type: "START_NEW", draftId: newDraftId() }), []);
+  const capturePhoto = useCallback(
+    (slot: CitizenEvidenceType, uri: string, capturedAt: string) => dispatch({ type: "CAPTURE_PHOTO", slot, uri, capturedAt }),
+    []
   );
+  const setViolation = useCallback((violationId: string) => dispatch({ type: "SET_VIOLATION", violationId }), []);
+  const setLocation = useCallback((address: string) => dispatch({ type: "SET_LOCATION", address }), []);
+  const setNotes = useCallback((notes: string) => dispatch({ type: "SET_NOTES", notes }), []);
+  const addAttachment = useCallback(
+    (uri: string) => dispatch({ type: "ADD_ATTACHMENT", uri, pickedAt: new Date().toISOString() }),
+    []
+  );
+  const removeAttachment = useCallback((evidenceId: string) => dispatch({ type: "REMOVE_ATTACHMENT", evidenceId }), []);
+  const markSubmitted = useCallback((reportId: string) => dispatch({ type: "MARK_SUBMITTED", reportId }), []);
+
+  const value = useMemo(
+    () => ({
+      draft: state.draft,
+      submittedReportId: state.submittedReportId,
+      startNewReport,
+      capturePhoto,
+      setViolation,
+      setLocation,
+      setNotes,
+      addAttachment,
+      removeAttachment,
+      markSubmitted,
+    }),
+    [state, startNewReport, capturePhoto, setViolation, setLocation, setNotes, addAttachment, removeAttachment, markSubmitted]
+  );
+
+  return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>;
 }
 
 export function useReportDraft(): ReportContextValue {

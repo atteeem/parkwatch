@@ -4,18 +4,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { colors } from "../constants/colors";
 
+import { useReportDraft } from "../context/ReportContext";
 import { isUserNavItemActive, USER_NAV_ITEMS } from "./userNavItems";
 
 export function UserBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { startNewReport } = useReportDraft();
 
   return (
     <View style={styles.bar}>
       {USER_NAV_ITEMS.map((item) => {
         const active = isUserNavItemActive(item, pathname);
         return (
-          <Pressable key={item.key} style={styles.item} onPress={() => router.push(item.path as any)}>
+          <Pressable key={item.key} style={styles.item} onPress={() => {
+              // The Report tab is an intentional "new report" entry point.
+              if (item.key === "report") startNewReport();
+              router.push(item.path as any);
+            }}
+          >
             <Ionicons name={item.icon as any} size={22} color={active ? colors.greenDark : colors.black} />
             <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
           </Pressable>

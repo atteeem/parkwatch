@@ -9,6 +9,7 @@ import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { ReportCard } from "../../src/components/ReportCard";
 import { useApp } from "../../src/context/AppContext";
+import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
@@ -21,6 +22,7 @@ const TABS: { key: "all" | UserReportStatus; label: string }[] = [
 export default function MyReports() {
   const router = useRouter();
   const { userReports } = useApp();
+  const { startNewReport } = useReportDraft();
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
 
   const filtered = tab === "all" ? userReports : userReports.filter((r) => r.status === tab);
@@ -57,7 +59,13 @@ export default function MyReports() {
         </View>
       </ScrollView>
 
-      <Pressable style={styles.fab} onPress={() => router.push("/user/report/photos")}>
+      <Pressable
+        style={styles.fab}
+        onPress={() => {
+          startNewReport();
+          router.push("/user/report/photos");
+        }}
+      >
         <Ionicons name="add" size={26} color="#06210F" />
       </Pressable>
 

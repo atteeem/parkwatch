@@ -9,12 +9,29 @@ import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useApp } from "../../../src/context/AppContext";
+import { toSubmittedSummary } from "../../../src/presentation/citizenViews";
 
+// CIT-06: confirmation only. There is deliberately no submit action here, and
+// the finished wizard is no longer in the back stack (Review dismissed to Home).
 export default function ReportSubmitted() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { userReports } = useApp();
-  const report = userReports.find((r) => r.id === id);
+  const { getCitizenReport } = useApp();
+  const report = getCitizenReport(id);
+
+  if (!report) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <Ionicons name="document-text-outline" size={40} color={colors.textSecondary} />
+          <Text style={styles.title}>Report not found</Text>
+          <GreenButton label="View My Reports" onPress={() => router.replace("/user/reports")} style={{ alignSelf: "stretch" }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const summary = toSubmittedSummary(report);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -31,16 +48,16 @@ export default function ReportSubmitted() {
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View>
               <Text style={styles.rowLabel}>Report ID</Text>
-              <Text style={styles.reportId}>#{id}</Text>
+              <Text style={styles.reportId}>#{summary.id}</Text>
             </View>
-            <StatusChip label="Pending Review" tone="green" />
+            <StatusChip label={summary.statusLabel} tone="green" />
           </View>
           <View style={styles.divider} />
           {[
-            { icon: "calendar-outline", label: "Submitted on", value: "Just now" },
-            { icon: "location-outline", label: "Location", value: report?.location ?? "-" },
-            { icon: "car-outline", label: "Vehicle", value: report?.vehicle ?? "Captured on site" },
-            { icon: "ban-outline", label: "Violation", value: report?.violation ?? "-" },
+            { icon: "calendar-outline", label: "Submitted on", value: summary.submittedOn },
+            { icon: "location-outline", label: "Location", value: summary.location },
+            { icon: "car-outline", label: "Vehicle", value: summary.vehicle },
+            { icon: "ban-outline", label: "Violation", value: summary.violation },
           ].map((row) => (
             <View key={row.label} style={styles.metaRow}>
               <Ionicons name={row.icon as any} size={16} color={colors.greenDark} />
@@ -52,8 +69,8 @@ export default function ReportSubmitted() {
           ))}
           <View style={styles.metaRow}>
             <Ionicons name="wallet-outline" size={16} color={colors.greenDark} />
-            <Text style={styles.metaLabel}>Estimated Reward</Text>
-            <Text style={styles.rewardValue}>{"\u20ac5.00"}</Text>
+            <Text style={styles.metaLabel}>{summary.reward.title}</Text>
+            <Text style={styles.rewardValue}>{summary.reward.amountText}</Text>
           </View>
         </Card>
 
@@ -72,7 +89,7 @@ export default function ReportSubmitted() {
 
         <View style={{ width: "100%", marginTop: "auto", gap: 10 }}>
           <GreenButton label="View My Reports" onPress={() => router.replace("/user/reports")} />
-          <GreenButton label="Back to Home" variant="outline" onPress={() => router.replace("/user/home")} />
+          <GreenButton label="Back to Home" variant="outline" onPress={() => router.dismissTo("/user/home")} />
         </View>
       </View>
     </SafeAreaView>

@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { DevSettings } from "react-native";
-import { createCitizenEvidence, ReportDraft as DomainDraft } from "../domain";
+import { ReportDraft, Result, validateWithdrawal } from "../domain";
 import { Notification } from "../data/mockNotifications";
 import { CaseStatus, OfficerCase, UserReport } from "../data/types";
 import {
   CHECK_KEY_TO_DOMAIN,
-  eurosToCents,
   InspectionCheckKey,
   InspectionView,
   OFFICER_PHOTO_KEY_TO_TYPE,
@@ -15,14 +14,15 @@ import {
   selectNotifications,
   selectOfficerCases,
   selectWallet,
-  toCitizenReportView,
   toInspectionView,
 } from "../presentation/viewModels";
+import { selectCitizenReportById } from "../presentation/citizenViews";
+import { EarningsPeriod, selectEarnings, selectWalletActivity, WalletActivityItem, EarningsSummary } from "../presentation/walletViews";
 import { asyncStorageAdapter } from "../store/asyncStorageAdapter";
+import { getReporterDisplayProfile, ReporterDisplayProfile } from "../store/reporterProfiles";
 import { buildSeedState } from "../store/seed";
 import { DEV_CITIZEN_ID, DEV_OFFICER_ID } from "../store/session";
 import { createParkWatchStore, ParkWatchStore } from "../store/store";
-import { CitizenPhotoSlot } from "./ReportContext";
 
 // AppContext is now a thin React binding over the ParkWatch store:
 // - state lives in src/store (persisted, domain-typed)
@@ -40,30 +40,24 @@ const appStore: ParkWatchStore = createParkWatchStore({
   onDiscard: (reason) => console.warn(`[ParkWatch] discarded persisted state (${reason}); reseeding`),
 });
 
-type SubmitReportInput = {
-  /** ReportContext draft id; makes repeated submits of the same draft a no-op. */
-  draftId?: string;
-  photos?: Partial<Record<CitizenPhotoSlot, string>>;
-  photoCapturedAt?: Partial<Record<CitizenPhotoSlot, string>>;
-  /** Legacy: ordered [front, side, rear] when `photos` is not given. */
-  images?: string[];
-  violation: string;
-  location: string;
-  date: string;
-  time: string;
-  notes: string;
-};
-
 type AppContextValue = {
   // citizen
   userReports: UserReport[];
-  /** Returns the submitted (or already-submitted) report, or null if the domain refused it. */
-  submitUserReport: (input: SubmitReportInput) => UserReport | null;
+  /** Read-only lookup for detail screens / deep links (null if unknown or not this citizen's). */
+  getCitizenReport: (id: string | undefined | null) => UserReport | null;
+  /** Display profile of the signed-in (dev) citizen, as shown to officers. */
+  citizenProfile: ReporterDisplayProfile;
+  /** Submit the draft. Idempotent per draftId: a repeat returns the same report (created=false). */
+  submitReport: (draft: ReportDraft) => Result<{ reportId: string; created: boolean }>;
   walletAvailable: number;
   walletPending: number;
   walletPaidOut: number;
-  /** Simulated withdrawal request in euros. Returns false if the wallet rules refuse it. */
-  withdraw: (amount: number) => boolean;
+  walletActivity: WalletActivityItem[];
+  getEarnings: (period: EarningsPeriod) => EarningsSummary;
+  /** Check an amount (cents) against the wallet rules without changing anything. */
+  validateWithdrawal: (amountCents: number) => Result<true>;
+  /** Simulated withdrawal REQUEST (no real transfer). */
+  withdraw: (amountCents: number) => Result<{ withdrawalId: string }>;
 
   // officer
   officerCases: OfficerCase[];
@@ -94,34 +88,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 const citizen = { role: "CITIZEN" as const, accountId: DEV_CITIZEN_ID };
 const officer = { role: "OFFICER" as const, accountId: DEV_OFFICER_ID };
 
-function toDomainDraft(input: SubmitReportInput): DomainDraft {
-  const draftId = input.draftId ?? `draft-legacy-${Date.now().toString(36)}`;
-  const slots: CitizenPhotoSlot[] = ["front", "side", "rear"];
-  const uris = input.photos ?? Object.fromEntries(slots.map((s, i) => [s, input.images?.[i]]));
-  const fallbackAt = new Date().toISOString();
-  const photo = (slot: CitizenPhotoSlot, type: "FRONT" | "SIDE" | "REAR") => {
-    const uri = uris[slot];
-    return uri
-      ? createCitizenEvidence({
-          id: `${draftId}-${type}`,
-          type,
-          // Draft photos only come from the in-app camera screen.
-          captureSource: "CAMERA",
-          uri,
-          capturedAt: input.photoCapturedAt?.[slot] ?? fallbackAt,
-        })
-      : undefined;
-  };
-  return {
-    draftId,
-    photos: { FRONT: photo("front", "FRONT"), SIDE: photo("side", "SIDE"), REAR: photo("rear", "REAR") },
-    violationId: input.violation || undefined,
-    location: { address: input.location ?? "" },
-    notes: input.notes ?? "",
-    attachments: [],
-  };
-}
-
 function registerDevTools() {
   if (!__DEV__) return;
   const reset = () => {
@@ -150,20 +116,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return {
       userReports: selectCitizenReports(state, DEV_CITIZEN_ID),
-      submitUserReport: (input) => {
-        const r = appStore.submitReport(toDomainDraft(input), DEV_CITIZEN_ID);
-        if (!r.ok) {
-          console.warn("[ParkWatch] report not submitted:", r.error.message);
-          return null;
-        }
-        const snapshot = appStore.getSnapshot()!;
-        const report = snapshot.reports.find((x) => x.id === r.value.reportId);
-        return report ? toCitizenReportView(report, snapshot) : null;
-      },
+      getCitizenReport: (id) => selectCitizenReportById(state, DEV_CITIZEN_ID, id),
+      citizenProfile: getReporterDisplayProfile(DEV_CITIZEN_ID),
+      submitReport: (draft) => appStore.submitReport(draft, DEV_CITIZEN_ID),
       walletAvailable: wallet.available,
       walletPending: wallet.pending,
       walletPaidOut: wallet.paidOut,
-      withdraw: (amount) => appStore.requestWithdrawal(DEV_CITIZEN_ID, eurosToCents(amount)).ok,
+      walletActivity: selectWalletActivity(state, DEV_CITIZEN_ID),
+      getEarnings: (period) => selectEarnings(state, DEV_CITIZEN_ID, period, now),
+      validateWithdrawal: (amountCents) => validateWithdrawal(state.ledger, DEV_CITIZEN_ID, amountCents),
+      withdraw: (amountCents) => appStore.requestWithdrawal(DEV_CITIZEN_ID, amountCents),
 
       officerCases,
       getCase: (id) => officerCases.find((c) => c.id === id),

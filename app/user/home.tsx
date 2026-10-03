@@ -11,11 +11,13 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
+import { useReportDraft } from "../../src/context/ReportContext";
 import { violationLabel } from "../../src/data/types";
 
 export default function UserHome() {
   const router = useRouter();
   const { userReports } = useApp();
+  const { startNewReport } = useReportDraft();
   const latest = userReports.slice(0, 3);
 
   return (
@@ -40,7 +42,12 @@ export default function UserHome() {
         </ScrollView>
 
         <View style={styles.section}>
-          <Pressable onPress={() => router.push("/user/report/photos")}>
+          <Pressable
+            onPress={() => {
+              startNewReport();
+              router.push("/user/report/photos");
+            }}
+          >
             <LinearGradient
               colors={[colors.green, colors.greenDark]}
               start={{ x: 0, y: 0 }}

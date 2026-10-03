@@ -126,7 +126,13 @@ export type ReportDraft = {
   /** When the citizen observed the violation; defaults to capture time. */
   observedAt?: IsoTimestamp;
   notes: string;
+  /** Optional extras (e.g. LIBRARY images). Never satisfy required photo slots. */
   attachments: CitizenEvidence[];
+  /**
+   * Vehicle context shown before submission and frozen into the report.
+   * MVP: centralized mock detection; later OCR + citizen confirmation.
+   */
+  vehicle?: VehicleInfo;
 };
 
 export type ReportPriority = "NORMAL" | "MEDIUM" | "HIGH";
