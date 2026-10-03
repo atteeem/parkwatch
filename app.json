@@ -33,6 +33,17 @@
         {
           "photosPermission": "ParkWatch lets you attach optional extra photos from your library to a report. Required evidence photos are always taken with the camera."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ParkWatch uses your location while you use the map or create a report, to show where you are and record where a violation was reported. It is never used in the background.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
       ]
     ]
   }

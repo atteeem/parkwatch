@@ -69,7 +69,7 @@ const REPORTS: SeedReport[] = [
   },
   {
     reportId: "12566", citizenId: DEV_CITIZEN_ID, plate: "ABC-123", make: "Toyota", model: "Corolla", color: "Black",
-    violationId: "sidewalk", address: "Kalevankatu 12, Helsinki", notes: "",
+    violationId: "sidewalk", address: "Kalevankatu 12, Helsinki", coordinates: { latitude: 60.1665, longitude: 24.9381 }, notes: "",
     priority: "NORMAL", distanceMeters: 900, age: 1 * DAY, progress: { to: "NEW" },
   },
   {
@@ -103,37 +103,37 @@ const REPORTS: SeedReport[] = [
   // --- other citizens' reports (officer queue) ---
   {
     reportId: "12571", citizenId: "citizen-elina", plate: "JBS-236", make: "Mercedes-Benz", model: "E-Class",
-    violationId: "sidewalk", address: "Kaivokatu 12, Helsinki", notes: "",
+    violationId: "sidewalk", address: "Kaivokatu 12, Helsinki", coordinates: { latitude: 60.1706, longitude: 24.9422 }, notes: "",
     priority: "NORMAL", distanceMeters: 500, age: 6 * MIN, progress: { to: "ASSIGNED" },
   },
   {
     reportId: "12572", citizenId: "citizen-jonas", plate: "NMV-224", make: "Mitsubishi", model: "Outlander",
-    violationId: "sidewalk", address: "Fredrikinkatu 22, Helsinki", notes: "",
+    violationId: "sidewalk", address: "Fredrikinkatu 22, Helsinki", coordinates: { latitude: 60.1652, longitude: 24.9355 }, notes: "",
     priority: "HIGH", distanceMeters: 800, age: 6 * MIN, progress: { to: "NEW" },
   },
   {
     reportId: "12573", citizenId: "citizen-sara", plate: "MGC-703", make: "Mercedes-Benz", model: "Sprinter",
-    violationId: "bus-stop", address: "Elielinaukio 5, Helsinki", notes: "",
+    violationId: "bus-stop", address: "Elielinaukio 5, Helsinki", coordinates: { latitude: 60.1716, longitude: 24.94 }, notes: "",
     priority: "MEDIUM", distanceMeters: 1200, age: 6 * MIN, progress: { to: "NEW" },
   },
   {
     reportId: "12574", citizenId: "citizen-otto", plate: "FET-853", make: "BMW", model: "3 Series",
-    violationId: "loading-zone", address: "Pohjoisesplanadi 33, Helsinki", notes: "",
+    violationId: "loading-zone", address: "Pohjoisesplanadi 33, Helsinki", coordinates: { latitude: 60.168, longitude: 24.9466 }, notes: "",
     priority: "NORMAL", distanceMeters: 1500, age: 6 * MIN, progress: { to: "NEW" },
   },
   {
     reportId: "12568", citizenId: "citizen-nea", plate: "BHN-632", make: "Audi", model: "A4",
-    violationId: "blocking-traffic", address: "Fredrikinkatu 22, Helsinki", notes: "",
+    violationId: "blocking-traffic", address: "Fredrikinkatu 22, Helsinki", coordinates: { latitude: 60.1652, longitude: 24.9355 }, notes: "",
     priority: "NORMAL", distanceMeters: 700, age: 18 * MIN, progress: { to: "EN_ROUTE" },
   },
   {
     reportId: "12569", citizenId: "citizen-ilkka", plate: "HGT-355", make: "Skoda", model: "Octavia",
-    violationId: "no-parking", address: "Pohjoisesplanadi 33, Helsinki", notes: "",
+    violationId: "no-parking", address: "Pohjoisesplanadi 33, Helsinki", coordinates: { latitude: 60.168, longitude: 24.9466 }, notes: "",
     priority: "NORMAL", distanceMeters: 1100, age: 18 * MIN, progress: { to: "ON_SITE" },
   },
   {
     reportId: "12570", citizenId: "citizen-pia", plate: "KOL-790", make: "Ford", model: "Transit",
-    violationId: "loading-zone", address: "Elielinaukio 5, Helsinki", notes: "",
+    violationId: "loading-zone", address: "Elielinaukio 5, Helsinki", coordinates: { latitude: 60.1716, longitude: 24.94 }, notes: "",
     priority: "NORMAL", distanceMeters: 1500, age: 18 * MIN, progress: { to: "INSPECTION" },
   },
 ];

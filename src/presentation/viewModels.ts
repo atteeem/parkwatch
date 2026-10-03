@@ -184,6 +184,9 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
         : undefined,
     outcomeCode: c.outcome?.code,
     completedAt: c.completedAt,
+    coordinates: report.location.coordinates
+      ? { latitude: report.location.coordinates.latitude, longitude: report.location.coordinates.longitude }
+      : undefined,
   };
 }
 

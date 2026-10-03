@@ -14,6 +14,7 @@ import {
   CitizenEvidenceType,
   createCitizenEvidence,
   createEmptyDraft,
+  GeoPoint,
   IsoTimestamp,
   MVP_MOCK_DETECTED_VEHICLE,
   ReportDraft,
@@ -30,6 +31,8 @@ export type DraftAction =
   | { type: "CAPTURE_PHOTO"; slot: CitizenEvidenceType; uri: string; capturedAt: IsoTimestamp }
   | { type: "SET_VIOLATION"; violationId: string }
   | { type: "SET_LOCATION"; address: string }
+  /** Device GPS fix for the report's machine location; never touches the typed address. */
+  | { type: "SET_COORDINATES"; coordinates: GeoPoint }
   | { type: "SET_NOTES"; notes: string }
   | { type: "ADD_ATTACHMENT"; uri: string; pickedAt: IsoTimestamp }
   | { type: "REMOVE_ATTACHMENT"; evidenceId: string }
@@ -67,6 +70,8 @@ export function draftReducer(state: CitizenDraftState, action: DraftAction): Cit
       return { ...state, draft: { ...d, violationId: action.violationId } };
     case "SET_LOCATION":
       return { ...state, draft: { ...d, location: { ...d.location, address: action.address } } };
+    case "SET_COORDINATES":
+      return { ...state, draft: { ...d, location: { ...d.location, coordinates: { ...action.coordinates } } } };
     case "SET_NOTES":
       return { ...state, draft: { ...d, notes: action.notes } };
     case "ADD_ATTACHMENT": {

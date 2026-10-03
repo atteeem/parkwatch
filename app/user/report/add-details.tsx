@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, TextInput, Image, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, ScrollView, Pressable, TextInput, Image, StyleSheet, Linking, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,13 +15,28 @@ import { VIOLATION_TYPES } from "../../../src/data/types";
 import { validateDraft } from "../../../src/domain";
 import { draftIssueMessages } from "../../../src/presentation/errors";
 import { draftObservedAt } from "../../../src/presentation/reportDraft";
+import { LiveMap } from "../../../src/components/map/LiveMap";
+import { useForegroundLocation } from "../../../src/location/useForegroundLocation";
+import { gpsStatusText } from "../../../src/map/mapLogic";
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function AddDetails() {
   const router = useRouter();
-  const { draft, setLocation, setNotes, addAttachment, removeAttachment } = useReportDraft();
+  const { draft, setLocation, setCoordinates, setNotes, addAttachment, removeAttachment } = useReportDraft();
+  // One foreground reading for the report's machine location (no live watch).
+  const location = useForegroundLocation({ autoRequest: true });
+  const coords = draft.location.coordinates;
+
+  // Store each new real fix as coordinates; the typed address is never touched.
+  useEffect(() => {
+    const fix = location.permission === "granted" ? location.fix : undefined;
+    if (fix && fix.capturedAt !== coords?.capturedAt) {
+      setCoordinates({ latitude: fix.latitude, longitude: fix.longitude, accuracyMeters: fix.accuracyMeters, capturedAt: fix.capturedAt });
+    }
+  }, [location.permission, location.fix]); // eslint-disable-line react-hooks/exhaustive-deps
+  const gps = gpsStatusText(location.permission, location.loading, coords);
   const [showErrors, setShowErrors] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
 
@@ -94,9 +109,34 @@ export default function AddDetails() {
             <Ionicons name="map-outline" size={18} color={colors.textSecondary} />
           </View>
           {showErrors && messages.location ? <Text style={styles.errorText}>{messages.location}</Text> : null}
-          <View style={styles.mapPreview}>
-            <View style={styles.mapDot} />
+          <View style={styles.gpsRow}>
+            <Ionicons
+              name={gps.ok ? "navigate-circle" : "alert-circle-outline"}
+              size={15}
+              color={gps.ok ? colors.greenDark : colors.textSecondary}
+            />
+            <Text style={[styles.gpsText, gps.ok && { color: colors.greenDark }]}>{gps.text}</Text>
+            {location.permission === "undetermined" || location.permission === "denied" ? (
+              <Pressable onPress={() => void location.requestPermission()} hitSlop={6}>
+                <Text style={styles.gpsAction}>Use GPS</Text>
+              </Pressable>
+            ) : location.permission === "blocked" && Platform.OS !== "web" ? (
+              <Pressable onPress={() => void Linking.openSettings()} hitSlop={6}>
+                <Text style={styles.gpsAction}>Settings</Text>
+              </Pressable>
+            ) : location.permission === "granted" && !coords && !location.loading ? (
+              <Pressable onPress={() => void location.refreshLocation()} hitSlop={6}>
+                <Text style={styles.gpsAction}>Retry</Text>
+              </Pressable>
+            ) : null}
           </View>
+          <LiveMap
+            style={styles.mapPreview}
+            interactive={false}
+            markers={[]}
+            userFix={coords?.capturedAt ? { ...coords, capturedAt: coords.capturedAt } : undefined}
+            following
+          />
         </Card>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
@@ -178,17 +218,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   addressRowError: { borderColor: colors.red },
+  gpsRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  gpsText: { flex: 1, fontSize: 12, color: colors.textSecondary },
+  gpsAction: { fontSize: 12.5, fontWeight: "800", color: colors.greenDark },
   addressInput: { flex: 1, fontSize: 14, color: colors.textPrimary },
   errorText: { color: "#B3261E", fontSize: 12, fontWeight: "600", marginTop: 6 },
-  mapPreview: {
-    height: 120,
-    borderRadius: radius.card,
-    backgroundColor: "#EAF0EC",
-    marginTop: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mapDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.blue, borderWidth: 4, borderColor: "rgba(52,120,229,0.25)" },
+  mapPreview: { height: 120, borderRadius: radius.card, marginTop: 10 },
   dateBox: {
     flex: 1,
     flexDirection: "row",

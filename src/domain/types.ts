@@ -10,7 +10,11 @@
 export type IsoTimestamp = string;
 export type Cents = number;
 
-export type GeoPoint = { latitude: number; longitude: number; accuracyMeters?: number };
+/**
+ * A geographic point. accuracyMeters = horizontal accuracy radius reported by
+ * the device (GPS is never exact); capturedAt = when the fix was taken.
+ */
+export type GeoPoint = { latitude: number; longitude: number; accuracyMeters?: number; capturedAt?: IsoTimestamp };
 
 // ---------------------------------------------------------------------------
 // Audit: who did something (actor) vs how it entered the system (source)

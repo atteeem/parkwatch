@@ -60,6 +60,8 @@ export type OfficerCase = {
   outcomeCode?: string;
   /** ISO completion time, when completed. */
   completedAt?: string;
+  /** Report location from the citizen's device GPS, if captured. */
+  coordinates?: { latitude: number; longitude: number };
 };
 
 export const VIOLATION_TYPES = [

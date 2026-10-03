@@ -259,7 +259,7 @@ describe("reward display", () => {
 });
 
 describe("My Reports and map helpers", () => {
-  const { filterMyReports, myReportsEmptyState, mapMarkerPosition, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
+  const { filterMyReports, myReportsEmptyState, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
   const r = (id: string, status: "under-review" | "verified" | "rejected", coordinates?: { latitude: number; longitude: number }) =>
     ({ id, status, coordinates }) as never;
 
@@ -273,19 +273,6 @@ describe("My Reports and map helpers", () => {
     expect(myReportsEmptyState("all", 0, 0)).toMatchObject({ title: "No reports yet", showReportCta: true });
     expect(myReportsEmptyState("rejected", 4, 0)).toMatchObject({ title: "Nothing here", showReportCta: false, body: "No rejected reports." });
     expect(myReportsEmptyState("all", 4, 4)).toBeNull();
-  });
-
-  it("map markers are projected from coordinates and stay inside the map", () => {
-    const a = mapMarkerPosition(r("a", "verified", { latitude: 60.1699, longitude: 24.9384 }), 0);
-    const b = mapMarkerPosition(r("b", "verified", { latitude: 60.1652, longitude: 24.9478 }), 1);
-    expect(b.leftPct).toBeGreaterThan(a.leftPct); // further east
-    expect(b.topPct).toBeGreaterThan(a.topPct); // further south
-    for (const p of [a, b, mapMarkerPosition(r("c", "verified"), 7), mapMarkerPosition(r("d", "verified", { latitude: 0, longitude: 0 }), 0)]) {
-      expect(p.leftPct).toBeGreaterThanOrEqual(4);
-      expect(p.leftPct).toBeLessThanOrEqual(92);
-      expect(p.topPct).toBeGreaterThanOrEqual(4);
-      expect(p.topPct).toBeLessThanOrEqual(92);
-    }
   });
 
   it("map counts come from the reports", () => {

@@ -12,12 +12,17 @@ import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
 import { useReportDraft } from "../../src/context/ReportContext";
+import { LiveMap } from "../../src/components/map/LiveMap";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { citizenReportMarkers } from "../../src/map/mapLogic";
 import { violationLabel } from "../../src/data/types";
 
 export default function UserHome() {
   const router = useRouter();
   const { userReports } = useApp();
   const { startNewReport } = useReportDraft();
+  // Reads a position only if permission was already granted; no prompt, no watch.
+  const location = useForegroundLocation();
   const latest = userReports.slice(0, 3);
 
   return (
@@ -70,9 +75,14 @@ export default function UserHome() {
 
         <View style={styles.section}>
           <Pressable style={styles.mapCard} onPress={() => router.push("/user/map")}>
-            <View style={styles.mapPreview}>
-              <View style={styles.mapDot} />
-            </View>
+            {/* Lightweight preview of the same live map: no gestures, no live watch, never prompts. */}
+            <LiveMap
+              style={styles.mapPreview}
+              interactive={false}
+              markers={citizenReportMarkers(userReports, "all")}
+              userFix={location.permission === "granted" ? location.fix : undefined}
+              following={false}
+            />
             <View style={styles.mapStrip}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.mapStripTitle}>View your reports on the map</Text>

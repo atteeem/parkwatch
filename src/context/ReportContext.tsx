@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useReducer } from "react";
-import { CitizenEvidenceType, ReportDraft } from "../domain";
+import { CitizenEvidenceType, GeoPoint, ReportDraft } from "../domain";
 import { draftReducer, newDraftId, newDraftState } from "../presentation/reportDraft";
 
 // In-progress CITIZEN report draft only. Officer inspection state lives in
@@ -14,6 +14,8 @@ type ReportContextValue = {
   capturePhoto: (slot: CitizenEvidenceType, uri: string, capturedAt: string) => void;
   setViolation: (violationId: string) => void;
   setLocation: (address: string) => void;
+  /** Store the device GPS fix (machine location) separately from the typed address. */
+  setCoordinates: (coordinates: GeoPoint) => void;
   setNotes: (notes: string) => void;
   addAttachment: (uri: string) => void;
   removeAttachment: (evidenceId: string) => void;
@@ -32,6 +34,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   );
   const setViolation = useCallback((violationId: string) => dispatch({ type: "SET_VIOLATION", violationId }), []);
   const setLocation = useCallback((address: string) => dispatch({ type: "SET_LOCATION", address }), []);
+  const setCoordinates = useCallback((coordinates: GeoPoint) => dispatch({ type: "SET_COORDINATES", coordinates }), []);
   const setNotes = useCallback((notes: string) => dispatch({ type: "SET_NOTES", notes }), []);
   const addAttachment = useCallback(
     (uri: string) => dispatch({ type: "ADD_ATTACHMENT", uri, pickedAt: new Date().toISOString() }),
@@ -48,12 +51,13 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
       capturePhoto,
       setViolation,
       setLocation,
+      setCoordinates,
       setNotes,
       addAttachment,
       removeAttachment,
       markSubmitted,
     }),
-    [state, startNewReport, capturePhoto, setViolation, setLocation, setNotes, addAttachment, removeAttachment, markSubmitted]
+    [state, startNewReport, capturePhoto, setViolation, setLocation, setCoordinates, setNotes, addAttachment, removeAttachment, markSubmitted]
   );
 
   return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>;

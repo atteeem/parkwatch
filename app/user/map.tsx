@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useReducer, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
+import { LiveMap } from "../../src/components/map/LiveMap";
+import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
 import { useApp } from "../../src/context/AppContext";
 import { UserReportStatus } from "../../src/data/types";
-import { useRouter } from "expo-router";
-import { filterMyReports, mapMarkerPosition, reportStatusCounts } from "../../src/presentation/citizenViews";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { citizenReportMarkers, followReducer, INITIAL_FOLLOW_STATE } from "../../src/map/mapLogic";
+import { reportStatusCounts } from "../../src/presentation/citizenViews";
 
 const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -18,18 +22,26 @@ const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "rejected", label: "Rejected" },
 ];
 
-const MARKER_STYLE: Record<UserReportStatus, { bg: string; icon: keyof typeof Ionicons.glyphMap; fg: string }> = {
-  verified: { bg: colors.white, icon: "checkmark-circle", fg: colors.greenDark },
-  "under-review": { bg: colors.white, icon: "time", fg: "#B47A00" },
-  rejected: { bg: colors.white, icon: "close-circle", fg: colors.red },
-};
-
+// CIT-09: live map. Foreground location only while this screen is focused
+// (the shared watch is released when it loses focus).
 export default function UserMap() {
   const router = useRouter();
   const { userReports } = useApp();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
-  const filtered = filterMyReports(userReports, filter);
+  const location = useForegroundLocation({ watch: true, autoRequest: true });
+  const [follow, dispatchFollow] = useReducer(followReducer, INITIAL_FOLLOW_STATE);
+  const [recenterToken, setRecenterToken] = useState(0);
+
+  const markers = citizenReportMarkers(userReports, filter);
   const counts = reportStatusCounts(userReports);
+  const onMap = citizenReportMarkers(userReports, "all").length;
+  const hasPosition = location.permission === "granted" && !!location.fix;
+
+  const recenter = () => {
+    dispatchFollow({ type: "RECENTER" });
+    setRecenterToken((t) => t + 1);
+    void location.refreshLocation();
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -54,32 +66,38 @@ export default function UserMap() {
       </ScrollView>
 
       <View style={styles.mapWrap}>
-        {filtered.map((r, i) => {
-          // Static demo map (no map SDK): position projected from report coordinates.
-          const pos = mapMarkerPosition(r, i);
-          const m = MARKER_STYLE[r.status];
-          return (
-            <Pressable
-              key={r.id}
-              onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })}
-              style={[styles.marker, { top: `${pos.topPct}%`, left: `${pos.leftPct}%`, backgroundColor: m.bg }]}
-            >
-              <Ionicons name={m.icon} size={16} color={m.fg} />
-            </Pressable>
-          );
-        })}
-        <View style={styles.recenterBtn}>
-          <Ionicons name="locate" size={18} color={colors.textPrimary} />
+        <LiveMap
+          style={StyleSheet.absoluteFill}
+          markers={markers}
+          userFix={location.permission === "granted" ? location.fix : undefined}
+          following={follow.following && hasPosition}
+          onUserGesture={() => dispatchFollow({ type: "USER_GESTURE" })}
+          recenterToken={recenterToken}
+          onMarkerPress={(id) => router.push({ pathname: "/user/report/report-overview", params: { id } })}
+        />
+        <View style={styles.noticeWrap} pointerEvents="box-none">
+          <LocationNotice
+            permission={location.permission}
+            error={location.error}
+            onRequest={() => void location.requestPermission()}
+            onRetry={() => void location.refreshLocation()}
+          />
+        </View>
+        <View style={styles.recenterWrap}>
+          <FollowLocationButton following={follow.following && hasPosition} disabled={!hasPosition} onPress={recenter} />
         </View>
       </View>
 
       <View style={styles.summaryCard}>
         <Ionicons name="map" size={20} color={colors.greenDark} />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.summaryTitle}>{counts.total} Reports on Map</Text>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={styles.summaryTitle}>{onMap} Reports on Map</Text>
           <Text style={styles.summarySub}>
-            {counts.verified} Verified {"\u2022"} {counts.underReview} Under Review {"\u2022"} {counts.rejected} Rejected
+            {counts.verified} Verified {"•"} {counts.underReview} Under Review {"•"} {counts.rejected} Rejected
           </Text>
+          {location.fix?.accuracyMeters !== undefined && location.permission === "granted" ? (
+            <Text style={styles.summarySub}>Your position: accurate to about {Math.round(location.fix.accuracyMeters)} m</Text>
+          ) : null}
         </View>
       </View>
 
@@ -112,27 +130,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 12,
   },
-  marker: {
-    position: "absolute",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.card,
-  },
-  recenterBtn: {
-    position: "absolute",
-    right: 14,
-    bottom: 14,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.card,
-  },
+  noticeWrap: { position: "absolute", left: 10, right: 10, top: 10 },
+  recenterWrap: { position: "absolute", right: 14, bottom: 14 },
   summaryCard: {
     flexDirection: "row",
     alignItems: "center",
