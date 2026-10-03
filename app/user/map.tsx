@@ -8,6 +8,8 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { useApp } from "../../src/context/AppContext";
 import { UserReportStatus } from "../../src/data/types";
+import { useRouter } from "expo-router";
+import { filterMyReports, mapMarkerPosition, reportStatusCounts } from "../../src/presentation/citizenViews";
 
 const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -22,24 +24,12 @@ const MARKER_STYLE: Record<UserReportStatus, { bg: string; icon: keyof typeof Io
   rejected: { bg: colors.white, icon: "close-circle", fg: colors.red },
 };
 
-// Fixed relative positions inside the map card so pins look spread out
-// without needing a real map SDK for the MVP.
-const POSITIONS = [
-  { top: 40, left: 60 }, { top: 90, left: 210 }, { top: 150, left: 30 },
-  { top: 170, left: 260 }, { top: 210, left: 140 }, { top: 250, left: 200 },
-  { top: 260, left: 80 },
-];
-
 export default function UserMap() {
+  const router = useRouter();
   const { userReports } = useApp();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
-  const filtered = filter === "all" ? userReports : userReports.filter((r) => r.status === filter);
-
-  const counts = {
-    verified: userReports.filter((r) => r.status === "verified").length,
-    "under-review": userReports.filter((r) => r.status === "under-review").length,
-    rejected: userReports.filter((r) => r.status === "rejected").length,
-  };
+  const filtered = filterMyReports(userReports, filter);
+  const counts = reportStatusCounts(userReports);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -65,12 +55,17 @@ export default function UserMap() {
 
       <View style={styles.mapWrap}>
         {filtered.map((r, i) => {
-          const pos = POSITIONS[i % POSITIONS.length];
+          // Static demo map (no map SDK): position projected from report coordinates.
+          const pos = mapMarkerPosition(r, i);
           const m = MARKER_STYLE[r.status];
           return (
-            <View key={r.id} style={[styles.marker, { top: pos.top, left: pos.left, backgroundColor: m.bg }]}>
+            <Pressable
+              key={r.id}
+              onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })}
+              style={[styles.marker, { top: `${pos.topPct}%`, left: `${pos.leftPct}%`, backgroundColor: m.bg }]}
+            >
               <Ionicons name={m.icon} size={16} color={m.fg} />
-            </View>
+            </Pressable>
           );
         })}
         <View style={styles.recenterBtn}>
@@ -81,9 +76,9 @@ export default function UserMap() {
       <View style={styles.summaryCard}>
         <Ionicons name="map" size={20} color={colors.greenDark} />
         <View style={{ marginLeft: 10 }}>
-          <Text style={styles.summaryTitle}>{userReports.length} Reports on Map</Text>
+          <Text style={styles.summaryTitle}>{counts.total} Reports on Map</Text>
           <Text style={styles.summarySub}>
-            {counts.verified} Verified {"\u2022"} {counts["under-review"]} Under Review {"\u2022"} {counts.rejected} Rejected
+            {counts.verified} Verified {"\u2022"} {counts.underReview} Under Review {"\u2022"} {counts.rejected} Rejected
           </Text>
         </View>
       </View>

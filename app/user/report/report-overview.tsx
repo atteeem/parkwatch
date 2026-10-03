@@ -11,6 +11,8 @@ import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useApp } from "../../../src/context/AppContext";
 import { violationLabel } from "../../../src/data/types";
+import { rewardDisplay } from "../../../src/presentation/citizenViews";
+import { formatDateTime } from "../../../src/presentation/time";
 
 const PANEL_TONE: Record<string, { bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap }> = {
   "under-review": { bg: colors.amberLight, fg: "#8A6300", icon: "time" },
@@ -21,30 +23,31 @@ const PANEL_TONE: Record<string, { bg: string; fg: string; icon: keyof typeof Io
 export default function ReportOverview() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { userReports } = useApp();
-  const report = userReports.find((r) => r.id === id);
+  const { getCitizenReport } = useApp();
+  // Read-only lookup: safe to open directly (deep link) and never mutates state.
+  const report = getCitizenReport(id);
+  const backToMyReports = () => router.dismissTo("/user/reports");
 
   if (!report) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <BackHeader title="Report overview" onBack={() => router.back()} />
-        <Text style={{ padding: 20, color: colors.textSecondary }}>Report not found.</Text>
+        <BackHeader title="Report overview" onBack={backToMyReports} />
+        <View style={{ padding: 20, gap: 14 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Report not found.</Text>
+          <GreenButton label="Back to My Reports" variant="outline" onPress={backToMyReports} />
+        </View>
       </SafeAreaView>
     );
   }
 
+  const reward = rewardDisplay(report);
+
   const panel = PANEL_TONE[report.status];
-  const submittedLabel = new Date(report.submittedAt).toLocaleString([], {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const submittedLabel = formatDateTime(report.submittedAt);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <BackHeader title="Report overview" onBack={() => router.back()} />
+      <BackHeader title="Report overview" onBack={backToMyReports} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 130, gap: 14 }}>
         <View style={[styles.statusPanel, { backgroundColor: panel.bg }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -108,18 +111,27 @@ export default function ReportOverview() {
           </View>
         </Card>
 
-        <Card style={{ backgroundColor: colors.greenLight, borderColor: "#BFEBCF" }}>
+        {/* Reward strictly from the ledger: pending / rewarded / no reward (also when an unresolved outcome cancelled it). */}
+        <Card
+          style={
+            reward.state === "none"
+              ? { backgroundColor: colors.backgroundSunk, borderColor: colors.borderLight }
+              : { backgroundColor: colors.greenLight, borderColor: "#BFEBCF" }
+          }
+        >
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View>
-              <Text style={styles.cardLabel}>Estimated reward</Text>
-              <Text style={styles.rewardValue}>{"\u20ac"}{(report.reward ?? 5).toFixed(2)}</Text>
+              <Text style={styles.cardLabel}>{reward.title}</Text>
+              <Text style={[styles.rewardValue, reward.state === "none" && { color: colors.textSecondary }]}>
+                {reward.amountText}
+              </Text>
             </View>
-            <StatusChip label={report.rewardState === "rewarded" ? "Rewarded" : "Pending"} tone="green" />
+            <StatusChip label={reward.chipLabel} tone={reward.state === "none" ? "grey" : "green"} />
           </View>
         </Card>
       </ScrollView>
       <View style={styles.bottomBar}>
-        <GreenButton label="Back to My Reports" variant="outline" onPress={() => router.replace("/user/reports")} />
+        <GreenButton label="Back to My Reports" variant="outline" onPress={backToMyReports} />
       </View>
     </SafeAreaView>
   );

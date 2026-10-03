@@ -124,3 +124,62 @@ export function toSubmittedSummary(report: CitizenReportView): SubmittedSummary 
     reward: rewardDisplay(report),
   };
 }
+
+export type MyReportsTab = "all" | "under-review" | "verified" | "rejected";
+
+/** Filter for the My Reports tabs. */
+export function filterMyReports(reports: CitizenReportView[], tab: MyReportsTab): CitizenReportView[] {
+  return tab === "all" ? reports : reports.filter((r) => r.status === tab);
+}
+
+const TAB_EMPTY: Record<Exclude<MyReportsTab, "all">, string> = {
+  "under-review": "No reports under review right now.",
+  verified: "No verified reports yet.",
+  rejected: "No rejected reports.",
+};
+
+/** Empty state for My Reports: global "no reports yet" vs. a tab-specific message. */
+export function myReportsEmptyState(
+  tab: MyReportsTab,
+  totalCount: number,
+  shownCount: number
+): { title: string; body: string; showReportCta: boolean } | null {
+  if (shownCount > 0) return null;
+  if (totalCount === 0) {
+    return { title: "No reports yet", body: "Spotted a parking violation? Report it to help keep streets safe.", showReportCta: true };
+  }
+  return { title: "Nothing here", body: TAB_EMPTY[tab as Exclude<MyReportsTab, "all">], showReportCta: false };
+}
+
+/** Demo-area bounds for the static (no map SDK) Helsinki map. */
+const MAP_BOUNDS = { north: 60.182, south: 60.158, west: 24.92, east: 24.965 };
+
+/**
+ * Marker position on the static map as percentages (0-100) of the map area.
+ * Reports with coordinates are projected into the demo bounds (clamped);
+ * reports without coordinates get a stable spread position by index.
+ */
+export function mapMarkerPosition(
+  report: Pick<CitizenReportView, "coordinates">,
+  index: number
+): { leftPct: number; topPct: number } {
+  const c = report.coordinates;
+  const clamp = (v: number) => Math.min(92, Math.max(4, v));
+  if (c) {
+    const left = ((c.longitude - MAP_BOUNDS.west) / (MAP_BOUNDS.east - MAP_BOUNDS.west)) * 100;
+    const top = ((MAP_BOUNDS.north - c.latitude) / (MAP_BOUNDS.north - MAP_BOUNDS.south)) * 100;
+    return { leftPct: clamp(left), topPct: clamp(top) };
+  }
+  // Golden-angle spread keeps fallback markers apart and stable per index.
+  return { leftPct: clamp(10 + ((index * 61.8) % 80)), topPct: clamp(12 + ((index * 38.2) % 76)) };
+}
+
+/** Status counts for the map summary. */
+export function reportStatusCounts(reports: CitizenReportView[]) {
+  return {
+    total: reports.length,
+    verified: reports.filter((r) => r.status === "verified").length,
+    underReview: reports.filter((r) => r.status === "under-review").length,
+    rejected: reports.filter((r) => r.status === "rejected").length,
+  };
+}

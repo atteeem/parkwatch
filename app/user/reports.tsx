@@ -11,6 +11,7 @@ import { ReportCard } from "../../src/components/ReportCard";
 import { useApp } from "../../src/context/AppContext";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
+import { filterMyReports, myReportsEmptyState } from "../../src/presentation/citizenViews";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -25,7 +26,12 @@ export default function MyReports() {
   const { startNewReport } = useReportDraft();
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
 
-  const filtered = tab === "all" ? userReports : userReports.filter((r) => r.status === tab);
+  const filtered = filterMyReports(userReports, tab);
+  const empty = myReportsEmptyState(tab, userReports.length, filtered.length);
+  const startReport = () => {
+    startNewReport();
+    router.push("/user/report/photos");
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -51,6 +57,19 @@ export default function MyReports() {
           <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
         ))}
 
+        {empty && (
+          <View style={styles.emptyState}>
+            <Ionicons name="document-text-outline" size={34} color={colors.textLight} />
+            <Text style={styles.emptyTitle}>{empty.title}</Text>
+            <Text style={styles.emptyBody}>{empty.body}</Text>
+            {empty.showReportCta && (
+              <Pressable style={styles.emptyCta} onPress={startReport}>
+                <Text style={styles.emptyCtaLabel}>Report Parking Issue</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         <View style={styles.thanksBanner}>
           <View style={{ flex: 1 }}>
             <Text style={styles.thanksTitle}>Thanks for helping!</Text>
@@ -59,13 +78,7 @@ export default function MyReports() {
         </View>
       </ScrollView>
 
-      <Pressable
-        style={styles.fab}
-        onPress={() => {
-          startNewReport();
-          router.push("/user/report/photos");
-        }}
-      >
+      <Pressable style={styles.fab} onPress={startReport}>
         <Ionicons name="add" size={26} color="#06210F" />
       </Pressable>
 
@@ -81,6 +94,11 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 15, fontWeight: "600", color: colors.textLight },
   tabLabelActive: { color: colors.greenDark, fontWeight: "800" },
   tabUnderline: { height: 2.5, backgroundColor: colors.green, borderRadius: 2, marginTop: 6 },
+  emptyState: { alignItems: "center", paddingVertical: 36, paddingHorizontal: 20, gap: 6 },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: colors.textPrimary, marginTop: 6 },
+  emptyBody: { fontSize: 13, color: colors.textSecondary, textAlign: "center" },
+  emptyCta: { marginTop: 12, backgroundColor: colors.green, borderRadius: radius.button, paddingVertical: 12, paddingHorizontal: 20 },
+  emptyCtaLabel: { color: "#06210F", fontWeight: "800", fontSize: 14 },
   thanksBanner: {
     backgroundColor: colors.greenLight,
     borderRadius: radius.card,
