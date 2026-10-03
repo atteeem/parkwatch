@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "ParkWatch",
+    "slug": "parkwatch-mvp",
+    "scheme": "parkwatch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "sdkVersion": "54.0.0",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "ParkWatch uses the camera so you can capture evidence of a parking violation."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {}
+    }
+  }
+}

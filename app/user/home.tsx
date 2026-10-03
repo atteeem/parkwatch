@@ -1,0 +1,180 @@
+import React from "react";
+import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors } from "../../src/constants/colors";
+import { typography } from "../../src/constants/typography";
+import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
+import { UserBottomNav } from "../../src/components/UserBottomNav";
+import { StatCard } from "../../src/components/StatCard";
+import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
+import { useApp } from "../../src/context/AppContext";
+import { violationLabel } from "../../src/data/types";
+
+export default function UserHome() {
+  const router = useRouter();
+  const { userReports } = useApp();
+  const latest = userReports.slice(0, 3);
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        <View style={styles.headerBlock}>
+          <Text style={typography.screenTitle}>Hello, User!</Text>
+          <Text style={typography.screenSubtitle}>
+            Together we make traffic flow better and safer.
+          </Text>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+            <Ionicons name="heart-outline" size={16} color={colors.textPrimary} />
+            <Text style={styles.shortcutLabel}>Active Reports</Text>
+          </Pressable>
+          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+            <Ionicons name="time-outline" size={16} color={colors.textPrimary} />
+            <Text style={styles.shortcutLabel}>Report History</Text>
+          </Pressable>
+          <Pressable style={styles.shortcut}>
+            <Ionicons name="document-outline" size={16} color={colors.textPrimary} />
+            <Text style={styles.shortcutLabel}>Orders</Text>
+          </Pressable>
+        </ScrollView>
+
+        <View style={styles.section}>
+          <Pressable onPress={() => router.push("/user/report/photos")}>
+            <LinearGradient
+              colors={[colors.green, colors.greenDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.banner}
+            >
+              <View style={styles.bannerIconWrap}>
+                <Ionicons name="camera" size={22} color={colors.greenDark} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.bannerTitle}>Report Parking Issue</Text>
+                <Text style={styles.bannerBody}>
+                  Help keep streets safe and accessible. Earn rewards for verified parking reports.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#06210F" />
+            </LinearGradient>
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
+          <Pressable style={styles.mapCard} onPress={() => router.push("/user/map")}>
+            <View style={styles.mapPreview}>
+              <View style={styles.mapDot} />
+            </View>
+            <View style={styles.mapStrip}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mapStripTitle}>View your reports on the map</Text>
+                <Text style={styles.mapStripBody}>See your reports and their status on the map</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+            </View>
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={typography.sectionHeading}>Statistics</Text>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+            <StatCard icon="car" iconBg={colors.blueLight} iconColor={colors.blue} value="20" label="Reports made" sublabel="This week" />
+            <StatCard icon="checkmark-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} value="17" label="Accepted" sublabel="This week" />
+            <StatCard icon="cash" iconBg={colors.amberLight} iconColor="#B47A00" value={"\u20ac85"} label="Earned Rewards" sublabel="This week" />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={typography.sectionHeading}>Latest reports</Text>
+          <View style={{ marginTop: 10, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, ...shadow.card }}>
+            {latest.map((r, i) => (
+              <Pressable
+                key={r.id}
+                onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })}
+                style={[styles.reportRow, i < latest.length - 1 && styles.reportRowDivider]}
+              >
+                <VehicleThumbnail uri={r.images[0]} />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text style={styles.reportPlate}>{r.plate}</Text>
+                  <Text style={styles.reportMeta} numberOfLines={1}>
+                    <Ionicons name="location" size={11} /> {r.location}
+                  </Text>
+                  <Text style={styles.reportMetaLight}>{violationLabel(r.violation)}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+      <UserBottomNav />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  headerBlock: { paddingHorizontal: 20, paddingTop: 4 },
+  shortcut: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  shortcutLabel: { fontWeight: "700", fontSize: 13.5, color: colors.textPrimary },
+  section: { paddingHorizontal: 20, marginTop: 20 },
+  banner: {
+    borderRadius: radius.cardLg,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bannerIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bannerTitle: { fontSize: 19, fontWeight: "800", color: "#06210F" },
+  bannerBody: { fontSize: 12.5, color: "#0B3D22", marginTop: 4, lineHeight: 17 },
+  mapCard: {
+    borderRadius: radius.cardLg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    backgroundColor: colors.white,
+    ...shadow.card,
+  },
+  mapPreview: {
+    height: 170,
+    backgroundColor: "#EAF0EC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.blue,
+    borderWidth: 4,
+    borderColor: "rgba(52,120,229,0.25)",
+  },
+  mapStrip: { flexDirection: "row", alignItems: "center", padding: 14 },
+  mapStripTitle: { fontWeight: "700", fontSize: 14 },
+  mapStripBody: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  reportRow: { flexDirection: "row", alignItems: "center", padding: 14 },
+  reportRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  reportPlate: { fontWeight: "800", fontSize: 15 },
+  reportMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  reportMetaLight: { fontSize: 11.5, color: colors.textLight, marginTop: 2 },
+});

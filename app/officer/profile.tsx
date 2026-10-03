@@ -1,0 +1,190 @@
+import React from "react";
+import { View, Text, ScrollView, Pressable, Image, Switch, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../../src/constants/colors";
+import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
+import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
+import { Card } from "../../src/components/Card";
+
+function Row({
+  icon,
+  title,
+  subtitle,
+  destructive,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  destructive?: boolean;
+}) {
+  return (
+    <Pressable style={styles.row}>
+      <View style={[styles.rowIcon, destructive && { backgroundColor: colors.redLight }]}>
+        <Ionicons name={icon} size={17} color={destructive ? colors.red : colors.greenDark} />
+      </View>
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={[styles.rowTitle, destructive && { color: colors.red }]}>{title}</Text>
+        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+    </Pressable>
+  );
+}
+
+export default function OfficerProfile() {
+  const [dark, setDark] = React.useState(false);
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Officer Profile</Text>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        <Card>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Image source={{ uri: "https://picsum.photos/seed/officer1/200/200" }} style={styles.avatar} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.name}>Atte Moilanen</Text>
+              <Text style={styles.role}>Helsinki Parking Enforcement</Text>
+              <View style={styles.onDutyChip}>
+                <View style={styles.onDutyDot} />
+                <Text style={styles.onDutyLabel}>On Duty</Text>
+              </View>
+              <Text style={styles.officerId}>Officer ID #295</Text>
+              <Text style={styles.verifiedLine}>
+                <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer
+              </Text>
+              <Text style={styles.authorizedLine}>Authorized to issue parking charges</Text>
+            </View>
+            <View style={styles.editBtn}>
+              <Ionicons name="pencil" size={12} color={colors.greenDark} />
+              <Text style={styles.editLabel}>Edit Profile</Text>
+            </View>
+          </View>
+        </Card>
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20, marginBottom: 10 }}>
+          <Text style={styles.sectionHeading}>Your Performance</Text>
+          <Text style={styles.allTime}>
+            All Time <Ionicons name="chevron-down" size={12} />
+          </Text>
+        </View>
+        <Card>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            {[
+              { icon: "document-text", value: "1,248", label: "Assigned Cases", color: colors.blue },
+              { icon: "checkmark-circle", value: "1,243", label: "Completed Cases", color: colors.greenDark },
+              { icon: "wallet", value: "994", label: "Parking Charges Issued", color: "#B47A00" },
+              { icon: "time", value: "3m 12s", label: "Avg. Response Time", color: colors.purple },
+            ].map((s) => (
+              <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
+                <Ionicons name={s.icon as any} size={18} color={s.color} />
+                <Text style={styles.perfValue}>{s.value}</Text>
+                <Text style={styles.perfLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        <Card style={{ marginTop: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={styles.sectionHeading}>Today's Shift</Text>
+            <View style={styles.onDutyChip}>
+              <Text style={styles.onDutyLabel}>On Duty</Text>
+            </View>
+          </View>
+          <Text style={styles.shiftTime}>08:00 - 16:00 {"\u00b7"} Started 08:00</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 14 }}>
+            {[
+              { value: "17", label: "Cases Completed" },
+              { value: "14", label: "Charges Issued" },
+              { value: "3", label: "Rejected Reports" },
+              { value: "4m 9s", label: "Avg. Inspection Time" },
+            ].map((s) => (
+              <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
+                <Text style={styles.perfValue}>{s.value}</Text>
+                <Text style={styles.perfLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable style={{ marginTop: 12 }}>
+            <Text style={styles.viewShiftDetails}>
+              View shift details <Ionicons name="chevron-forward" size={12} />
+            </Text>
+          </Pressable>
+        </Card>
+
+        <Text style={styles.sectionLabel}>ACCOUNT</Text>
+        <Card noPadding>
+          <Row icon="person" title="Personal Information" subtitle="Name, Contact details, emergency contact" />
+          <View style={styles.divider} />
+          <Row icon="location" title="Assigned District" subtitle="Kauppatori & City Center, Helsinki" />
+          <View style={styles.divider} />
+          <Row icon="car" title="Work Vehicle" subtitle="Van 1 - ABC-123" />
+          <View style={styles.divider} />
+          <Row icon="hardware-chip" title="Equipment Status" subtitle="Bodycam, printer, handheld device" />
+        </Card>
+
+        <Text style={styles.sectionLabel}>PERFORMANCE</Text>
+        <Card noPadding>
+          <Row icon="stats-chart" title="Monthly Statistics" subtitle="Detailed performance overview" />
+          <View style={styles.divider} />
+          <Row icon="folder" title="Case History" subtitle="View your inspection history" />
+          <View style={styles.divider} />
+          <Row icon="ribbon" title="Achievement Badges" subtitle="View your earned badges and milestones" />
+        </Card>
+
+        <Text style={styles.sectionLabel}>APP</Text>
+        <Card noPadding>
+          <Row icon="notifications" title="Notifications" subtitle="Manage your notification preferences" />
+          <View style={styles.divider} />
+          <Pressable style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="moon" size={17} color={colors.greenDark} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.rowTitle}>Dark Mode</Text>
+              <Text style={styles.rowSubtitle}>Switch between light and dark theme</Text>
+            </View>
+            <Switch value={dark} onValueChange={setDark} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
+          </Pressable>
+          <View style={styles.divider} />
+          <Row icon="help-circle" title="Help & Support" subtitle="Get help or contact support" />
+          <View style={styles.divider} />
+          <Row icon="log-out" title="Sign Out" subtitle="Sign out of your account" destructive />
+        </Card>
+      </ScrollView>
+      <OfficerBottomNav />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  headerRow: { alignItems: "center", paddingTop: 6, paddingBottom: 6 },
+  title: { fontSize: 19, fontWeight: "800" },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  name: { fontSize: 17, fontWeight: "800" },
+  role: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  onDutyChip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.greenLight, borderRadius: radius.chip, paddingHorizontal: 9, paddingVertical: 3, alignSelf: "flex-start", marginTop: 6 },
+  onDutyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.greenDark },
+  onDutyLabel: { fontSize: 10.5, fontWeight: "700", color: colors.greenDark },
+  officerId: { fontSize: 11, color: colors.textLight, marginTop: 6 },
+  verifiedLine: { fontSize: 11.5, fontWeight: "700", color: colors.greenDark, marginTop: 4 },
+  authorizedLine: { fontSize: 10.5, color: colors.textLight, marginTop: 2 },
+  editBtn: { flexDirection: "row", gap: 4, alignItems: "center", borderWidth: 1, borderColor: colors.green, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 6 },
+  editLabel: { fontSize: 11, fontWeight: "700", color: colors.greenDark },
+  sectionHeading: { fontSize: 16, fontWeight: "800" },
+  allTime: { fontSize: 12, fontWeight: "700", color: colors.textSecondary },
+  perfValue: { fontSize: 15, fontWeight: "800", marginTop: 6 },
+  perfLabel: { fontSize: 9.5, color: colors.textSecondary, textAlign: "center", marginTop: 2 },
+  shiftTime: { fontSize: 11.5, color: colors.textSecondary, marginTop: 4 },
+  viewShiftDetails: { color: colors.greenDark, fontWeight: "700", fontSize: 13 },
+  sectionLabel: { fontSize: 11.5, fontWeight: "700", color: colors.textLight, marginTop: 18, marginBottom: 8, marginLeft: 2 },
+  row: { flexDirection: "row", alignItems: "center", padding: 14 },
+  rowIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center" },
+  rowTitle: { fontWeight: "700", fontSize: 14 },
+  rowSubtitle: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  divider: { height: 1, backgroundColor: colors.borderLight, marginLeft: 60 },
+});
