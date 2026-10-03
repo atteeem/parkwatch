@@ -99,7 +99,7 @@ export function findReportForDraft(reports: readonly Report[], draftId: string):
 
 /**
  * Apply an enforcement consequence to the citizen report.
- * - UNRESOLVED: report unchanged (changed=false). Status is never guessed.
+ * - status UNRESOLVED: report unchanged (changed=false). Status is never guessed.
  * - RESOLVED: UNDER_REVIEW -> VERIFIED/REJECTED. Re-applying the same result
  *   is a no-op; a conflicting result is REPORT_ALREADY_RESOLVED.
  */
@@ -108,10 +108,11 @@ export function applyCitizenConsequenceToReport(
   consequence: CitizenConsequence,
   at: IsoTimestamp
 ): Result<{ report: Report; changed: boolean }> {
-  if (consequence.resolution === "UNRESOLVED") return ok({ report, changed: false });
-  if (report.status === consequence.citizenStatus) return ok({ report, changed: false });
+  const mapping = consequence.citizenStatus;
+  if (mapping.resolution === "UNRESOLVED") return ok({ report, changed: false });
+  if (report.status === mapping.status) return ok({ report, changed: false });
   if (report.status !== "UNDER_REVIEW") {
     return fail("REPORT_ALREADY_RESOLVED", `Report ${report.id} is already ${report.status}.`);
   }
-  return ok({ report: { ...report, status: consequence.citizenStatus, resolvedAt: at }, changed: true });
+  return ok({ report: { ...report, status: mapping.status, resolvedAt: at }, changed: true });
 }

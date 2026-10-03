@@ -4,25 +4,36 @@ import { CitizenReportStatus, Cents, EnforcementOutcome, EnforcementOutcomeCode,
 /**
  * What an officer's enforcement outcome means for the Citizen.
  *
- * RESOLVED: the product has decided the citizen-facing consequence.
- * UNRESOLVED: no product decision yet. The officer case still completes and
- *   the exact outcome is kept, but the citizen report status is NOT changed,
- *   no reward is granted and no citizen outcome notification is sent.
+ * Two questions are answered SEPARATELY:
+ *
+ * citizenStatus — which citizen-facing report status results.
+ *   RESOLVED:   the product has decided (VERIFIED / REJECTED).
+ *   UNRESOLVED: no decision yet; the report status is left unchanged.
+ *
+ * reward — what happens to the report's single pending reward. This is
+ *   decided for EVERY outcome:
+ *   RELEASE_PENDING: pending reward becomes available (CHARGE_ISSUED only).
+ *   CANCEL_PENDING:  pending reward is cancelled; it no longer counts as
+ *                    pending and never becomes available.
  */
-export type CitizenConsequence =
-  | {
-      resolution: "RESOLVED";
-      citizenStatus: Exclude<CitizenReportStatus, "UNDER_REVIEW">;
-      rewardEligible: boolean;
-      citizenNotification: "REPORT_VERIFIED" | "REPORT_REJECTED";
-    }
+export type CitizenStatusMapping =
+  | { resolution: "RESOLVED"; status: Exclude<CitizenReportStatus, "UNDER_REVIEW"> }
   | {
       resolution: "UNRESOLVED";
-      rewardEligible: false;
-      citizenNotification: null;
-      /** Open product question to settle before this mapping can be resolved. */
+      /** Open product question to settle before this status mapping can be resolved. */
       todo: string;
     };
+
+export type RewardEffect = "RELEASE_PENDING" | "CANCEL_PENDING";
+
+export type CitizenConsequence = {
+  citizenStatus: CitizenStatusMapping;
+  reward: RewardEffect;
+  /** null = no citizen outcome notification. */
+  citizenNotification: "REPORT_VERIFIED" | "REPORT_REJECTED" | null;
+};
+
+const unresolvedStatus = (todo: string): CitizenStatusMapping => ({ resolution: "UNRESOLVED", todo });
 
 /**
  * THE ONLY place enforcement outcomes are mapped to citizen consequences.
@@ -31,40 +42,36 @@ export type CitizenConsequence =
  */
 const CITIZEN_OUTCOME_MAPPING: Readonly<Record<EnforcementOutcomeCode, CitizenConsequence>> = {
   CHARGE_ISSUED: {
-    resolution: "RESOLVED",
-    citizenStatus: "VERIFIED",
-    rewardEligible: true,
+    citizenStatus: { resolution: "RESOLVED", status: "VERIFIED" },
+    reward: "RELEASE_PENDING",
     citizenNotification: "REPORT_VERIFIED",
   },
   REPORT_REJECTED: {
-    resolution: "RESOLVED",
-    citizenStatus: "REJECTED",
-    rewardEligible: false,
+    citizenStatus: { resolution: "RESOLVED", status: "REJECTED" },
+    reward: "CANCEL_PENDING",
     citizenNotification: "REPORT_REJECTED",
   },
   VEHICLE_MOVED: {
-    resolution: "UNRESOLVED",
-    rewardEligible: false,
+    citizenStatus: unresolvedStatus("Decide the citizen-facing status when the vehicle moved before the officer arrived."),
+    reward: "CANCEL_PENDING",
     citizenNotification: null,
-    todo: "Decide the citizen status and reward when the vehicle moved before the officer arrived.",
   },
   VALID_PERMIT: {
-    resolution: "UNRESOLVED",
-    rewardEligible: false,
+    citizenStatus: unresolvedStatus("Decide the citizen-facing status when a valid permit was displayed."),
+    reward: "CANCEL_PENDING",
     citizenNotification: null,
-    todo: "Decide the citizen status and reward when a valid permit was displayed.",
   },
   DUPLICATE: {
-    resolution: "UNRESOLVED",
-    rewardEligible: false,
+    citizenStatus: unresolvedStatus(
+      "Decide the citizen-facing status for a duplicate report (no Duplicate status exists in the citizen UI)."
+    ),
+    reward: "CANCEL_PENDING",
     citizenNotification: null,
-    todo: "Decide the citizen status and reward for a duplicate report (no Duplicate status exists in the citizen UI).",
   },
   OTHER: {
-    resolution: "UNRESOLVED",
-    rewardEligible: false,
+    citizenStatus: unresolvedStatus("Decide the citizen-facing status for an 'Other' closure."),
+    reward: "CANCEL_PENDING",
     citizenNotification: null,
-    todo: "Decide the citizen status and reward for an 'Other' closure.",
   },
 };
 

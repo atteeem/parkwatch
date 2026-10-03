@@ -12,8 +12,9 @@ import { Cents, IsoTimestamp, RewardLedgerEntry, RewardLedgerEntryType } from ".
  * is a no-op. This is what makes repeated outcome processing safe, and it is
  * the same model a real payout provider integration can append to later.
  *
- * Per-report reward lifecycle:  (none) -> PENDING -> AVAILABLE
- *                                                 -> VOID
+ * Per-report reward lifecycle (exactly one per report):
+ *                               (none) -> PENDING -> AVAILABLE   (released)
+ *                                                 -> VOID        (cancelled)
  * Withdrawals:                  REQUESTED -> PAID (PAID is future/provider-driven)
  */
 export type Ledger = readonly RewardLedgerEntry[];
@@ -86,35 +87,41 @@ export function recordPendingReward(
 }
 
 /**
- * Credit the reward for a report whose outcome is reward-eligible.
+ * Release a report's existing pending reward to available.
  *
- * At most one reward per report: if it is already AVAILABLE nothing is
- * appended and creditedCents is 0. A VOID reward cannot be revived.
+ * There is exactly one reward lifecycle per report: this never creates an
+ * unrelated credit. It requires the pending entry recorded at submission.
+ * Already AVAILABLE -> no-op (creditedCents 0). VOID -> cannot be revived.
  */
-export function createRewardForSuccessfulReport(
+export function releasePendingReward(
   ledger: Ledger,
   input: { citizenId: string; reportId: string; at: IsoTimestamp }
 ): Result<{ ledger: Ledger; creditedCents: Cents }> {
   const state = getRewardState(ledger, input.reportId);
-  if (state === "VOID") return fail("REWARD_VOIDED", `Reward for report ${input.reportId} was voided.`);
+  if (state === "VOID") return fail("REWARD_VOIDED", `Reward for report ${input.reportId} was cancelled.`);
   if (state === "AVAILABLE") return ok({ ledger, creditedCents: 0 });
-
-  const withPending = recordPendingReward(ledger, input);
-  const amountCents = findByKey(withPending, key.pending(input.reportId))!.amountCents;
+  if (state === "NONE") {
+    return fail("NO_PENDING_REWARD", `Report ${input.reportId} has no pending reward to release.`);
+  }
+  const pending = findByKey(ledger, key.pending(input.reportId))!;
   const released = appendOnce(
-    withPending,
+    ledger,
     entry("REWARD_RELEASED", key.released(input.reportId), {
       citizenId: input.citizenId,
       reportId: input.reportId,
-      amountCents,
+      amountCents: pending.amountCents,
       createdAt: input.at,
     })
   );
-  return ok({ ledger: released.ledger, creditedCents: amountCents });
+  return ok({ ledger: released.ledger, creditedCents: pending.amountCents });
 }
 
-/** Cancel a pending reward (e.g. report rejected). Released rewards cannot be voided here. */
-export function voidPendingReward(
+/**
+ * Cancel a report's pending reward: it stops counting as pending and can
+ * never become available. No pending reward / already cancelled -> no-op.
+ * A released reward cannot be cancelled here.
+ */
+export function cancelPendingReward(
   ledger: Ledger,
   input: { citizenId: string; reportId: string; at: IsoTimestamp }
 ): Result<Ledger> {
@@ -138,20 +145,19 @@ export function voidPendingReward(
 }
 
 /**
- * Apply an enforcement outcome's citizen consequence to the ledger.
- * - reward-eligible (CHARGE_ISSUED): credit once
- * - resolved, not eligible (REPORT_REJECTED): void the pending reward, €0
- * - UNRESOLVED: ledger unchanged, €0 credited
+ * Apply an enforcement outcome's reward effect to the ledger.
+ * RELEASE_PENDING (CHARGE_ISSUED): pending -> available, once.
+ * CANCEL_PENDING (every other outcome, including the ones whose citizen
+ * STATUS is unresolved): pending cancelled, €0 credited.
  */
 export function applyOutcomeToLedger(
   ledger: Ledger,
   consequence: CitizenConsequence,
   input: { citizenId: string; reportId: string; at: IsoTimestamp }
 ): Result<{ ledger: Ledger; creditedCents: Cents }> {
-  if (consequence.resolution === "UNRESOLVED") return ok({ ledger, creditedCents: 0 });
-  if (consequence.rewardEligible) return createRewardForSuccessfulReport(ledger, input);
-  const voided = voidPendingReward(ledger, input);
-  return voided.ok ? ok({ ledger: voided.value, creditedCents: 0 }) : voided;
+  if (consequence.reward === "RELEASE_PENDING") return releasePendingReward(ledger, input);
+  const cancelled = cancelPendingReward(ledger, input);
+  return cancelled.ok ? ok({ ledger: cancelled.value, creditedCents: 0 }) : cancelled;
 }
 
 export function calculateBalances(ledger: Ledger, citizenId: string): Balances {
