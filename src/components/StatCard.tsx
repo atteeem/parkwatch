@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
-import { radius } from "../constants/spacing";
+import { radius, shadow } from "../constants/spacing";
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -34,7 +34,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 14,
-    alignItems: "flex-start",
+    alignItems: "center",
+    ...shadow.card,
   },
   iconWrap: {
     width: 34,
@@ -50,15 +51,16 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   label: {
-    fontSize: 11.5,
-    fontWeight: "600",
-    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    textAlign: "center",
     marginTop: 2,
   },
   sublabel: {
     fontSize: 10.5,
     fontWeight: "600",
-    color: colors.greenDark,
+    color: colors.textSecondary,
     marginTop: 2,
   },
 });

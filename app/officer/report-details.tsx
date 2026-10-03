@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
@@ -143,7 +144,7 @@ export default function ReportDetails() {
 
         <Card>
           <View style={{ flexDirection: "row" }}>
-            <Image source={{ uri: c.images[0] }} style={styles.vehicleImg} />
+            <EvidencePhoto uri={c.images[0]} style={styles.vehicleImg} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.plate}>{c.plate}</Text>
               <Text style={styles.fieldLabel}>Vehicle</Text>
@@ -219,9 +220,9 @@ export default function ReportDetails() {
               <Text style={styles.smallHeading}>Evidence</Text>
               <Text style={styles.smallMuted}>{c.photoCount} photos</Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+            <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
               {c.images.slice(0, 4).map((uri, i) => (
-                <Image key={i} source={{ uri }} style={styles.evidenceThumb} />
+                <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
               ))}
             </View>
           </Card>
@@ -258,6 +259,7 @@ export default function ReportDetails() {
         <GreenButton
           label={CASE_ACTION_LABEL[action]}
           icon={action === "ACCEPT" ? "checkmark-circle" : undefined}
+          trailingIcon={action === "ACCEPT" ? null : undefined}
           disabled={action === "TAKEN"}
           onPress={handlePrimary}
         />
@@ -266,6 +268,7 @@ export default function ReportDetails() {
             <GreenButton
               label="Reject Report"
               variant="outline"
+              icon="close-circle-outline"
               style={{ marginTop: 10 }}
               onPress={() => {
                 setDialogError(null);
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
   mapThumb: { height: 80, borderRadius: 10, marginTop: 8 },
   mapThumbEmpty: { backgroundColor: "#EAF0EC", alignItems: "center", justifyContent: "center" },
   viewOnMap: { color: colors.greenDark, fontWeight: "700", fontSize: 11.5 },
-  evidenceThumb: { width: 44, height: 44, borderRadius: 8 },
+  evidenceThumb: { flex: 1, aspectRatio: 0.8, borderRadius: 6 },
   checkLine: { fontSize: 11.5, color: colors.textSecondary, marginTop: 6 },
   notesText: { fontSize: 12, color: colors.textSecondary, marginTop: 8, lineHeight: 16 },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: colors.background },

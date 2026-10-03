@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Image, Switch, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, Switch, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,7 +7,10 @@ import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { Card } from "../../src/components/Card";
+import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { Avatar } from "../../src/components/Avatar";
 import { casesStats, myCases } from "../../src/presentation/officerViews";
 
 function Row({
@@ -56,15 +59,15 @@ export default function OfficerProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Image source={{ uri: "https://picsum.photos/seed/officer1/200/200" }} style={styles.avatar} />
+            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={64} />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.name}>Atte Moilanen</Text>
-              <Text style={styles.role}>Helsinki Parking Enforcement</Text>
+              <Text style={styles.name}>{DEMO_OFFICER_ACCOUNT.fullName}</Text>
+              <Text style={styles.role}>{DEMO_OFFICER_ACCOUNT.unit}</Text>
               <View style={styles.onDutyChip}>
                 <View style={styles.onDutyDot} />
                 <Text style={styles.onDutyLabel}>On Duty</Text>
               </View>
-              <Text style={styles.officerId}>Officer ID #295</Text>
+              <Text style={styles.officerId}>{DEMO_OFFICER_ACCOUNT.badge}</Text>
               <Text style={styles.verifiedLine}>
                 <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer
               </Text>
@@ -126,9 +129,9 @@ export default function OfficerProfile() {
         <Card noPadding>
           <Row icon="person" title="Personal Information" subtitle="Name, Contact details, emergency contact" />
           <View style={styles.divider} />
-          <Row icon="location" title="Assigned District" subtitle="Kauppatori & City Center, Helsinki" />
+          <Row icon="location" title="Assigned District" subtitle={DEMO_OFFICER_ACCOUNT.district} />
           <View style={styles.divider} />
-          <Row icon="car" title="Work Vehicle" subtitle="Van 1 - ABC-123" />
+          <Row icon="car" title="Work Vehicle" subtitle="Service van 1" />
           <View style={styles.divider} />
           <Row icon="hardware-chip" title="Equipment Status" subtitle="Bodycam, printer, handheld device" />
         </Card>
@@ -159,6 +162,7 @@ export default function OfficerProfile() {
           <View style={styles.divider} />
           <Row icon="log-out" title="Sign Out" subtitle="Sign out of your account" destructive />
         </Card>
+        <DemoTools />
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>

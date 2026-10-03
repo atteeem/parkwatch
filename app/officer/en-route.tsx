@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
@@ -91,7 +92,7 @@ export default function EnRoute() {
 
       <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: Math.max(insets.bottom, 12) + 20 }}>
         <Pressable style={styles.caseCard} onPress={openDetails}>
-          <Image source={{ uri: c.images[0] }} style={styles.caseImg} />
+          <EvidencePhoto uri={c.images[0]} style={styles.caseImg} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Text style={styles.caseTitle}>{c.violation}</Text>
@@ -179,7 +180,7 @@ export default function EnRoute() {
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             {c.images.slice(0, 4).map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.originalThumb} />
+              <EvidencePhoto key={i} uri={uri} style={styles.originalThumb} compact />
             ))}
           </View>
         </View>
@@ -203,14 +204,14 @@ export default function EnRoute() {
               icon="clipboard"
               disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION")}
               onPress={handleStartInspection}
-              trailingIcon={undefined as any}
+              trailingIcon={null}
             />
             <Text style={styles.subCaption}>I have arrived at the location</Text>
 
             <GreenButton
               label="Vehicle moved / not found"
               variant="destructive"
-              trailingIcon={undefined as any}
+              trailingIcon={null}
               icon="car"
               disabled={!isMineInTransit}
               onPress={() => {
@@ -222,7 +223,7 @@ export default function EnRoute() {
 
             {/* TODO(dev): releasing a case back to the queue is not defined in the
                 domain lifecycle yet (EN_ROUTE -> NEW is not an allowed transition). */}
-            <GreenButton label="Release Case" variant="gray" trailingIcon={undefined as any} icon="close-circle" disabled />
+            <GreenButton label="Release Case" variant="gray" trailingIcon={null} icon="close-circle" disabled />
             <Text style={styles.subCaption}>Returning a case to the queue is not available yet</Text>
           </>
         )}

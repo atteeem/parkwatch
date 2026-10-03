@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,7 +8,11 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
+import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { citizenReportStats } from "../../src/presentation/citizenViews";
+import { Avatar } from "../../src/components/Avatar";
 
 function Row({
   icon,
@@ -45,7 +49,8 @@ function Row({
 
 export default function UserProfile() {
   const router = useRouter();
-  const { walletAvailable } = useApp();
+  const { walletAvailable, userReports, getEarnings } = useApp();
+  const stats = citizenReportStats(userReports);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -56,27 +61,27 @@ export default function UserProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Image source={{ uri: "https://picsum.photos/seed/profileuser/200/200" }} style={styles.avatar} />
+            <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={64} />
             <View style={{ marginLeft: 14, flex: 1 }}>
-              <Text style={styles.name}>Atte Moilanen</Text>
+              <Text style={styles.name}>{DEMO_CITIZEN_ACCOUNT.fullName}</Text>
               <Text style={styles.locationRow}>
-                <Ionicons name="location" size={12} /> Helsinki, Finland
+                <Ionicons name="location" size={12} /> {DEMO_CITIZEN_ACCOUNT.city}
               </Text>
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={13} color={colors.greenDark} />
-                <Text style={styles.verifiedLabel}>Verified</Text>
+                <Text style={styles.verifiedLabel}>Active reporter</Text>
               </View>
               <Text style={styles.memberSince}>
-                <Ionicons name="calendar-outline" size={11} /> Member since July 2026
+                <Ionicons name="calendar-outline" size={11} /> Member since {DEMO_CITIZEN_ACCOUNT.memberSince}
               </Text>
             </View>
           </View>
           <View style={styles.statsRow}>
             {[
-              { icon: "document-text", value: "128", label: "Reports Submitted" },
-              { icon: "checkmark", value: "107", label: "Verified Reports" },
-              { icon: "stats-chart", value: "83.6%", label: "Acceptance Rate" },
-              { icon: "wallet", value: "\u20ac535", label: "Total Earned" },
+              { icon: "document-text", value: String(stats.submitted), label: "Reports Submitted" },
+              { icon: "checkmark", value: String(stats.verified), label: "Verified Reports" },
+              { icon: "stats-chart", value: stats.acceptanceRateText, label: "Acceptance Rate" },
+              { icon: "wallet", value: getEarnings("ALL_TIME").totalText, label: "Total Earned" },
             ].map((s) => (
               <View key={s.label} style={styles.statItem}>
                 <View style={styles.statCircle}>
@@ -95,7 +100,7 @@ export default function UserProfile() {
           <View style={styles.divider} />
           <Row icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234"} />
           <View style={styles.divider} />
-          <Row icon="shield-checkmark" iconBg={colors.purpleLight} iconColor={colors.purple} title="Identity Verification" subtitle="Verified" />
+          <Row icon="shield-checkmark" iconBg={colors.purpleLight} iconColor={colors.purple} title="Identity Verification" subtitle="Not available yet" />
           <View style={styles.divider} />
           <Row icon="gift" iconBg={colors.amberLight} iconColor="#B47A00" title="Referral Program" subtitle="Invite friends and earn more" />
         </Card>
@@ -117,6 +122,7 @@ export default function UserProfile() {
             <Text style={{ color: colors.red, fontWeight: "800", fontSize: 15 }}>Log Out</Text>
           </Pressable>
         </Card>
+        <DemoTools />
       </ScrollView>
       <UserBottomNav />
     </SafeAreaView>

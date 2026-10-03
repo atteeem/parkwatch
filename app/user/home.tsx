@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,8 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { citizenReportStats, startOfWeek } from "../../src/presentation/citizenViews";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
@@ -19,17 +21,19 @@ import { violationLabel } from "../../src/data/types";
 
 export default function UserHome() {
   const router = useRouter();
-  const { userReports } = useApp();
+  const { userReports, getEarnings } = useApp();
   const { startNewReport } = useReportDraft();
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
   const latest = userReports.slice(0, 3);
+  const week = citizenReportStats(userReports, startOfWeek(new Date()));
+  const weekEarned = getEarnings("THIS_WEEK").totalText.replace(/\.00$/, "");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.headerBlock}>
-          <Text style={typography.screenTitle}>Hello, User!</Text>
+          <Text style={typography.screenTitle}>Hello, {DEMO_CITIZEN_ACCOUNT.firstName}!</Text>
           <Text style={typography.screenSubtitle}>
             Together we make traffic flow better and safer.
           </Text>
@@ -96,9 +100,9 @@ export default function UserHome() {
         <View style={styles.section}>
           <Text style={typography.sectionHeading}>Statistics</Text>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-            <StatCard icon="car" iconBg={colors.blueLight} iconColor={colors.blue} value="20" label="Reports made" sublabel="This week" />
-            <StatCard icon="checkmark-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} value="17" label="Accepted" sublabel="This week" />
-            <StatCard icon="cash" iconBg={colors.amberLight} iconColor="#B47A00" value={"\u20ac85"} label="Earned Rewards" sublabel="This week" />
+            <StatCard icon="car" iconBg={colors.blueLight} iconColor={colors.blue} value={String(week.submitted)} label="Reports made" sublabel="This week" />
+            <StatCard icon="checkmark-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} value={String(week.verified)} label="Accepted" sublabel="This week" />
+            <StatCard icon="logo-euro" iconBg={colors.amberLight} iconColor="#B47A00" value={weekEarned} label="Earned Rewards" sublabel="This week" />
           </View>
         </View>
 

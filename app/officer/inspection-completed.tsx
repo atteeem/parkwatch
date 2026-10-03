@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
 import { BackHeader } from "../../src/components/Header";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { filterQueue, sortQueue, toCompletionSummary, withDistances } from "../../src/presentation/officerViews";
 import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNavigation";
@@ -59,7 +60,7 @@ export default function InspectionCompleted() {
 
         <Card style={{ width: "100%", marginTop: 22 }}>
           <View style={{ flexDirection: "row" }}>
-            <Image source={{ uri: c.images[0] }} style={styles.img} />
+            <EvidencePhoto uri={c.images[0]} style={styles.img} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.location}>
                 <Ionicons name="location" size={12} color={colors.greenDark} /> {summary.location}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { StatusChip } from "../../src/components/StatusChip";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { caseChip, CasesTab, casesStats, filterCasesTab, myCases, sortCases } from "../../src/presentation/officerViews";
 
 const TABS: readonly CasesTab[] = ["All", "Completed", "Issued", "Rejected"];
@@ -73,7 +74,7 @@ export default function MyCases() {
               style={styles.caseCard}
               onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
             >
-              <Image source={{ uri: c.images[0] }} style={styles.caseImg} />
+              <EvidencePhoto uri={c.images[0]} style={styles.caseImg} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.plate}>{c.plate}</Text>
                 <Text style={styles.meta}>

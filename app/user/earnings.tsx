@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,8 @@ import { colors } from "../../src/constants/colors";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { Avatar } from "../../src/components/Avatar";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
 import { activityDateLabel, EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
@@ -33,9 +35,11 @@ export default function Earnings() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.headerRow}>
-        <Ionicons name="menu" size={22} color={colors.textPrimary} />
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/user/profile"))} hitSlop={10} accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <Image source={{ uri: "https://picsum.photos/seed/profileuser/100/100" }} style={styles.avatar} />
+        <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={40} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>

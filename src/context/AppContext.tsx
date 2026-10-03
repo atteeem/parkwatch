@@ -82,6 +82,8 @@ type AppContextValue = {
   officerNotifications: Notification[];
   markUserNotificationsRead: () => void;
   markOfficerNotificationsRead: () => void;
+  /** DEVELOPMENT/DEMO ONLY (no-op in production): reset to the known demo seed. */
+  resetDemoData: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -89,11 +91,14 @@ const AppContext = createContext<AppContextValue | null>(null);
 const citizen = { role: "CITIZEN" as const, accountId: DEV_CITIZEN_ID };
 const officer = { role: "OFFICER" as const, accountId: DEV_OFFICER_ID };
 
+/** DEVELOPMENT/DEMO ONLY: back to the known demo seed. A no-op in production builds. */
+function resetDemoData(): Promise<void> {
+  return __DEV__ ? appStore.resetToSeed() : Promise.resolve();
+}
+
 function registerDevTools() {
   if (!__DEV__) return;
-  const reset = () => {
-    void appStore.resetToSeed().then(() => console.log("[ParkWatch] mock state reset to seed"));
-  };
+  const reset = () => resetDemoData().then(() => console.log("[ParkWatch] mock state reset to seed"));
   // Native: Expo dev menu item. Web: callable from the browser console.
   DevSettings?.addMenuItem?.("ParkWatch: reset mock data", reset);
   (globalThis as Record<string, unknown>).__parkwatchResetMockState = reset;
@@ -151,6 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       markUserNotificationsRead: () => {
         appStore.markNotificationsRead(citizen);
       },
+      resetDemoData,
       markOfficerNotificationsRead: () => {
         appStore.markNotificationsRead(officer);
       },

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { useApp } from "../../../src/context/AppContext";
+import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
 import { validateDraft } from "../../../src/domain";
 import { toDraftReview } from "../../../src/presentation/citizenViews";
 import { describeDomainError, draftIssueMessages } from "../../../src/presentation/errors";
@@ -99,7 +100,7 @@ export default function ReviewSubmit() {
               {view.vehicle.model ? <Text style={styles.smallMuted}>{view.vehicle.model}</Text> : null}
               {view.vehicle.color ? <Text style={styles.smallMuted}>{view.vehicle.color}</Text> : null}
             </View>
-            {view.requiredPhotos[0] && <Image source={{ uri: view.requiredPhotos[0] }} style={styles.vehicleImg} />}
+            {view.requiredPhotos[0] && <EvidencePhoto uri={view.requiredPhotos[0]} style={styles.vehicleImg} />}
           </View>
         </Card>
 
@@ -118,7 +119,7 @@ export default function ReviewSubmit() {
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
             {view.requiredPhotos.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.evidenceThumb} />
+              <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
             ))}
             {view.attachments.length > 0 && (
               <View style={[styles.evidenceThumb, styles.moreThumb]}>

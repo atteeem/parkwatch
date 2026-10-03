@@ -1,5 +1,5 @@
 import React, { useReducer, useState } from "react";
-import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,7 @@ import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { useApp } from "../../src/context/AppContext";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
@@ -141,7 +142,7 @@ export default function OfficerLiveMap() {
             )}
           </View>
           <View style={{ flexDirection: "row", marginTop: 10, alignItems: "center" }}>
-            <Image source={{ uri: nearest.images[0] }} style={styles.sheetImg} />
+            <EvidencePhoto uri={nearest.images[0]} style={styles.sheetImg} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.sheetPlateTitle}>{nearest.violation}</Text>
               <Text style={styles.sheetMeta}>

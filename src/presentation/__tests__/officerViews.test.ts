@@ -134,12 +134,14 @@ describe("report details (OFF-04)", () => {
   it("system checks never claim GPS matching, plate recognition or duplicate detection", () => {
     const withGps = systemChecks({ coordinates: { accuracyMeters: 7.6 }, plateSource: "MOCK_DETECTED" });
     const text = withGps.map((c) => c.label).join(" | ");
-    expect(text).toContain("Device GPS attached (±8 m)");
-    expect(text).toContain("not server-verified");
-    expect(text).toContain("Plate not verified");
-    expect(text).toContain("Duplicate check: not performed");
-    expect(text).not.toMatch(/GPS matched|plate detected|no match/i);
-    expect(systemChecks({})[0]).toEqual({ label: "No device GPS (address only)", state: "unavailable" });
+    expect(text).toContain("Location from reporter GPS (±8 m)");
+    expect(text).toContain("Time recorded on reporter device");
+    expect(text).toContain("Plate: confirm on site");
+    expect(text).toContain("Duplicates: check manually");
+    expect(text).not.toMatch(/GPS matched|verified|detected|no match|\bAI\b/i);
+    // Only the GPS attachment is a positive fact; nothing else is shown as passed.
+    expect(withGps.filter((c) => c.state === "ok")).toHaveLength(1);
+    expect(systemChecks({})[0]).toEqual({ label: "Location: address only", state: "unavailable" });
   });
 });
 

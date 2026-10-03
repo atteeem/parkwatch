@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,6 +10,7 @@ import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useApp } from "../../../src/context/AppContext";
+import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
 import { violationLabel } from "../../../src/data/types";
 import { rewardDisplay } from "../../../src/presentation/citizenViews";
 import { formatDateTime } from "../../../src/presentation/time";
@@ -84,7 +85,7 @@ export default function ReportOverview() {
               <Text style={styles.smallMuted}>{report.vehicle ?? "Vehicle"}</Text>
               <Text style={styles.smallMuted}>{report.vehicleColor}</Text>
             </View>
-            {report.images[0] && <Image source={{ uri: report.images[0] }} style={styles.vehicleImg} />}
+            {report.images[0] && <EvidencePhoto uri={report.images[0]} style={styles.vehicleImg} />}
           </View>
         </Card>
 
@@ -106,7 +107,7 @@ export default function ReportOverview() {
           </View>
           <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
             {report.images.slice(0, 4).map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.evidenceThumb} />
+              <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
             ))}
           </View>
         </Card>

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,9 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { Avatar } from "../../src/components/Avatar";
+import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
@@ -34,10 +37,10 @@ export default function OfficerHome() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.push("/officer/profile")}>
-            <Image source={{ uri: "https://picsum.photos/seed/officer1/120/120" }} style={styles.avatar} />
+            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={52} />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.greeting}>Good morning,{"\n"}Officer Mikko</Text>
+            <Text style={styles.greeting}>Good morning,{"\n"}Officer {DEMO_OFFICER_ACCOUNT.firstName}</Text>
             <Text style={styles.greetingSub}>Here's what's happening on your shift.</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 8 }}>
@@ -84,7 +87,7 @@ export default function OfficerHome() {
               )}
             </View>
             <View style={{ flexDirection: "row", marginTop: 10 }}>
-              <Image source={{ uri: nearest.images[0] }} style={styles.nearestImg} />
+              <EvidencePhoto uri={nearest.images[0]} style={styles.nearestImg} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.nearestPlate}>{nearest.plate}</Text>
                 <Text style={styles.nearestMeta}>

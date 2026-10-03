@@ -13,7 +13,8 @@ type Props = {
   loading?: boolean;
   variant?: Variant;
   icon?: keyof typeof Ionicons.glyphMap;
-  trailingIcon?: keyof typeof Ionicons.glyphMap;
+  /** Pass null for no trailing icon. */
+  trailingIcon?: keyof typeof Ionicons.glyphMap | null;
   style?: ViewStyle;
   small?: boolean;
 };

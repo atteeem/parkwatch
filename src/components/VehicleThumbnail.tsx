@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
+import { EvidencePhoto } from "./EvidencePhoto";
 
 type Props = {
   uri?: string;
@@ -13,7 +14,7 @@ export function VehicleThumbnail({ uri, size = 52, radius = 12 }: Props) {
   return (
     <View style={[styles.wrap, { width: size, height: size, borderRadius: radius }]}>
       {uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius }} />
+        <EvidencePhoto uri={uri} style={{ width: size, height: size, borderRadius: radius }} compact />
       ) : (
         <Ionicons name="car" size={size * 0.42} color={colors.textLight} />
       )}

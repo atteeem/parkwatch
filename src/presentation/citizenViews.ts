@@ -160,3 +160,34 @@ export function reportStatusCounts(reports: CitizenReportView[]) {
     rejected: reports.filter((r) => r.status === "rejected").length,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Home "Statistics" / Profile stats: derived from the citizen's real reports
+// (no invented lifetime numbers).
+
+/** Monday 00:00 local time of the week containing `now`. */
+export function startOfWeek(now: Date): Date {
+  const day = (now.getDay() + 6) % 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+}
+
+export type CitizenReportStats = {
+  submitted: number;
+  verified: number;
+  rejected: number;
+  /** Verified share of RESOLVED reports, e.g. "75%"; "–" when nothing is resolved yet. */
+  acceptanceRateText: string;
+};
+
+export function citizenReportStats(reports: CitizenReportView[], since?: Date): CitizenReportStats {
+  const inRange = since ? reports.filter((r) => Date.parse(r.submittedAt) >= since.getTime()) : reports;
+  const verified = inRange.filter((r) => r.status === "verified").length;
+  const rejected = inRange.filter((r) => r.status === "rejected").length;
+  const resolved = verified + rejected;
+  return {
+    submitted: inRange.length,
+    verified,
+    rejected,
+    acceptanceRateText: resolved > 0 ? `${Math.round((verified / resolved) * 100)}%` : "\u2013",
+  };
+}

@@ -134,15 +134,15 @@ export function systemChecks(input: {
   return [
     c
       ? {
-          label: `Device GPS attached${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
+          label: `Location from reporter GPS${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
           state: "ok",
         }
-      : { label: "No device GPS (address only)", state: "unavailable" },
-    { label: "Time: device clock, not server-verified", state: "info" },
+      : { label: "Location: address only", state: "unavailable" },
+    { label: "Time recorded on reporter device", state: "info" },
     input.plateSource === "OCR_DETECTED" || input.plateSource === "CITIZEN_CONFIRMED"
-      ? { label: "Plate provided with report", state: "ok" }
-      : { label: "Plate not verified (no plate recognition yet)", state: "unavailable" },
-    { label: "Duplicate check: not performed", state: "unavailable" },
+      ? { label: "Plate entered with report", state: "ok" }
+      : { label: "Plate: confirm on site", state: "unavailable" },
+    { label: "Duplicates: check manually", state: "unavailable" },
   ];
 }
 

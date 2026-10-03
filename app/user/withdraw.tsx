@@ -35,7 +35,7 @@ export default function Withdraw() {
     confirmWithdrawal(amountText, {
       validate: validateWithdrawal,
       withdraw,
-      onSuccess: () => router.replace("/user/home"), // current MVP destination
+      onSuccess: () => (router.canGoBack() ? router.back() : router.replace("/user/earnings")), // Earnings lists the new "Withdrawal requested" entry
       onError: setError, // refused: stay here with the reason
     });
   };
@@ -67,7 +67,7 @@ export default function Withdraw() {
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontWeight: "700", fontSize: 15 }}>Bank account {"•••"} 1234</Text>
-            <Text style={{ fontSize: 12, color: colors.textSecondary }}>Nordea Bank</Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary }}>Saved payout account</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </View>
@@ -125,8 +125,8 @@ export default function Withdraw() {
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Estimated arrival</Text>
-            <Text style={styles.summaryValue}>1{"–"}3 business days</Text>
+            <Text style={styles.summaryLabel}>Payout</Text>
+            <Text style={styles.summaryValue}>Reviewed before payment</Text>
           </View>
         </Card>
 
@@ -139,7 +139,7 @@ export default function Withdraw() {
 
         <View style={{ marginTop: 20, gap: 10 }}>
           <GreenButton label="Confirm Withdrawal" disabled={!check.ok} onPress={confirm} />
-          <Pressable onPress={() => router.replace("/user/home")}>
+          <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/user/earnings")}>
             <Text style={{ textAlign: "center", color: colors.textSecondary, fontWeight: "700", paddingVertical: 10 }}>Cancel</Text>
           </Pressable>
         </View>

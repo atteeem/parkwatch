@@ -19,6 +19,11 @@ export default function Parking() {
         <Text style={typography.screenSubtitle}>Manage your parking sessions and charges</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20, gap: 16 }}>
+        {/* The parking-session product is not built yet; this screen is a design preview. */}
+        <View style={styles.previewBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.blue} />
+          <Text style={styles.previewText}>Preview: parking sessions and operator charges are coming soon. Sample data shown.</Text>
+        </View>
         {active && (
           <Card dark>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -74,7 +79,7 @@ export default function Parking() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <View style={styles.unpaidChip}><Text style={styles.unpaidChipLabel}>Unpaid</Text></View>
               <View style={styles.providerChip}><Text style={styles.providerChipLabel}>P</Text></View>
-              <Text style={{ fontWeight: "700", fontSize: 13 }}>ParkkiPate</Text>
+              <Text style={{ fontWeight: "700", fontSize: 13 }}>Parking operator</Text>
               <Text style={{ marginLeft: "auto", fontWeight: "800", fontSize: 17 }}>{"\u20ac60.00"}</Text>
             </View>
             <Text style={styles.chargeMeta}>
@@ -93,7 +98,7 @@ export default function Parking() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <View style={styles.paidChip}><Text style={styles.paidChipLabel}>Paid</Text></View>
               <View style={[styles.providerChip, { backgroundColor: "#12140F" }]}><Text style={styles.providerChipLabel}>A</Text></View>
-              <Text style={{ fontWeight: "700", fontSize: 13 }}>Aimo Park</Text>
+              <Text style={{ fontWeight: "700", fontSize: 13 }}>Parking operator</Text>
               <Text style={{ marginLeft: "auto", fontWeight: "800", fontSize: 17 }}>{"\u20ac5.00"}</Text>
             </View>
             <Text style={styles.chargeMeta}>
@@ -130,6 +135,8 @@ export default function Parking() {
 }
 
 const styles = StyleSheet.create({
+  previewBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.blueLight, borderRadius: radius.card, padding: 12 },
+  previewText: { flex: 1, fontSize: 12, color: colors.textPrimary, lineHeight: 16 },
   safe: { flex: 1, backgroundColor: colors.background },
   pCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
   darkTitle: { color: "#fff", fontWeight: "800", fontSize: 17 },
