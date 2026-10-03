@@ -1,6 +1,8 @@
 import { Redirect } from "expo-router";
-import { DEV_ROLE } from "../src/constants/devRole";
+import { useSession } from "../src/context/SessionContext";
+import { ROLE_HOME } from "../src/navigation/roleGuard";
 
 export default function Index() {
-  return <Redirect href={DEV_ROLE === "officer" ? "/officer/home" : "/user/home"} />;
+  const { role } = useSession();
+  return <Redirect href={ROLE_HOME[role]} />;
 }

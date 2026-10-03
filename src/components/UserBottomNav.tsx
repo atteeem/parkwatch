@@ -5,22 +5,33 @@ import { useRouter, usePathname } from "expo-router";
 import { colors } from "../constants/colors";
 
 import { useReportDraft } from "../context/ReportContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { tabNavigation } from "../navigation/roleGuard";
 import { isUserNavItemActive, USER_NAV_ITEMS } from "./userNavItems";
 
 export function UserBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { startNewReport } = useReportDraft();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
       {USER_NAV_ITEMS.map((item) => {
         const active = isUserNavItemActive(item, pathname);
         return (
-          <Pressable key={item.key} style={styles.item} onPress={() => {
-              // The Report tab is an intentional "new report" entry point.
-              if (item.key === "report") startNewReport();
-              router.push(item.path as any);
+          <Pressable
+            key={item.key}
+            style={styles.item}
+            onPress={() => {
+              if (item.key === "report") {
+                // Intentional "new report" entry point: fresh draft, wizard pushed on top.
+                startNewReport();
+                router.push(item.path as any);
+                return;
+              }
+              // Tabs replace each other; tapping the current tab does nothing.
+              if (tabNavigation(pathname, item.path) === "replace") router.replace(item.path as any);
             }}
           >
             <Ionicons name={item.icon as any} size={22} color={active ? colors.greenDark : colors.black} />
@@ -43,7 +54,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 8,
-    paddingBottom: 26,
   },
   item: {
     flex: 1,

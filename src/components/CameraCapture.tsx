@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Linking, Platform } from "react-native";
 import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius } from "../constants/spacing";
@@ -43,6 +44,7 @@ export function CameraCapture({
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
+  const insets = useSafeAreaInsets();
 
   const activeSlot = slots.find((s) => s.key === activeSlotKey) ?? slots.find((s) => !s.done);
   const allDone = slots.every((s) => s.done);
@@ -105,7 +107,7 @@ export function CameraCapture({
     <View style={styles.fill}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} enableTorch={flash === "on"} />
 
-      <View style={styles.overlayTop}>
+      <View style={[styles.overlayTop, { marginTop: insets.top + 10 }]}>
         <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
           <Ionicons name="close" size={20} color="#fff" />
         </Pressable>
@@ -157,7 +159,7 @@ export function CameraCapture({
         })}
       </View>
 
-      <View style={styles.bottomControls}>
+      <View style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
         <Pressable
           style={styles.sideControl}
           onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
@@ -196,7 +198,6 @@ const styles = StyleSheet.create({
   permissionBtnLabel: { color: "#06210F", fontWeight: "700", fontSize: 15 },
 
   overlayTop: {
-    marginTop: 54,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
@@ -267,7 +268,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 40,
-    paddingBottom: 44,
   },
   sideControl: {
     width: 46,
