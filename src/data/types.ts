@@ -1,3 +1,10 @@
+// Screen-facing VIEW MODELS and display catalogs.
+//
+// UserReport / OfficerCase are the shapes the existing screens consume. They
+// are produced from domain state by src/presentation/viewModels.ts and carry
+// display-ready values (legacy status strings, euros, labels). Business rules
+// live in src/domain, not here.
+
 export type UserReportStatus = "under-review" | "verified" | "rejected";
 
 export type UserReport = {
@@ -49,6 +56,10 @@ export type OfficerCase = {
   reportedAgo: string;
   notes?: string;
   chargeAmount?: number;
+  /** Domain enforcement outcome code once completed (e.g. "CHARGE_ISSUED"). */
+  outcomeCode?: string;
+  /** ISO completion time, when completed. */
+  completedAt?: string;
 };
 
 export const VIOLATION_TYPES = [

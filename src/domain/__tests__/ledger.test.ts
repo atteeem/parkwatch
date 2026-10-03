@@ -10,6 +10,7 @@ import {
   markWithdrawalPaid,
   MIN_WITHDRAWAL_AMOUNT_CENTS,
   MVP_REWARD_AMOUNT_CENTS,
+  recordOpeningBalance,
   recordPendingReward,
   releasePendingReward,
   requestWithdrawal,
@@ -211,5 +212,20 @@ describe("withdrawal request -> paid accounting", () => {
     expect(errorCode(markWithdrawalPaid(ledgerWith(9, 0), { withdrawalId: "nope", at: T2 }))).toBe(
       "INVALID_TRANSITION"
     );
+  });
+});
+
+describe("opening balance", () => {
+  it("counts as available, once per citizen, and can be withdrawn", () => {
+    const l = unwrap(recordOpeningBalance([], { citizenId: CITIZEN, amountCents: 8500, at: T0 }));
+    const again = unwrap(recordOpeningBalance(l, { citizenId: CITIZEN, amountCents: 8500, at: T1 }));
+    expect(again).toBe(l);
+    expect(calculateBalances(l, CITIZEN)).toMatchObject({ availableCents: 8500, pendingCents: 0 });
+    expect(validateWithdrawal(l, CITIZEN, 8500).ok).toBe(true);
+  });
+
+  it("rejects negative or fractional amounts", () => {
+    expect(errorCode(recordOpeningBalance([], { citizenId: CITIZEN, amountCents: -1, at: T0 }))).toBe("INVALID_AMOUNT");
+    expect(errorCode(recordOpeningBalance([], { citizenId: CITIZEN, amountCents: 1.5, at: T0 }))).toBe("INVALID_AMOUNT");
   });
 });

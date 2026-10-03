@@ -12,14 +12,13 @@ import { useApp } from "../../src/context/AppContext";
 export default function InspectionCompleted() {
   const router = useRouter();
   const { id, outcome } = useLocalSearchParams<{ id: string; outcome: string }>();
-  const { officerCases, resetOfficerDraft } = useApp();
+  const { officerCases } = useApp();
   const c = officerCases.find((x) => x.id === id);
   const charged = outcome === "charge";
 
   if (!c) return null;
 
   const handleNextCase = () => {
-    resetOfficerDraft();
     const next = officerCases.find((x) => x.status === "new");
     if (next) {
       router.replace({ pathname: "/officer/report-details", params: { id: next.id } });

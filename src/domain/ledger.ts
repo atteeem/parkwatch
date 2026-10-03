@@ -38,6 +38,7 @@ const key = {
   voided: (reportId: string) => `reward-voided:${reportId}`,
   withdrawalRequested: (withdrawalId: string) => `withdrawal-requested:${withdrawalId}`,
   withdrawalPaid: (withdrawalId: string) => `withdrawal-paid:${withdrawalId}`,
+  openingBalance: (citizenId: string) => `opening-balance:${citizenId}`,
 };
 
 function hasKey(ledger: Ledger, idempotencyKey: string): boolean {
@@ -172,7 +173,7 @@ export function calculateBalances(ledger: Ledger, citizenId: string): Balances {
   const paid = sum("WITHDRAWAL_PAID");
 
   return {
-    availableCents: sum("REWARD_RELEASED") - requested,
+    availableCents: sum("OPENING_BALANCE") + sum("REWARD_RELEASED") - requested,
     pendingCents,
     paidOutCents: paid,
     withdrawalsInFlightCents: requested - paid,
@@ -239,6 +240,29 @@ export function markWithdrawalPaid(ledger: Ledger, input: { withdrawalId: string
         citizenId: requested.citizenId,
         withdrawalId: input.withdrawalId,
         amountCents: requested.amountCents,
+        createdAt: input.at,
+      })
+    ).ledger
+  );
+}
+
+/**
+ * Carry over a citizen's balance from before this ledger existed (used by
+ * seed data). At most one per citizen; counts as available.
+ */
+export function recordOpeningBalance(
+  ledger: Ledger,
+  input: { citizenId: string; amountCents: Cents; at: IsoTimestamp }
+): Result<Ledger> {
+  if (!Number.isInteger(input.amountCents) || input.amountCents < 0) {
+    return fail("INVALID_AMOUNT", "Opening balance must be a non-negative amount in whole cents.");
+  }
+  return ok(
+    appendOnce(
+      ledger,
+      entry("OPENING_BALANCE", key.openingBalance(input.citizenId), {
+        citizenId: input.citizenId,
+        amountCents: input.amountCents,
         createdAt: input.at,
       })
     ).ledger

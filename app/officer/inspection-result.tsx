@@ -21,7 +21,7 @@ const REASON_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 export default function InspectionResult() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { officerCases, completeInspection, updateOfficerDraft, officerDraft } = useApp();
+  const { officerCases, completeInspection } = useApp();
   const c = officerCases.find((x) => x.id === id);
   const [selection, setSelection] = useState<string>("charge");
   const [notes, setNotes] = useState("");
@@ -29,7 +29,6 @@ export default function InspectionResult() {
   if (!c) return null;
 
   const handleSubmit = () => {
-    updateOfficerDraft({ result: selection, notes });
     completeInspection(c.id, {
       outcome: selection === "charge" ? "charge" : "closed",
       reasonId: selection !== "charge" ? selection : undefined,

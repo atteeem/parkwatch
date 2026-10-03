@@ -201,6 +201,8 @@ export type Inspection = {
 // Reward ledger (append-only)
 
 export type RewardLedgerEntryType =
+  /** Balance carried over from before this ledger existed (seed/migration). Counts as available. */
+  | "OPENING_BALANCE"
   /** Estimated reward recorded at submission; counts as "pending". */
   | "REWARD_PENDING"
   /** Pending reward released to available after a qualifying outcome. */
@@ -255,4 +257,6 @@ export type Notification = {
   /** Only for SYSTEM notifications; other types get copy from presentation. */
   title?: string;
   body?: string;
+  /** Presentation hint (icon/tone) for SYSTEM notifications only. */
+  displayHint?: string;
 };

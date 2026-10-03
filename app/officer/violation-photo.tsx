@@ -6,7 +6,8 @@ import { useApp } from "../../src/context/AppContext";
 export default function OfficerViolationPhoto() {
   const router = useRouter();
   const { id, target, label } = useLocalSearchParams<{ id: string; target: string; label: string }>();
-  const { officerDraft, setOfficerPhoto } = useApp();
+  const { getInspection, setOfficerPhoto } = useApp();
+  const officerDraft = getInspection(id);
 
   const targetKey = target as keyof typeof officerDraft.officerPhotos;
   const slots: CaptureSlot[] = [
@@ -22,7 +23,7 @@ export default function OfficerViolationPhoto() {
       instructionBody={`Take a clear photo for: ${label ?? "this requirement"}.`}
       slots={slots}
       onCapturePhoto={(slotKey, uri) => {
-        setOfficerPhoto(slotKey as keyof typeof officerDraft.officerPhotos, uri);
+        setOfficerPhoto(id, slotKey as keyof typeof officerDraft.officerPhotos, uri);
         // Officer photos are single-shot — return to the inspection
         // checklist immediately instead of the multi-photo "Next" flow.
         setTimeout(goBackToInspection, 200);

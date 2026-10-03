@@ -53,3 +53,16 @@ export function buildOfficerCompletionNotification(input: {
     amountCents: input.outcome.chargeAmountCents,
   };
 }
+
+/** Mark every unread notification for this recipient as read at `at`. Pure. */
+export function markNotificationsRead(
+  list: readonly Notification[],
+  recipient: Notification["recipient"],
+  at: IsoTimestamp
+): Notification[] {
+  return list.map((x) =>
+    x.readAt === undefined && x.recipient.role === recipient.role && x.recipient.accountId === recipient.accountId
+      ? { ...x, readAt: at }
+      : x
+  );
+}

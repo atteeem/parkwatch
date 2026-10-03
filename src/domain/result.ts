@@ -16,7 +16,9 @@ export type DomainErrorCode =
   | "INSUFFICIENT_AVAILABLE_BALANCE"
   | "MISSING_OFFICER"
   | "CASE_REPORT_MISMATCH"
-  | "INVALID_DRAFT";
+  | "INVALID_DRAFT"
+  | "NOT_FOUND"
+  | "CASE_TAKEN";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 

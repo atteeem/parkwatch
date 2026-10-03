@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 
+// In-progress CITIZEN report draft only. Officer inspection state lives in
+// the store, keyed by case, and never touches this context.
+
+export type CitizenPhotoSlot = "front" | "side" | "rear";
+
 export type ReportDraft = {
-  photos: {
-    front?: string;
-    side?: string;
-    rear?: string;
-  };
+  /** Stable id for this draft; submitting the same draft twice is a no-op. */
+  draftId: string;
+  photos: Partial<Record<CitizenPhotoSlot, string>>;
+  /** ISO capture time per photo slot. */
+  photoCapturedAt: Partial<Record<CitizenPhotoSlot, string>>;
   violation?: string;
   location?: string;
   date?: string;
@@ -14,14 +19,18 @@ export type ReportDraft = {
   attachments: string[];
 };
 
-const EMPTY_DRAFT: ReportDraft = {
+const newDraftId = () => `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const emptyDraft = (): ReportDraft => ({
+  draftId: newDraftId(),
   photos: {},
+  photoCapturedAt: {},
   attachments: [],
-};
+});
 
 type ReportContextValue = {
   draft: ReportDraft;
-  setPhoto: (slot: keyof ReportDraft["photos"], uri: string) => void;
+  setPhoto: (slot: CitizenPhotoSlot, uri: string) => void;
   setViolation: (violation: string) => void;
   setLocation: (location: string) => void;
   setDateTime: (date: string, time: string) => void;
@@ -33,10 +42,15 @@ type ReportContextValue = {
 const ReportContext = createContext<ReportContextValue | null>(null);
 
 export function ReportProvider({ children }: { children: React.ReactNode }) {
-  const [draft, setDraft] = useState<ReportDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<ReportDraft>(emptyDraft);
 
-  const setPhoto = useCallback((slot: keyof ReportDraft["photos"], uri: string) => {
-    setDraft((d) => ({ ...d, photos: { ...d.photos, [slot]: uri } }));
+  const setPhoto = useCallback((slot: CitizenPhotoSlot, uri: string) => {
+    const capturedAt = new Date().toISOString();
+    setDraft((d) => ({
+      ...d,
+      photos: { ...d.photos, [slot]: uri },
+      photoCapturedAt: { ...d.photoCapturedAt, [slot]: capturedAt },
+    }));
   }, []);
   const setViolation = useCallback((violation: string) => {
     setDraft((d) => ({ ...d, violation }));
@@ -53,7 +67,7 @@ export function ReportProvider({ children }: { children: React.ReactNode }) {
   const addAttachment = useCallback((uri: string) => {
     setDraft((d) => ({ ...d, attachments: [...d.attachments, uri] }));
   }, []);
-  const resetDraft = useCallback(() => setDraft(EMPTY_DRAFT), []);
+  const resetDraft = useCallback(() => setDraft(emptyDraft()), []);
 
   return (
     <ReportContext.Provider

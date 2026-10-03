@@ -24,6 +24,9 @@ export default function ReviewSubmit() {
 
   const handleSubmit = () => {
     const report = submitUserReport({
+      draftId: draft.draftId,
+      photos: draft.photos,
+      photoCapturedAt: draft.photoCapturedAt,
       images: photos,
       violation: draft.violation ?? "other",
       location: draft.location ?? "Current location, Helsinki",
@@ -31,6 +34,7 @@ export default function ReviewSubmit() {
       time: draft.time ?? "",
       notes: draft.notes ?? "",
     });
+    if (!report) return; // refused by domain validation; stay on review with the draft intact
     resetDraft();
     router.replace({ pathname: "/user/report/submitted", params: { id: report.id } });
   };

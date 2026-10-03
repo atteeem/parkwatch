@@ -19,6 +19,9 @@ export const DEFAULT_MOCK_CHARGE_AMOUNT_CENTS = 6000;
 /** Minimum Citizen withdrawal per the Withdraw Money screen (€5.00). */
 export const MIN_WITHDRAWAL_AMOUNT_CENTS = 500;
 
+/** Mock officer distance for a newly submitted report (no real GPS/routing yet). */
+export const MVP_MOCK_NEW_CASE_DISTANCE_METERS = 400;
+
 /**
  * Development stand-in for plate/vehicle detection. Later replaced by
  * camera/OCR -> detected plate -> Citizen confirmation. Screens must read

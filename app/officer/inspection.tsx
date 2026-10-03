@@ -32,9 +32,10 @@ const PHOTO_TARGETS = [
 export default function OnSiteInspection() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { officerCases, officerDraft, updateOfficerDraft } = useApp();
+  const { officerCases, getInspection, updateInspection } = useApp();
   const c = officerCases.find((x) => x.id === id);
   if (!c) return null;
+  const officerDraft = getInspection(c.id);
 
   const checksCompleted = CHECK_ROWS.filter((r) => officerDraft[r.key] === true).length;
   const photosCompleted = Object.values(officerDraft.officerPhotos).filter(Boolean).length;
@@ -80,7 +81,7 @@ export default function OnSiteInspection() {
               <Pressable
                 key={row.key}
                 style={[styles.checkRow, done && styles.checkRowDone]}
-                onPress={() => updateOfficerDraft({ [row.key]: true } as any)}
+                onPress={() => updateInspection(c.id, { [row.key]: true })}
               >
                 <Ionicons name={row.icon} size={20} color={done ? "#06210F" : colors.textSecondary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
