@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "sdkVersion": "54.0.0",
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
@@ -15,19 +14,20 @@
       }
     },
     "android": {
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "plugins": [
       "expo-router",
       [
         "expo-camera",
         {
-          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation."
+          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation.",
+          "recordAudioAndroid": false
         }
-      ]
-    ],
-    "extra": {
-      "router": {}
-    }
+      ],
+      "expo-font"
+    ]
   }
 }

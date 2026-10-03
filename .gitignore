@@ -21,3 +21,6 @@ Thumbs.db
 
 # test output
 coverage/
+
+# local Claude Code tooling
+.claude/
