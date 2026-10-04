@@ -18,7 +18,9 @@ import {
 } from "../domain";
 import { ParkWatchState } from "./state";
 import { demoPhotoUri, isLegacyPlaceholderUri } from "../data/demoPhotos";
-import { SEED_WITHDRAWAL_PAID_COPY } from "./seed";
+import { DEMO_CITIZEN_VEHICLES, SEED_WITHDRAWAL_PAID_COPY } from "./seed";
+import { DEV_CITIZEN_ID } from "./session";
+import { addVehicle } from "../domain/parking";
 
 /** Actor for history that has to be reconstructed but has no known person behind it. */
 export const MIGRATION_SYSTEM_ACTOR: Actor = { role: "SYSTEM", accountId: "parkwatch-migration" };
@@ -174,4 +176,32 @@ export function migrateV2toV3(s: ParkWatchState): ParkWatchState {
       ])
     ),
   };
+}
+
+// ---------------------------------------------------------------------------
+// v3 -> v4: local vehicles and simulated parking sessions
+
+/** v3 state: everything except the parking fields. */
+export type V3State = Omit<ParkWatchState, "vehicles" | "parkingSessions">;
+
+/**
+ * Adds the parking collections. Until v4 the Parking screen showed two fixed
+ * "Registered Vehicles" for the demo citizen; they become real vehicle records
+ * (ids from the persisted counter, so nothing collides). The old screen's
+ * fake active session and sample history are NOT migrated: there were no
+ * real sessions before v4. Nothing else changes.
+ */
+export function migrateV3toV4(v3: V3State, at: string): ParkWatchState {
+  let seq = v3.seq;
+  const vehicles = DEMO_CITIZEN_VEHICLES.map((v) => {
+    const vehicle = must(addVehicle([], v, { id: `veh-${seq}`, ownerId: DEV_CITIZEN_ID, at }));
+    seq += 1;
+    return vehicle;
+  });
+  return { ...v3, vehicles, parkingSessions: [], seq };
+}
+
+function must<T>(r: { ok: true; value: T } | { ok: false; error: { message: string } }): T {
+  if (!r.ok) throw new Error(r.error.message);
+  return r.value;
 }

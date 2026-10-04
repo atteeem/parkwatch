@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { DevSettings } from "react-native";
-import { EnforcementOutcomeCode, ReportDraft, Result, validateWithdrawal } from "../domain";
+import { activeParkingSession, EnforcementOutcomeCode, NewVehicleInput, ParkingSession, ReportDraft, Result, validateWithdrawal } from "../domain";
 import { Notification } from "../data/mockNotifications";
 import { OfficerCase, UserReport } from "../data/types";
 import {
@@ -19,6 +19,7 @@ import {
 } from "../presentation/viewModels";
 import { selectCitizenReportById } from "../presentation/citizenViews";
 import { EarningsPeriod, selectEarnings, selectWalletActivity, WalletActivityItem, EarningsSummary } from "../presentation/walletViews";
+import { ParkingHistoryItem, parkingHistory, VehicleView, vehicleViews } from "../presentation/parkingViews";
 import { asyncStorageAdapter } from "../store/asyncStorageAdapter";
 import { getReporterDisplayProfile, ReporterDisplayProfile } from "../store/reporterProfiles";
 import { buildSeedState } from "../store/seed";
@@ -59,6 +60,14 @@ type AppContextValue = {
   validateWithdrawal: (amountCents: number) => Result<true>;
   /** Simulated withdrawal REQUEST (no real transfer). */
   withdraw: (amountCents: number) => Result<{ withdrawalId: string }>;
+  // simulated parking (local only; no provider, no payment)
+  vehicles: VehicleView[];
+  activeParking: ParkingSession | undefined;
+  parkingHistory: ParkingHistoryItem[];
+  addVehicle: (input: NewVehicleInput) => Result<{ vehicleId: string }>;
+  startParking: (vehicleId: string, zoneId: string, durationMinutes: number) => Result<{ sessionId: string }>;
+  extendParking: (addedMinutes: number) => Result<{ sessionId: string }>;
+  endParking: () => Result<{ sessionId: string }>;
 
   // officer — every action returns its Result; screens must not navigate on failure.
   officerId: string;
@@ -132,6 +141,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getEarnings: (period) => selectEarnings(state, DEV_CITIZEN_ID, period, now),
       validateWithdrawal: (amountCents) => validateWithdrawal(state.ledger, DEV_CITIZEN_ID, amountCents),
       withdraw: (amountCents) => appStore.requestWithdrawal(DEV_CITIZEN_ID, amountCents),
+      // simulated parking
+      vehicles: vehicleViews(state.vehicles, state.parkingSessions, DEV_CITIZEN_ID),
+      activeParking: activeParkingSession(state.parkingSessions, DEV_CITIZEN_ID),
+      parkingHistory: parkingHistory(state.parkingSessions, DEV_CITIZEN_ID),
+      addVehicle: (input) => appStore.addVehicle(DEV_CITIZEN_ID, input),
+      startParking: (vehicleId, zoneId, minutes) => appStore.startParking(DEV_CITIZEN_ID, vehicleId, zoneId, minutes),
+      extendParking: (minutes) => appStore.extendParking(DEV_CITIZEN_ID, minutes),
+      endParking: () => appStore.endParking(DEV_CITIZEN_ID),
 
       officerId: DEV_OFFICER_ID,
       officerCases,

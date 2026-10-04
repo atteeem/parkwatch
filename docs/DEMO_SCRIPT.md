@@ -54,3 +54,13 @@ Earnings: available €45.00 → €50.00.
 - No server: data lives on the phone. Times come from the phone clock.
 - No real parking operator, enforcement API, bank payout or identity check.
 - Seeded history reports show neutral "Demo photo" tiles instead of real photos.
+
+## Parking (simulated, optional)
+
+After a reset: vehicles JSK-306 (Volvo XC60) and HOF-782 (Porsche Taycan), no active parking, no history.
+
+Parking tab → **Start Parking** → pick vehicle, zone (B2 / A1 / C4) and duration (30 min … 4 h or Custom) → Start Parking.
+The active card counts down from the chosen end time; **Extend** adds time; **End Parking** moves it to **Parking History**.
+**My Vehicles** → Add Vehicle (plate required; "ABC-123" and "abc 123" are the same vehicle).
+
+Demo rate €2.00/hour, computed on this phone. No parking operator is contacted and nothing is paid.

@@ -43,6 +43,7 @@ import {
   VehicleInfo,
 } from "../domain";
 import { ParkWatchState } from "./state";
+import * as parking from "../domain/parking";
 
 export type CommandResult<T> = Result<{ state: ParkWatchState; value: T }>;
 
@@ -417,4 +418,54 @@ export function markRead(
   input: { recipient: Notification["recipient"]; at: IsoTimestamp }
 ): CommandResult<void> {
   return done({ ...state, notifications: markNotificationsRead(state.notifications, input.recipient, input.at) }, undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Citizen: vehicles and simulated parking (local only; no provider calls)
+
+export function addCitizenVehicle(
+  state: ParkWatchState,
+  input: { citizenId: string; vehicle: parking.NewVehicleInput; at: IsoTimestamp }
+): CommandResult<{ vehicleId: string }> {
+  const [id, withId] = nextId(state, "veh");
+  const r = parking.addVehicle(state.vehicles, input.vehicle, { id, ownerId: input.citizenId, at: input.at });
+  return r.ok ? done({ ...withId, vehicles: [...withId.vehicles, r.value] }, { vehicleId: id }) : r;
+}
+
+export function startCitizenParking(
+  state: ParkWatchState,
+  input: { citizenId: string; vehicleId: string; zoneId: string; durationMinutes: number; at: IsoTimestamp }
+): CommandResult<{ sessionId: string }> {
+  const [id, withId] = nextId(state, "park");
+  const r = parking.startParking(state.parkingSessions, state.vehicles, input, { id, ownerId: input.citizenId, at: input.at });
+  return r.ok ? done({ ...withId, parkingSessions: [...withId.parkingSessions, r.value] }, { sessionId: id }) : r;
+}
+
+function updateActiveSession(
+  state: ParkWatchState,
+  citizenId: string,
+  update: (s: parking.ParkingSession) => Result<parking.ParkingSession>
+): CommandResult<{ sessionId: string }> {
+  const active = parking.activeParkingSession(state.parkingSessions, citizenId);
+  if (!active) return fail("NO_ACTIVE_PARKING", "There is no active parking session.");
+  const r = update(active);
+  if (!r.ok) return r;
+  return done(
+    { ...state, parkingSessions: state.parkingSessions.map((s) => (s.id === active.id ? r.value : s)) },
+    { sessionId: active.id }
+  );
+}
+
+export function extendCitizenParking(
+  state: ParkWatchState,
+  input: { citizenId: string; addedMinutes: number; at: IsoTimestamp }
+): CommandResult<{ sessionId: string }> {
+  return updateActiveSession(state, input.citizenId, (s) => parking.extendParking(s, input.addedMinutes, input.at));
+}
+
+export function endCitizenParking(
+  state: ParkWatchState,
+  input: { citizenId: string; at: IsoTimestamp }
+): CommandResult<{ sessionId: string }> {
+  return updateActiveSession(state, input.citizenId, (s) => parking.endParking(s, input.at));
 }

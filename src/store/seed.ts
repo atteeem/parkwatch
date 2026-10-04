@@ -35,6 +35,12 @@ export const SEED_WITHDRAWAL_PAID_COPY = {
   body: "Your withdrawal of €25.00 was marked as paid out.",
 } as const;
 
+/** Vehicles the demo citizen has registered (seed + v3 -> v4 migration). */
+export const DEMO_CITIZEN_VEHICLES: readonly { plate: string; make: string; model: string; color: string }[] = [
+  { plate: "JSK-306", make: "Volvo", model: "XC60", color: "Black" },
+  { plate: "HOF-782", make: "Porsche", model: "Taycan", color: "White" },
+];
+
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
@@ -180,6 +186,12 @@ export function buildSeedState(now: Date): ParkWatchState {
     s = v.state;
     return v.value;
   };
+
+  // The demo citizen's registered vehicles (the two shown in the Parking design).
+  // No active parking session and no parking history: the demo creates them live.
+  for (const v of DEMO_CITIZEN_VEHICLES) {
+    step(cmd.addCitizenVehicle(s, { citizenId: DEV_CITIZEN_ID, vehicle: v, at: at(20 * DAY) }));
+  }
 
   // Citizen wallet history (Figma: €45 available, €55 paid out).
   // Opening balance €85 + 3 released €5 rewards = €100; €30 + €25 paid out.

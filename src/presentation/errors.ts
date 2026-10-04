@@ -42,6 +42,16 @@ export function describeDomainError(error: DomainError | { code: string; message
       };
     case "EVIDENCE_SOURCE_NOT_ALLOWED":
       return { kind: "INLINE", message: "Required photos must be taken with the camera at the scene." };
+    case "INVALID_PLATE":
+      return { kind: "INLINE", message: "Enter the vehicle's licence plate." };
+    case "DUPLICATE_VEHICLE":
+      return { kind: "INLINE", message: "This vehicle is already registered." };
+    case "PARKING_ALREADY_ACTIVE":
+      return { kind: "BANNER", message: "You already have an active parking session. End it before starting a new one." };
+    case "NO_ACTIVE_PARKING":
+      return { kind: "BANNER", message: "This parking session has already ended." };
+    case "INVALID_DURATION":
+      return { kind: "INLINE", message: "Choose a parking time between 1 minute and 24 hours." };
     default:
       return { kind: "BANNER", message: GENERIC };
   }

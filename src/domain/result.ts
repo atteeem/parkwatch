@@ -19,7 +19,12 @@ export type DomainErrorCode =
   | "INVALID_DRAFT"
   | "NOT_FOUND"
   | "CASE_TAKEN"
-  | "EVIDENCE_SOURCE_NOT_ALLOWED";
+  | "EVIDENCE_SOURCE_NOT_ALLOWED"
+  | "INVALID_PLATE"
+  | "DUPLICATE_VEHICLE"
+  | "PARKING_ALREADY_ACTIVE"
+  | "NO_ACTIVE_PARKING"
+  | "INVALID_DURATION";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 
