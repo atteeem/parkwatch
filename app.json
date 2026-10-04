@@ -6,7 +6,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
@@ -57,9 +56,12 @@
           "isIosBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false,
           "locationAlwaysAndWhenInUsePermission": false,
-          "locationAlwaysPermission": false
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
+          "isAndroidMotionActivityEnabled": false
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }

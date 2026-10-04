@@ -226,7 +226,7 @@ export default function OnSiteInspection() {
                 >
                   <View style={[styles.photoSlot, uri && styles.photoSlotDone]}>
                     {uri ? (
-                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFillObject} compact />
+                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
                     ) : (
                       <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
                     )}
