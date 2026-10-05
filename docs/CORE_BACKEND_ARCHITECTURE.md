@@ -1,12 +1,13 @@
-# Core backend architecture (T8.3)
+# Core backend architecture (T8.3, hardened in T8.4)
 
 How the citizen and officer core workflow runs when a Supabase backend is
 configured (BACKEND mode). Without configuration the app stays in the local
 investor demo (LOCAL_DEMO) exactly as before.
 
 > Status: verified offline only — against the real migrations in an in-process
-> Postgres (PGlite) and a local mock of the Supabase endpoints. It has **not**
-> been verified against a real Supabase cloud project yet.
+> Postgres (PGlite), a local mock of the Supabase endpoints, and the web build.
+> It has **not** been verified against a real Supabase cloud project or on a
+> physical phone yet (see "Verification log" below and REAL_DEVICE_QA.md).
 
 ## Principle: the server owns the workflow
 
@@ -78,6 +79,95 @@ src/backend/mappers/snapshot.ts        snapshot rows → domain ParkWatchState
   `UPLOAD_FAILED`, `CASE_TAKEN`, `INSPECTION_NOT_READY`, …); wording comes only
   from `src/presentation/errors.ts`. Raw server text is never shown.
 
+## Reads: paginated and filtered on the server (T8.4)
+
+The capped `get_core_snapshot()` is no longer used by the app. Reads come from
+`supabase/migrations/20261008000001_paged_reads.sql` (all SECURITY INVOKER: RLS
+decides what is returned):
+
+| Screen | Function | Paging |
+| --- | --- | --- |
+| My Reports (tabs), Home latest, citizen map | `page_my_reports(status)` | keyset (submitted_at, id), 25 per page, max 50 |
+| Notifications (both roles) | `page_my_notifications` | keyset (created_at, id) |
+| Queue (All / New / High Priority / Assigned), officer home cards, officer map | `page_officer_queue(filter, lat, lng)` | offset; nearest first when a position is known, else priority, newest |
+| My Cases (All / Completed / Issued / Rejected) | `page_my_cases(tab)` | keyset (completed_at or report time, id) |
+| Counts on every screen | `get_citizen_summary`, `get_officer_summary` | — |
+| Detail screens / deep links | `get_case_detail`, `get_my_report` | — |
+| Wallet / earnings | `get_my_ledger` (own rows only) | not paged (small) |
+
+- **Filters run before paging**, so "No High Priority reports" or an empty
+  Rejected tab is only shown when the server has none. Counts never come from a
+  loaded page.
+- The store keeps a merged row cache plus, per list, the ordered ids of its pages.
+  "Show more" loads the next page; rows that move between pages are shown once.
+- Refresh (pull, focus, foreground, after an action) reloads **page 1** of every
+  list in use and drops stale cursors; a page that arrives after a newer page 1
+  is discarded. After a fully successful refresh the cache is rebuilt from only
+  what the server just returned, so rows the user may no longer see (revoked
+  membership, other area) disappear. A case detail that comes back empty is
+  removed instead of shown stale.
+- A list shown again (switching back to a tab/filter) keeps its pages for a few
+  seconds; after that it starts over at page 1, so old pages are never presented as
+  current. Each filter/tab is its own list: a slow page of one filter can never land in
+  another, and empty states wait for the first page to settle.
+- Detail screens load their case/report on open (`useCaseDetailLoad`,
+  `useReportDetailLoad`) and show "Loading…" rather than "not found" meanwhile.
+
+## Unsent drafts, retries and uploads (T8.4)
+
+- **Draft persistence (BACKEND):** `ReportContext` stores the unsent draft per
+  signed-in user (`parkwatch.unsentReport.v1.<user id>`): the immutable draft id,
+  photos (local URIs + metadata), violation, location text + GPS, notes,
+  attachments, and which uploads finished. Home shows **Unfinished report** with
+  *Continue unfinished report* and *Discard* (confirmation). Starting a new report
+  continues it rather than replacing it. Cleared after the server accepts the
+  report, or on Discard. Nothing uploads in the background. Another account never
+  sees (or overwrites) it. LOCAL_DEMO is unchanged (memory only).
+- **One submission id:** the draft id is the server submission id on every attempt,
+  after timeouts, network loss, backgrounding and app restarts. `submit_report`
+  returns the existing report when it already committed (`created: false`), so a
+  lost response never creates a second report.
+- **Upload recovery:** paths are deterministic per capture
+  (`<uid>/<draft id>/<draft id>-<slot>-<capture time>.<ext>`; a retake gets a new
+  path). Finished uploads are recorded and skipped on retry; "already exists" also
+  counts as uploaded. **Nothing is deleted on a transient failure.** Orphans are
+  removed only after success (uploads of this submission not in the final report,
+  e.g. a retaken or removed photo) or on Discard. Storage policies refuse deleting
+  evidence attached to a report, so a created report's photos can never be removed.
+- **Timeouts:** every request has a client timeout (20 s; uploads 90 s). A timeout is
+  an *unknown* result, not a failure.
+
+## Ambiguous results (T8.4)
+
+A network failure on a mutation means "the server may or may not have done it".
+For `accept_case`, `start_en_route`, `start_inspection`, check changes, plate
+confirmation, officer photos and `complete_case`, the store re-reads the case:
+
+- the change is there → success (Complete → shown as the completed case, not as a
+  second fake failure);
+- a **different** outcome is there → `ALREADY_COMPLETED`;
+- not there → the network error stands; retrying is safe (idempotent functions);
+- the case cannot be re-read either → `RESULT_UNKNOWN` ("The connection dropped
+  before the server answered… the app will check what was already saved").
+
+Rule refusals (`CASE_TAKEN`, `INVALID_TRANSITION`, …) also re-read the case so the
+screen shows the true state. Submission is reconciled by its idempotent retry.
+
+## Signed URL expiry (T8.4)
+
+Signed URLs last 1 hour and are re-signed on refresh when they expire within
+5 minutes. If an image still fails to load, `EvidencePhoto` asks for a fresh URL for
+that object (at most once a minute per object, so no loops) and shows "Photo
+unavailable" only meanwhile or if re-signing fails. Signed URLs live in memory only;
+the stored identity is always the storage path.
+
+## Session expiry (T8.4)
+
+An `UNAUTHENTICATED` answer (RPC, or storage 401) asks the auth layer to re-check the
+session; if it is gone the user is signed out with "Your session has ended. Please
+sign in again." The unsent citizen draft stays on the phone and is offered again after
+signing in as the same user. Unauthorized mutations are refused by the server anyway.
+
 ## Loading and refresh
 
 - `CoreDataGate` (citizen and officer layouts, BACKEND only): loading screen on
@@ -93,7 +183,9 @@ src/backend/mappers/snapshot.ts        snapshot rows → domain ParkWatchState
 
 | | LOCAL_DEMO | BACKEND |
 | --- | --- | --- |
-| Data | local persisted store + seed | server snapshot (RLS) |
+| Data | local persisted store + seed | server pages + counts (RLS) |
+| Lists | complete (one "page") | paginated, filtered on the server |
+| Unsent draft | memory only | persisted per user until sent/discarded |
 | Actions | synchronous | server functions (async) |
 | Withdrawals | simulated request | **disabled**: "Withdrawals are not available in the backend preview yet." |
 | Parking | local simulation | local simulation (per signed-in user id) |
@@ -102,8 +194,9 @@ src/backend/mappers/snapshot.ts        snapshot rows → domain ParkWatchState
 
 ## Testing offline
 
-- `npm run verify:migrations` — applies all migrations to PGlite and runs ~200
-  scenarios as real roles (`scripts/verify-migrations.mjs`, `scripts/verify-t83.mjs`).
+- `npm run verify:migrations` — applies all migrations to PGlite and runs 216
+  scenarios as real roles (`scripts/verify-migrations.mjs`, `verify-t83.mjs`, `verify-t84.mjs`).
+- `npm run test:cloud-smoke` — optional real-cloud smoke test (development project only).
 - `npm run mock:backend` — `scripts/mock-supabase-backend.mjs`: auth, RPC
   passthrough executed as the signed-in user, and private storage with signed
   URLs, all on the real migrations. Test accounts are in the file header.
@@ -116,11 +209,31 @@ src/backend/mappers/snapshot.ts        snapshot rows → domain ParkWatchState
 The mock is not Supabase (unsigned tokens, in-memory). Passing against it is
 not a substitute for verifying a real project.
 
-## Known limitations (T8.3)
+## Verification matrix
 
-- Not verified on a real Supabase project or on a phone in BACKEND mode.
-- Jurisdiction is a single configured default (`app_settings.default_jurisdiction_id`);
-  no geographic routing yet (`NO_JURISDICTION` if unset).
-- No withdrawals/payouts on the server; no realtime/push; snapshot is capped
-  (300 reports/cases, 200 notifications).
+| Category | Status | What it covers |
+| --- | --- | --- |
+| DB verifier (PGlite, real migrations) | **VERIFIED** | 216 scenarios: RLS, grants, storage policies, workflow functions, outcomes, paged reads, summaries, other org / inactive / anonymous |
+| Mock backend (real SQL + real supabase-js, Jest integration) | **VERIFIED** | submit, idempotent retry, lost responses after commit (submit/accept/complete), restart mid-upload, pagination + server filters, revoked membership (lists + detail), session expiry |
+| Unit tests (store, drafts, guards, mapping, source security) | **VERIFIED** | paging, filter switching, refresh reset, cache pruning, reconciliation, upload recovery, signed URL refresh, draft persistence |
+| Browser (web build vs mock) | **VERIFIED** | officer and citizen walkthroughs, draft recovery across reload, offline banner / offline launch, LOCAL_DEMO regression (see REAL_DEVICE_QA.md section A) |
+| Real Supabase project | **NOT VERIFIED** | no project was configured; see REAL_DEVICE_QA.md section B |
+| Physical phone | **NOT VERIFIED** | no device was available; see REAL_DEVICE_QA.md section C |
+
+The browser walkthrough used DOM-dispatched clicks (the preview pane did not render)
+and a helper for camera steps; it verifies screen logic and server integration, not
+native rendering, camera, GPS or maps.
+
+## Known limitations (T8.4)
+
+- Not verified on a real Supabase project or on a physical phone.
+- Jurisdiction is a single configured default (`app_settings.default_jurisdiction_id`,
+  development routing); no geographic routing yet (`NO_JURISDICTION` if unset).
+- No withdrawals/payouts on the server; no realtime/push (refresh on focus/foreground).
+- The officer and citizen maps show the loaded list pages, not every row.
+- Queue paging uses offsets (distance order has no stable keyset): rows can shift
+  while paging; duplicates are removed, a shifted row may need a refresh.
+- The citizen's own ledger is loaded in full for wallet/earnings.
+- Local photo files of an unsent draft live in the app's cache; if the OS clears it,
+  those photos must be retaken (the upload fails clearly; nothing is lost silently).
 - Orphaned objects are possible if cleanup itself fails (private, unreadable to others).

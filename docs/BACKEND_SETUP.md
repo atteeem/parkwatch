@@ -41,15 +41,19 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
 3. `20261006000001_auth_profiles.sql` — sign-up profile bootstrap, profile recovery, officer access hardening
 4. `20261007000001_core_workflow.sql` — server functions for the core workflow, private
    evidence buckets + storage policies, `app_settings` (T8.3)
+5. `20261008000001_paged_reads.sql` — paginated, filter-aware reads and server-side
+   counts (T8.4; all SECURITY INVOKER, so RLS applies)
 
-After applying (4), set the enforcement area new reports go to (until geographic routing
-exists), in the SQL editor:
+After applying (4), set the enforcement area new reports go to. **This is a
+development-only routing setting**, controlled on the server; citizens never choose an
+organization. Real geographic jurisdiction resolution comes later. In the SQL editor:
 
 ```sql
 update public.app_settings set default_jurisdiction_id = 'helsinki-demo';
 ```
 
-Without it, submitting a report fails with "Reports can't be received for this area yet."
+Without it, submitting a report fails with "ParkWatch isn't receiving reports here yet."
+(the draft stays saved on the phone). `supabase/seed.dev.sql` sets it for you.
 
 **Option A — Supabase CLI** (recommended):
 
@@ -86,8 +90,9 @@ You can verify the same migrations offline at any time (no account needed):
 node scripts/verify-migrations.mjs
 ```
 
-It applies them to an in-process Postgres and runs ~70 checks (constraints,
-idempotency, append-only history and RLS as citizen / officer / impostor / anonymous).
+It applies them to an in-process Postgres and runs ~216 checks (constraints,
+idempotency, append-only history, RLS as citizen / officer / impostor / anonymous, the
+core workflow functions, storage policies and the paginated reads).
 
 ## How access works
 
@@ -166,19 +171,137 @@ Then `node scripts/dev-web-backend.mjs` starts the web app against it (or set
 `EXPO_PUBLIC_SUPABASE_URL=http://localhost:54399 EXPO_PUBLIC_SUPABASE_ANON_KEY=mock-anon`).
 The mock is not Supabase; passing against it does not verify a real project.
 
+## Development cloud setup checklist (T8.4)
+
+Use a **separate development project**. Never use production data. Nothing below needs
+a service-role key in the app.
+
+1. Create the project (section 1). In **Authentication → Providers → Email**, decide
+   whether email confirmation is on (the app handles both).
+2. Apply the five migrations in order (section 4).
+3. Run `supabase/seed.dev.sql` (demo organization, `helsinki-demo` jurisdiction,
+   default jurisdiction).
+4. Verify in the SQL editor:
+
+   ```sql
+   -- RLS on every public table (all rows: true)
+   select tablename, rowsecurity from pg_tables where schemaname = 'public' order by 1;
+   -- private buckets (public = false for both)
+   select id, public, file_size_limit from storage.buckets where id in ('report-evidence', 'officer-evidence');
+   -- profile bootstrap trigger exists
+   select tgname from pg_trigger where tgname = 'on_auth_user_created';
+   -- development routing is set
+   select default_jurisdiction_id from public.app_settings;
+   -- every SECURITY DEFINER function pins search_path (expect 0 rows)
+   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosecdef
+     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');
+   ```
+
+5. **Citizen test accounts:** sign up in the app (or Authentication → Users → Add user).
+   The trigger creates a CITIZEN profile. Make two (A and B) for isolation checks.
+6. **Officer test account:** create the user in the dashboard (there is no officer
+   self-registration), then as the project owner:
+
+   ```sql
+   update public.profiles set role = 'OFFICER'
+   where id = (select id from auth.users where email = 'officer-dev@example.test');
+   insert into public.organization_members (organization_id, user_id, member_role)
+   select '0a7c0000-0000-4000-8000-000000000001', id, 'OFFICER'
+   from auth.users where email = 'officer-dev@example.test';
+   ```
+
+   For the cross-organization check, create a second organization + jurisdiction and a
+   second officer there. To test revocation:
+   `update public.organization_members set active = false where user_id = …`.
+7. **Metadata check:** sign up a citizen with `role: "OFFICER"` in user metadata (e.g.
+   via the dashboard) and confirm the app still treats them as a citizen.
+8. Put the URL and anon key in your local `.env` only (section 3) and follow
+   [REAL_DEVICE_QA.md](REAL_DEVICE_QA.md).
+
+### Local mock backend (no cloud project)
+
+`npm run mock:backend` (port 54399) runs the real migrations in an in-process Postgres
+and serves auth, the server functions (executed as the signed-in user) and private
+storage. `node scripts/dev-web-backend.mjs` starts the web app against it.
+`node scripts/mock-camera-steps.mjs submit` / `officer-photos <report no>` perform
+camera steps for browsers without a camera. The mock's accounts and the password
+`mock-password-1` exist **only inside that local mock** (in memory) — they are not real
+credentials and never work against a Supabase project.
+
+### Cloud smoke test (optional)
+
+`npm run test:cloud-smoke` runs one citizen → officer → citizen flow plus security spot
+checks against a **development** project: citizen submits a report with 3 private
+photos → officer finds the same case, accepts, inspects, uploads 4 private photos,
+issues CHARGE_ISSUED → citizen sees VERIFIED, €5 available and one notification.
+
+- Not part of `npm test`/Jest. Without `PARKWATCH_RUN_CLOUD_SMOKE=1` it does nothing
+  (exit 0); opted in but incomplete configuration → clear message, exit 1.
+- Required environment variables (set them in your shell only, never in git):
+
+  | Variable | Value |
+  | --- | --- |
+  | `PARKWATCH_RUN_CLOUD_SMOKE` | `1` (explicit opt-in) |
+  | `CLOUD_SMOKE_CONFIRM` | `development-project` |
+  | `CLOUD_SMOKE_SUPABASE_URL` | development project URL |
+  | `CLOUD_SMOKE_ANON_KEY` | the anon (public) key — service-role/`sb_secret_` keys are refused |
+  | `CLOUD_SMOKE_CITIZEN_EMAIL` / `_PASSWORD` | a **test** citizen account |
+  | `CLOUD_SMOKE_OFFICER_EMAIL` / `_PASSWORD` | a **test** officer account (role + active membership) |
+
+- Uses only test accounts and the public key; no admin access, no production data.
+
+**Smoke test data — identification and cleanup.** Each run creates exactly ONE report
+(plus its case, 7 photos, ledger, notification and audit rows). The report's notes start
+with `[ParkWatch cloud smoke test <time>]`, its address is
+`Cloud smoke test (development)`, its plate `SMK-001` and its submission id
+`smoke-…`. At the end the script prints `manualCleanup`: the report number, case id
+and every storage object of THIS run only. The script never deletes anything.
+
+Outcomes, the reward ledger and audit events are **append-only by design** (triggers
+refuse delete), so these rows cannot be removed with a normal `delete` — that is the
+intended protection, do not disable it on a shared project. Safe options:
+
+1. Keep runs few and leave the clearly marked rows in the development project, or
+2. Reset a **development-only** database (`npx supabase db reset --linked`, then
+   re-apply the seed and accounts), or
+3. Remove only the listed storage objects (Dashboard → Storage), which does not touch
+   history rows.
+
+Find smoke records with:
+
+```sql
+select public_report_number, source_draft_id, created_at
+from public.reports where notes like '[ParkWatch cloud smoke test%';
+```
+
+### Keeping credentials out of git
+
+- `.env` is git-ignored; `.env.example` holds empty placeholders only.
+- Only `EXPO_PUBLIC_SUPABASE_URL` and the anon key ever go to the app. The service-role
+  key, database password and personal access tokens stay in the Supabase dashboard or
+  your own shell; the app refuses a service-role key at startup.
+- Test account passwords for a real project are never written to the repository
+  (smoke test variables are passed in the shell).
+
 ## Current limitations
 
-- **Not yet verified against a real Supabase project** (only offline: PGlite + local mock).
+- **Not yet verified against a real Supabase project or on a physical phone** (only
+  offline: PGlite + local mock + web). See [REAL_DEVICE_QA.md](REAL_DEVICE_QA.md).
 - Withdrawals are disabled in backend mode ("Withdrawals are not available in the
   backend preview yet."); there is no server payout flow.
-- New reports go to one configured jurisdiction (`app_settings`), no geographic routing.
+- New reports go to one configured jurisdiction (`app_settings`, development routing),
+  no geographic routing.
+- The citizen's full own reward ledger is loaded for wallet/earnings (lists are paged;
+  the ledger is small per report but not paged).
 - No reporter statistics in backend mode (shown as "Not rated").
 - No password reset, social login, MFA or account deletion yet.
-- Simulated parking stays local and is not part of the backend schema.
+- **Parking remains local** (simulated sessions, vehicles, history and demo pricing on the
+  phone); it is not part of the backend schema.
 - No realtime, push/email delivery, payouts or provider integrations.
 
 ## What comes next
 
-- Verify on a real Supabase project and on phones in backend mode.
+- Run the development-cloud checklist, the cloud smoke test and REAL_DEVICE_QA.md.
 - Server-side withdrawals, geographic jurisdiction routing, reporter statistics,
   realtime/push notifications.
