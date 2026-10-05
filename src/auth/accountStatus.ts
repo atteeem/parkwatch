@@ -18,7 +18,8 @@ export function accountStatusCopy(state: AuthState): AccountStatusCopy {
     return {
       icon: "alert-circle-outline",
       title: "Account couldn't be loaded",
-      body: `${state.accessError.message} Check your connection and try again.`,
+      // Some messages (network) already say what to do; never repeat the advice.
+      body: /try again/i.test(state.accessError.message) ? state.accessError.message : `${state.accessError.message} Check your connection and try again.`,
       canRetry: true,
     };
   }

@@ -84,6 +84,8 @@ type ListInternal = ListState & {
   position: { lat: number; lng: number } | null;
   /** Bumped when page 1 is reloaded: late results of older pages are dropped. */
   generation: number;
+  /** When page 1 was last loaded (a list shown again after a while starts over). */
+  loadedAt: number;
 };
 
 export type Summary = { kind: "citizen"; row: CitizenSummaryRow } | { kind: "officer"; row: OfficerSummaryRow };
@@ -266,6 +268,7 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
     l.offset = r.value.next_offset ?? null;
     l.hasMore = l.spec.kind === "queue" ? r.value.next_offset != null : !!r.value.next_cursor;
     l.loaded = true;
+    if (first) l.loadedAt = now().getTime();
     l.loading = false;
     l.error = null;
     rebuild();
@@ -538,10 +541,13 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
     ensureList(spec: ListSpec) {
       const key = listKey(spec);
       if (!lists.has(key)) {
-        lists.set(key, { spec, ids: [], loaded: false, loading: false, hasMore: false, error: null, cursor: null, offset: null, position: null, generation: 0 });
+        lists.set(key, { spec, ids: [], loaded: false, loading: false, hasMore: false, error: null, cursor: null, offset: null, position: null, generation: 0, loadedAt: 0 });
       }
       const l = lists.get(key)!;
-      if (!l.loaded && !l.loading) void loadPage(key, true);
+      if (l.loading) return;
+      // First show, or shown again (e.g. switching back to a filter) after the data may
+      // have changed: start over at page 1 instead of showing old pages.
+      if (!l.loaded || now().getTime() - l.loadedAt >= minFocusRefreshMs) void loadPage(key, true);
     },
     loadMore(spec: ListSpec) {
       const key = listKey(spec);

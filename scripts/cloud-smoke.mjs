@@ -3,6 +3,7 @@
 // uses only the public anon key + two TEST accounts (no service-role key, no
 // admin access). Every record it creates is marked as a smoke test.
 //
+//   PARKWATCH_RUN_CLOUD_SMOKE=1 \
 //   CLOUD_SMOKE_CONFIRM=development-project \
 //   CLOUD_SMOKE_SUPABASE_URL=https://<dev-ref>.supabase.co \
 //   CLOUD_SMOKE_ANON_KEY=<anon public key> \
@@ -31,14 +32,16 @@ const REQUIRED = [
   "CLOUD_SMOKE_OFFICER_PASSWORD",
 ];
 const missing = REQUIRED.filter((k) => !env[k]);
+// 1) Explicit opt-in. Without it nothing runs (exit 0, so other scripts can call it safely).
+if (env.PARKWATCH_RUN_CLOUD_SMOKE !== "1") {
+  console.log(JSON.stringify({ ran: false, reason: "Opt-in required: set PARKWATCH_RUN_CLOUD_SMOKE=1 (development project and test accounts only)." }));
+  process.exit(0);
+}
+// 2) Opted in but not configured: a clear failure, never a partial run.
 if (env.CLOUD_SMOKE_CONFIRM !== "development-project" || missing.length) {
-  console.log(
-    JSON.stringify({
-      ran: false,
-      reason: "Not configured. Set CLOUD_SMOKE_CONFIRM=development-project and " + (missing.length ? missing.join(", ") : "the variables above") + ". Never point this at production.",
-    })
-  );
-  process.exit(env.CLOUD_SMOKE_CONFIRM ? 1 : 0);
+  const need = [...(env.CLOUD_SMOKE_CONFIRM !== "development-project" ? ["CLOUD_SMOKE_CONFIRM=development-project"] : []), ...missing];
+  console.log(JSON.stringify({ ran: false, reason: `Missing configuration: ${need.join(", ")}. Never point this at production.` }));
+  process.exit(1);
 }
 
 // Refuse anything that is not the public anon key.
@@ -154,7 +157,19 @@ try {
   check("exactly one REPORT_VERIFIED notification", notes.filter((n) => n.report_id === report?.id && n.type === "REPORT_VERIFIED").length === 1);
 
   const failed = results.filter((r) => !r.ok);
-  console.log(JSON.stringify({ ran: true, project: new URL(URL_).host, smokeReportNumber: reportNumber, submissionId: sub, total: results.length, failed: failed.length, results }, null, 2));
+  // Nothing is deleted automatically (append-only history; no admin access here).
+  // These are exactly the records this run created, for manual cleanup by the project owner.
+  const manualCleanup = {
+    note: "Created by this run only. Append-only rows cannot be deleted by clients; see docs/BACKEND_SETUP.md (Smoke test data).",
+    reportNumber,
+    submissionId: sub,
+    caseId,
+    storageObjects: [
+      ...evidence.map((e) => `report-evidence/${e.storage_path}`),
+      ...(caseId ? ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"].map((t) => `officer-evidence/${caseId}/${t}-smoke.png`) : []),
+    ],
+  };
+  console.log(JSON.stringify({ ran: true, project: new URL(URL_).host, total: results.length, failed: failed.length, results, manualCleanup }, null, 2));
   process.exit(failed.length ? 1 : 0);
 } catch (e) {
   console.log(JSON.stringify({ ran: true, error: String(e?.message ?? e), results }, null, 2));

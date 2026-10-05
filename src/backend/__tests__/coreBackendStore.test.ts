@@ -480,3 +480,82 @@ describe("revoked visibility", () => {
     expect(store.getCaseLoad(CASE)).toBe("loaded"); // settled: the screen shows "not found", not a spinner
   });
 });
+
+describe("pagination review (T8.4)", () => {
+  it("switching back to a filter shown earlier reloads its page 1 once the data may have changed", async () => {
+    const pageMyReports = jest.fn(async (status: unknown, _cursor?: unknown) => ok(status === "REJECTED" ? reportPage([7], null) : reportPage([1, 2], { ts: "t", id: "c" })));
+    const { store, tick } = setup({ pageMyReports });
+    const rejected: ListSpec = { kind: "reports", status: "REJECTED" };
+    store.ensureList(ALL);
+    await flush();
+    store.loadMore(ALL); // the user scrolled
+    await flush();
+    store.ensureList(rejected); // switches tab
+    await flush();
+    store.ensureList(ALL); // and back, immediately: pages kept
+    expect(pageMyReports).toHaveBeenCalledTimes(3);
+    tick(6000);
+    store.ensureList(ALL); // back after a while: starts over at page 1
+    await flush();
+    expect(pageMyReports).toHaveBeenCalledTimes(4);
+    expect(pageMyReports.mock.calls.at(-1)?.[1]).toBeNull();
+    expect(store.getList(ALL).ids).toEqual(["100001", "100002"]);
+  });
+
+  it("a slow page of one filter never lands in another filter's list", async () => {
+    const slow = deferred<Result<PageBundle>>();
+    const pageMyReports = jest.fn((status: unknown) => (status === "VERIFIED" ? slow.promise : Promise.resolve(ok(reportPage([1], null)))));
+    const { store } = setup({ pageMyReports });
+    const verified: ListSpec = { kind: "reports", status: "VERIFIED" };
+    store.ensureList(verified);
+    store.ensureList(ALL);
+    await flush();
+    slow.resolve(ok(reportPage([5], null)));
+    await flush();
+    expect(store.getList(ALL).ids).toEqual(["100001"]);
+    expect(store.getList(verified).ids).toEqual(["100005"]);
+  });
+
+  it("an empty state is only possible once the first page has settled", async () => {
+    const d = deferred<Result<PageBundle>>();
+    const { store } = setup({ pageMyReports: jest.fn(() => d.promise) });
+    store.ensureList(ALL);
+    await flush();
+    expect(store.getList(ALL)).toMatchObject({ loaded: false, loading: true, ids: [] });
+    d.resolve(ok(emptyPage()));
+    await flush();
+    expect(store.getList(ALL)).toMatchObject({ loaded: true, loading: false, ids: [] });
+  });
+});
+
+describe("signed URL review (T8.4)", () => {
+  it("an object the user may not read stays unavailable (no URL, no retry loop)", async () => {
+    const { store, storage } = setup(
+      { getCaseDetail: jest.fn(async () => ok(caseBundle({}, { report_evidence: [{ id: "e1", report_id: report(1).id, slot: "FRONT", capture_source: "CAMERA", storage_path: `${USER}/d1/f.jpg`, captured_at: "t", created_at: "t" }] as never }))) },
+      { sign: jest.fn(async () => ({})) },
+      "officer"
+    );
+    store.ensureCase(CASE);
+    await flush();
+    await flush();
+    const uri = store.getState()!.reports[0].evidence[0].uri;
+    expect(uri.startsWith("parkwatch-storage://")).toBe(true); // rendered as "Photo unavailable"
+    expect(await store.refreshSignedUrl(uri)).toBe(false);
+    expect(storage.sign).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("officer cache security review (T8.4)", () => {
+  it("sign-out clears protected data; another user's new store starts empty", async () => {
+    const a = setup({ pageOfficerQueue: jest.fn(async () => ok(caseBundle())) }, {}, "officer");
+    a.store.ensureList({ kind: "queue", filter: "all" });
+    await a.store.refresh();
+    expect(a.store.getState()!.cases).toHaveLength(1);
+    a.store.dispose();
+    expect(a.store.getState()).toBeNull();
+    expect(a.store.getList({ kind: "queue", filter: "all" }).ids).toEqual([]);
+    const b = setup({}, {}, "officer"); // the next account gets its own store
+    await b.store.refresh();
+    expect(b.store.getState()!.cases).toEqual([]);
+  });
+});

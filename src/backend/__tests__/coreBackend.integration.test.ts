@@ -280,10 +280,25 @@ describe("core workflow against the mock backend (real SQL, real supabase-js)", 
     expect(await inactive.store.acceptCase(anyCase.id)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
   });
 
-  it("deactivating a membership removes access on the next refresh", async () => {
+  it("deactivating a membership removes access: lists, cached detail and direct lookups (no stale officer data)", async () => {
+    // Active: the officer sees an authorized case in the list and in detail.
+    unwrap(await officer2.store.refresh());
+    const seen = caseOf(officer, chargeReportId);
+    officer2.store.ensureCase(seen.id);
+    for (let i = 0; i < 50 && officer2.store.getCaseLoad(seen.id) !== "loaded"; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(state(officer2).cases.some((c) => c.id === seen.id)).toBe(true);
+
     await fetch(`${URL_}/__mock/membership`, { method: "POST", body: JSON.stringify({ email: "officer2@example.test", active: false }) });
     unwrap(await officer2.store.refresh());
     expect(state(officer2).cases).toEqual([]);
+    expect(officer2.store.getList({ kind: "queue", filter: "all" }).ids).toEqual([]);
+    // A direct detail lookup (deep link, open screen) returns nothing and nothing stale is kept.
+    officer2.store.ensureCase(seen.id);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(state(officer2).cases.find((c) => c.id === seen.id)).toBeUndefined();
+    expect(state(officer2).inspections[seen.id]).toBeUndefined();
+    expect(await officer2.store.acceptCase(seen.id)).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
+
     await fetch(`${URL_}/__mock/membership`, { method: "POST", body: JSON.stringify({ email: "officer2@example.test", active: true }) });
   });
 

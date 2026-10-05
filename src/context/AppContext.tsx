@@ -677,9 +677,13 @@ export function useApp(): AppContextValue {
 export function usePagedList<T extends AppListSpec>(spec: T): PagedList<ListItem<T>> & { loadMore: () => void } {
   const app = useApp();
   const key = JSON.stringify(spec);
+  const appRef = useRef(app);
+  appRef.current = app;
+  // Once per shown list (and when the filter/tab changes or the account/store changes),
+  // not on every data change.
   useEffect(() => {
-    app.ensureList(spec);
-  }, [key, app.ensureList]); // eslint-disable-line react-hooks/exhaustive-deps
+    appRef.current.ensureList(spec);
+  }, [key, app.dataSource, app.officerId]); // eslint-disable-line react-hooks/exhaustive-deps
   return { ...app.getList(spec), loadMore: () => app.loadMore(spec) };
 }
 
