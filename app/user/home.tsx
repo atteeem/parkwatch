@@ -11,7 +11,8 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
 import { citizenReportStats, HOME_REPORT_SHORTCUTS, startOfWeek } from "../../src/presentation/citizenViews";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { LiveMap } from "../../src/components/map/LiveMap";
@@ -23,6 +24,7 @@ export default function UserHome() {
   const router = useRouter();
   const { userReports, getEarnings, userNotifications } = useApp();
   const unread = userNotifications.filter((n) => n.unread).length;
+  const me = displayIdentity(useAuth().state, "citizen");
   const { startNewReport } = useReportDraft();
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
@@ -35,7 +37,7 @@ export default function UserHome() {
       <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={[styles.headerBlock, { flexDirection: "row", alignItems: "flex-start" }]}>
           <View style={{ flex: 1 }}>
-            <Text style={typography.screenTitle}>Hello, {DEMO_CITIZEN_ACCOUNT.firstName}!</Text>
+            <Text style={typography.screenTitle}>Hello, {me.firstName}!</Text>
             <Text style={typography.screenSubtitle}>
               Together we make traffic flow better and safer.
             </Text>

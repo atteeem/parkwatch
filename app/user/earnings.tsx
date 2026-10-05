@@ -7,7 +7,8 @@ import { colors } from "../../src/constants/colors";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
@@ -20,6 +21,7 @@ export default function Earnings() {
   const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings } = useApp();
   const [period, setPeriod] = useState<EarningsPeriod>("ALL_TIME");
   const earnings = getEarnings(period);
+  const me = displayIdentity(useAuth().state, "citizen");
   const max = Math.max(...earnings.buckets, 1);
   const eur = (v: number) => formatEuros(Math.round(v * 100));
 
@@ -30,7 +32,7 @@ export default function Earnings() {
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={40} />
+        <Avatar name={me.fullName} size={40} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>

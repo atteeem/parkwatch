@@ -10,12 +10,15 @@ import { Card } from "../../src/components/Card";
 import { SettingsRow } from "../../src/components/SettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
+import { SignOutRow } from "../../src/components/SignOutRow";
 import { Avatar } from "../../src/components/Avatar";
 import { casesStats, myCases } from "../../src/presentation/officerViews";
 
 export default function OfficerProfile() {
   const router = useRouter();
+  const me = displayIdentity(useAuth().state, "officer");
   // Shell profile: real counts from this officer's cases only (no gamification,
   // no response-time stats; those need server timestamps).
   const { officerCases, officerId } = useApp();
@@ -32,19 +35,32 @@ export default function OfficerProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={64} />
+            <Avatar name={me.fullName} size={64} />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.name}>{DEMO_OFFICER_ACCOUNT.fullName}</Text>
-              <Text style={styles.role}>{DEMO_OFFICER_ACCOUNT.unit}</Text>
-              <View style={styles.onDutyChip}>
-                <View style={styles.onDutyDot} />
-                <Text style={styles.onDutyLabel}>On Duty</Text>
-              </View>
-              <Text style={styles.officerId}>{DEMO_OFFICER_ACCOUNT.badge}</Text>
-              <Text style={styles.verifiedLine}>
-                <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer
-              </Text>
-              <Text style={styles.authorizedLine}>Authorized to issue parking charges</Text>
+              <Text style={styles.name}>{me.fullName}</Text>
+              {me.source === "DEMO" ? (
+                <>
+                  <Text style={styles.role}>{me.demo?.unit}</Text>
+                  <View style={styles.onDutyChip}>
+                    <View style={styles.onDutyDot} />
+                    <Text style={styles.onDutyLabel}>On Duty</Text>
+                  </View>
+                  <Text style={styles.officerId}>{me.demo?.badge}</Text>
+                  <Text style={styles.verifiedLine}>
+                    <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer (demo)
+                  </Text>
+                  <Text style={styles.authorizedLine}>Demo identity</Text>
+                </>
+              ) : (
+                <>
+                  {!!me.email && <Text style={styles.role}>{me.email}</Text>}
+                  {/* Only what the server confirmed: active enforcement membership. */}
+                  <Text style={styles.verifiedLine}>
+                    <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Active enforcement member
+                  </Text>
+                  <Text style={styles.authorizedLine}>{(me.activeOrganizations ?? []).join(", ")}</Text>
+                </>
+              )}
             </View>
 
           </View>
@@ -99,9 +115,9 @@ export default function OfficerProfile() {
         <Card noPadding>
           <SettingsRow icon="person" title="Personal Information" unavailable />
           <View style={styles.divider} />
-          <SettingsRow icon="location" title="Assigned District" subtitle={DEMO_OFFICER_ACCOUNT.district} />
+          <SettingsRow icon="location" title="Assigned District" subtitle={me.demo?.district ?? "Set by your organization"} />
           <View style={styles.divider} />
-          <SettingsRow icon="car" title="Work Vehicle" subtitle="Service van 1" />
+          <SettingsRow icon="car" title="Work Vehicle" subtitle={me.source === "DEMO" ? "Service van 1" : "Set by your organization"} />
           <View style={styles.divider} />
           <SettingsRow icon="hardware-chip" title="Equipment Status" unavailable />
         </Card>
@@ -121,7 +137,7 @@ export default function OfficerProfile() {
           <View style={styles.divider} />
           <SettingsRow icon="help-circle" title="Help & Support" unavailable />
           <View style={styles.divider} />
-          <SettingsRow icon="log-out" title="Sign Out" subtitle="Not available in demo · no sign-in yet" unavailable />
+          <SignOutRow />
         </Card>
         <DemoTools />
       </ScrollView>

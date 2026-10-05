@@ -11,7 +11,9 @@ import { Card } from "../../src/components/Card";
 import { SettingsRow } from "../../src/components/SettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
+import { SignOutRow } from "../../src/components/SignOutRow";
 import { citizenReportStats } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
 
@@ -19,6 +21,7 @@ export default function UserProfile() {
   const router = useRouter();
   const { walletAvailable, userReports, getEarnings } = useApp();
   const stats = citizenReportStats(userReports);
+  const me = displayIdentity(useAuth().state, "citizen");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -29,18 +32,18 @@ export default function UserProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={64} />
+            <Avatar name={me.fullName} size={64} />
             <View style={{ marginLeft: 14, flex: 1 }}>
-              <Text style={styles.name}>{DEMO_CITIZEN_ACCOUNT.fullName}</Text>
+              <Text style={styles.name}>{me.fullName}</Text>
               <Text style={styles.locationRow}>
-                <Ionicons name="location" size={12} /> {DEMO_CITIZEN_ACCOUNT.city}
+                {me.demo?.city ? <><Ionicons name="location" size={12} /> {me.demo.city}</> : me.email}
               </Text>
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={13} color={colors.greenDark} />
                 <Text style={styles.verifiedLabel}>Active reporter</Text>
               </View>
               <Text style={styles.memberSince}>
-                <Ionicons name="calendar-outline" size={11} /> Member since {DEMO_CITIZEN_ACCOUNT.memberSince}
+                <Ionicons name="calendar-outline" size={11} /> {me.demo?.memberSince ? `Member since ${me.demo.memberSince}` : "ParkWatch account"}
               </Text>
             </View>
           </View>
@@ -85,9 +88,9 @@ export default function UserProfile() {
           <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle={"Not available in demo \u00b7 final policy pending"} unavailable />
         </Card>
 
-        {/* There is no real sign-in in the MVP, so Log Out would only pretend; shown as unavailable. */}
+        {/* Real Sign Out in backend mode; in the local demo it says it isn't available. */}
         <Card noPadding style={{ marginTop: 16 }}>
-          <SettingsRow icon="log-out-outline" title="Log Out" subtitle={"Not available in demo \u00b7 no sign-in yet"} unavailable />
+          <SignOutRow />
         </Card>
         <DemoTools />
       </ScrollView>

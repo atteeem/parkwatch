@@ -66,8 +66,11 @@ describe("Supabase stays behind the backend layer", () => {
     expect(hits).toEqual([]);
   });
 
-  it("the live app (context/store) does not import the backend yet", () => {
-    const hits = appSource.filter((f) => !rel(f).startsWith("src/backend/") && /from "(\.\.\/)+backend|src\/backend/.test(read(f))).map(rel);
+  it("only the identity layer (src/auth) uses the backend; app data (store/context/presentation/screens) does not", () => {
+    const hits = appSource
+      .filter((f) => !rel(f).startsWith("src/backend/") && !rel(f).startsWith("src/auth/"))
+      .filter((f) => /from "(\.\.\/)+(src\/)?backend|src\/backend/.test(read(f)))
+      .map(rel);
     expect(hits).toEqual([]);
   });
 

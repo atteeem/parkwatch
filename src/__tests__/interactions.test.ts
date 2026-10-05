@@ -105,12 +105,13 @@ describe("settings / profile rows are honest", () => {
     }
   };
 
-  it("Citizen Profile: Wallet and Settings work; future features are unavailable; no fake Log Out", () => {
+  it("Citizen Profile: Wallet and Settings work; future features are unavailable; Sign Out via SignOutRow", () => {
     const f = "app/user/profile.tsx";
     expect(row(f, "Wallet")).toMatch(/onPress=\{\(\) => router\.push\("\/user\/earnings"\)\}/);
     expect(row(f, "Settings")).toMatch(/onPress=\{\(\) => router\.push\("\/user\/settings"\)\}/);
     expect(row(f, "Payment Method")).not.toMatch(/onPress=/);
-    unavailable(f, ["Identity Verification", "Referral Program", "Help Center", "Terms of Service", "Privacy Policy", "Log Out"]);
+    unavailable(f, ["Identity Verification", "Referral Program", "Help Center", "Terms of Service", "Privacy Policy"]);
+    expect(read(f)).toMatch(/<SignOutRow \/>/);
   });
 
   it("Citizen Settings: every account/notification/theme row is unavailable, nothing pretends to work", () => {
@@ -124,9 +125,17 @@ describe("settings / profile rows are honest", () => {
     const f = "app/officer/profile.tsx";
     expect(row(f, "Notifications")).toMatch(/router\.push\("\/officer\/notifications"\)/);
     expect(row(f, "Case History")).toMatch(/router\.replace\("\/officer\/cases"\)/);
-    unavailable(f, ["Personal Information", "Equipment Status", "Monthly Statistics", "Dark Mode", "Help & Support", "Sign Out"]);
+    unavailable(f, ["Personal Information", "Equipment Status", "Monthly Statistics", "Dark Mode", "Help & Support"]);
     for (const t of ["Assigned District", "Work Vehicle"]) expect(row(f, t)).not.toMatch(/onPress=/);
     expect(read(f)).not.toMatch(/Edit Profile/);
+    expect(read(f)).toMatch(/<SignOutRow \/>/);
+  });
+
+  it("Sign Out is real only in backend mode; the local demo says it isn't available", () => {
+    const src = read("src/components/SignOutRow.tsx");
+    expect(src).toMatch(/if \(mode !== "BACKEND"\) \{\s*return <SettingsRow[^\n]*unavailable \/>;/);
+    expect(src).toMatch(/onPress=\{\(\) => setConfirm\(true\)\}/);
+    expect(src).toMatch(/<ConfirmDialog/);
   });
 
   it("Withdraw: the payout account row is informational (no chevron)", () => {

@@ -1,12 +1,14 @@
 import React from "react";
-import { Redirect, Stack } from "expo-router";
-import { useSession } from "../../src/context/SessionContext";
-import { ROLE_HOME } from "../../src/navigation/roleGuard";
+import { Stack } from "expo-router";
+import { AreaGuard } from "../../src/components/AreaGuard";
 
-// Route guard: only a officer session may open /officer/* screens; any other
-// session is sent to its own home. (Role source is DEV_ROLE until real auth.)
+// Route guard for /officer/*: only a session allowed to use the officer app gets in
+// (backend mode: server-resolved access; local demo: the dev role). Everyone
+// else is redirected to their own home or to sign-in.
 export default function OfficerLayout() {
-  const { role } = useSession();
-  if (role !== "officer") return <Redirect href={ROLE_HOME[role]} />;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <AreaGuard area="officer">
+      <Stack screenOptions={{ headerShown: false }} />
+    </AreaGuard>
+  );
 }

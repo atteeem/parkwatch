@@ -9,7 +9,8 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
@@ -20,6 +21,7 @@ import { myCases, officerHomeSummary, withDistances } from "../../src/presentati
 
 export default function OfficerHome() {
   const router = useRouter();
+  const me = displayIdentity(useAuth().state, "officer");
   const { officerCases, officerNotifications, officerId } = useApp();
   // Never prompts here; uses a position only if permission was already granted.
   const location = useForegroundLocation();
@@ -37,10 +39,10 @@ export default function OfficerHome() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.replace("/officer/profile")}>
-            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={52} />
+            <Avatar name={me.fullName} size={52} />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.greeting}>Good morning,{"\n"}Officer {DEMO_OFFICER_ACCOUNT.firstName}</Text>
+            <Text style={styles.greeting}>Good morning,{"\n"}Officer {me.firstName}</Text>
             <Text style={styles.greetingSub}>Here's what's happening on your shift.</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 8 }}>
