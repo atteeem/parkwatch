@@ -17,12 +17,17 @@ insert into public.jurisdictions (id, organization_id, name)
 values ('helsinki-demo', '0a7c0000-0000-4000-8000-000000000001', 'Helsinki (demo)')
 on conflict (id) do nothing;
 
+-- T8.3: new reports go to this enforcement area (until geographic routing exists).
+update public.app_settings set default_jurisdiction_id = 'helsinki-demo';
+
 -- To let a development user act as an officer, sign the user up first
 -- (Authentication -> Users -> Add user), then run as the project owner:
 --
 --   insert into public.organization_members (organization_id, user_id, member_role)
 --   select '0a7c0000-0000-4000-8000-000000000001', id, 'OFFICER'
 --   from auth.users where email = 'officer@example.test';
+--   update public.profiles set role = 'OFFICER'
+--   where id = (select id from auth.users where email = 'officer@example.test');
 --
--- Officer access comes ONLY from this membership table (never from the
--- profile role, which a client could claim).
+-- Officer access needs BOTH the server-set profile role and an active
+-- membership; clients can change neither, and user_metadata is ignored.

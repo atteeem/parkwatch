@@ -40,5 +40,12 @@ params, Demo tools, `DEV_ROLE`.
 **Sign out.** Drops the trusted identity first, then `supabase.auth.signOut()` (falls
 back to a local sign-out when offline). Local app data is kept.
 
-**Not in T8.2:** data cutover (reports/cases/rewards stay local), Storage, server
-commands, password reset, realtime, push/email.
+**After sign-in (T8.3).** In BACKEND mode the core data (reports, cases,
+inspections, rewards, notifications, evidence) comes from the server for the
+signed-in user only: `AppContext` creates one core store per user id once the
+session has an app role, and disposes it on sign-out or account switch so no data
+crosses accounts. The citizen/officer ids used by the screens are the auth user
+id; there are no dev ids in BACKEND mode. See
+[CORE_BACKEND_ARCHITECTURE.md](CORE_BACKEND_ARCHITECTURE.md).
+
+**Still not included:** password reset, realtime, push/email.

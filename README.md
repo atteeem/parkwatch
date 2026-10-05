@@ -51,9 +51,11 @@ npm run typecheck
 Without Supabase settings the app runs as the **local demo** (no accounts). With
 `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` set it uses **real Supabase
 accounts**: citizens sign up / sign in, and officer access comes only from server-side
-profile + organization membership. Reports, cases and rewards still use the local store
-in both modes (cutover is the next milestone). See
-[docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md) and [docs/AUTH_ARCHITECTURE.md](docs/AUTH_ARCHITECTURE.md).
+profile + organization membership. In backend mode reports, cases, inspections, rewards,
+notifications and photos come from the server (server functions, private storage);
+withdrawals are disabled and parking stays local. Verified offline only so far. See
+[docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md), [docs/AUTH_ARCHITECTURE.md](docs/AUTH_ARCHITECTURE.md)
+and [docs/CORE_BACKEND_ARCHITECTURE.md](docs/CORE_BACKEND_ARCHITECTURE.md).
 
 ## Project structure
 

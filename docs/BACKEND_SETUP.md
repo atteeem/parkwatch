@@ -39,6 +39,17 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
 1. `20261005000001_core_schema.sql` — tables, enums, constraints, append-only guards
 2. `20261005000002_rls_policies.sql` — privileges and Row Level Security
 3. `20261006000001_auth_profiles.sql` — sign-up profile bootstrap, profile recovery, officer access hardening
+4. `20261007000001_core_workflow.sql` — server functions for the core workflow, private
+   evidence buckets + storage policies, `app_settings` (T8.3)
+
+After applying (4), set the enforcement area new reports go to (until geographic routing
+exists), in the SQL editor:
+
+```sql
+update public.app_settings set default_jurisdiction_id = 'helsinki-demo';
+```
+
+Without it, submitting a report fails with "Reports can't be received for this area yet."
 
 **Option A — Supabase CLI** (recommended):
 
@@ -49,8 +60,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-**Option B — Dashboard:** open **SQL Editor**, paste the first file, run it; then the
-second file.
+**Option B — Dashboard:** open **SQL Editor**, paste each file in order and run it.
 
 Optional, development projects only: run `supabase/seed.dev.sql` in the SQL editor. It
 creates one demo organization and the `helsinki-demo` jurisdiction. It is not a
@@ -83,15 +93,17 @@ idempotency, append-only history and RLS as citizen / officer / impostor / anony
 
 - **Deny by default.** RLS is on for every table; no policy is `USING (true)`.
 - **Citizens** read their own profile, reports, report photos, reward ledger and
-  notifications, and may create reports owned by themselves (server-owned fields such
-  as status, report number and the trusted `received_at` time cannot be set).
+  notifications. They create reports only through the `submit_report` server function
+  (direct inserts are revoked); the server sets the owner, status, report number,
+  receipt time and reward.
 - **Officers** are not trusted because a client says so. Access needs BOTH a
   server-set `profiles.role = 'OFFICER'` (or SUPERVISOR) and an active row in
   `organization_members` for the organization that owns the report's jurisdiction.
   Only the server (service role / admin tooling) can write either.
-- **No client writes** to cases, inspections, officer evidence, outcomes, the reward
-  ledger or audit events. Those changes will go through server-side functions that
-  apply the existing domain rules (next milestones).
+- **No client writes** to reports, cases, inspections, officer evidence, outcomes, the
+  reward ledger, notifications or audit events. Every change goes through a server
+  function that applies the domain rules atomically (T8.3, see
+  [CORE_BACKEND_ARCHITECTURE.md](CORE_BACKEND_ARCHITECTURE.md)).
 - Citizen and officer evidence are separate tables. Evidence rows store a
   `storage_path` in a **private** bucket (`report-evidence`, `officer-evidence`),
   never a device `file://` URI and never image bytes.
@@ -146,24 +158,27 @@ foreground, so revoked access disappears without reinstalling (the user sees "Of
 access is not active"). Supervisor/admin accounts see a truthful placeholder.
 `user_metadata` is never used for authorization.
 
-**Testing backend mode without a cloud project:** `node scripts/mock-supabase-auth.mjs`
-starts a local stand-in for the auth/profile endpoints (development only, see the file
-header for test accounts), then start the app with
-`EXPO_PUBLIC_SUPABASE_URL=http://localhost:54399 EXPO_PUBLIC_SUPABASE_ANON_KEY=mock-anon`.
+**Testing backend mode without a cloud project:** `npm run mock:backend` starts a local
+stand-in (development only) that runs the real migrations in an in-process Postgres and
+serves auth, the server functions (as the signed-in user) and private storage with
+signed URLs. Test accounts are in the header of `scripts/mock-supabase-backend.mjs`.
+Then `node scripts/dev-web-backend.mjs` starts the web app against it (or set
+`EXPO_PUBLIC_SUPABASE_URL=http://localhost:54399 EXPO_PUBLIC_SUPABASE_ANON_KEY=mock-anon`).
+The mock is not Supabase; passing against it does not verify a real project.
 
 ## Current limitations
 
-- Reports, cases, inspections, rewards, notifications and evidence still use the
-  **local store**, even for a signed-in account (shared demo data on the device).
+- **Not yet verified against a real Supabase project** (only offline: PGlite + local mock).
+- Withdrawals are disabled in backend mode ("Withdrawals are not available in the
+  backend preview yet."); there is no server payout flow.
+- New reports go to one configured jurisdiction (`app_settings`), no geographic routing.
+- No reporter statistics in backend mode (shown as "Not rated").
 - No password reset, social login, MFA or account deletion yet.
-- No Storage buckets or uploads yet.
-- No server-side functions for accepting cases, inspections, outcomes or rewards yet.
 - Simulated parking stays local and is not part of the backend schema.
 - No realtime, push/email delivery, payouts or provider integrations.
 
 ## What comes next
 
-- **T8.3** — server operations and data: private Storage buckets + evidence uploads,
-  server-side functions for report submission (report + case + pending reward
-  atomically) and the officer lifecycle/outcomes (using the domain rules), and moving
-  the app's data onto `src/backend/repositories` behind the same screens.
+- Verify on a real Supabase project and on phones in backend mode.
+- Server-side withdrawals, geographic jurisdiction routing, reporter statistics,
+  realtime/push notifications.
