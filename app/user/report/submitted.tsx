@@ -8,7 +8,7 @@ import { radius } from "../../../src/constants/spacing";
 import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
-import { useApp } from "../../../src/context/AppContext";
+import { useApp, useReportDetailLoad } from "../../../src/context/AppContext";
 import { toSubmittedSummary } from "../../../src/presentation/citizenViews";
 
 // CIT-06: confirmation only. There is deliberately no submit action here, and
@@ -18,6 +18,7 @@ export default function ReportSubmitted() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getCitizenReport, dataSource, coreStatus, refreshCore } = useApp();
   const report = getCitizenReport(id);
+  useReportDetailLoad(id);
 
   // Server mode: the report was accepted but the refreshed list hasn't arrived
   // (e.g. the connection dropped right after). Offer to load it, don't claim "not found".

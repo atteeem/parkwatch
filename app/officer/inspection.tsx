@@ -7,7 +7,8 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
-import { settle, useApp } from "../../src/context/AppContext";
+import { settle, useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { describeDomainError } from "../../src/presentation/errors";
 import { useGuardedAction } from "../../src/presentation/useGuardedAction";
@@ -41,6 +42,8 @@ export default function OnSiteInspection() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection } = useApp();
   const c = getCase(id);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +51,8 @@ export default function OnSiteInspection() {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const startGuard = useGuardedAction(c?.status);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/officer/home"));
+
+  if (caseLoad.loading && (!c || !getInspection(c.id).exists)) return <DetailLoading />;
 
   if (!c) {
     return (

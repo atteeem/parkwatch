@@ -11,7 +11,8 @@ import { Card } from "../../src/components/Card";
 import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
@@ -47,6 +48,8 @@ export default function ReportDetails() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase } = useApp();
   const detail = getCaseDetail(id);
   const c = detail?.case;
@@ -57,6 +60,8 @@ export default function ReportDetails() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   // One guard per case stage: a second tap in the same stage is ignored.
   const guard = useGuardedAction(`${c?.status}|${c?.assignedOfficerId}`);
+
+  if (caseLoad.loading && !c) return <DetailLoading />;
 
   if (!detail || !c) {
     return (

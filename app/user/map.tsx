@@ -9,7 +9,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
 import { UserReportStatus } from "../../src/data/types";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { citizenReportMarkers, followReducer, INITIAL_FOLLOW_STATE } from "../../src/map/mapLogic";
@@ -26,14 +26,17 @@ const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
 // (the shared watch is released when it loses focus).
 export default function UserMap() {
   const router = useRouter();
-  const { userReports } = useApp();
+  const { citizenSummary } = useApp();
+  // Markers: the citizen's most recent reports (loaded pages); counts: all reports (server).
+  const recent = usePagedList({ kind: "citizenReports", tab: "all" });
+  const userReports = recent.items;
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
   const location = useForegroundLocation({ watch: true, autoRequest: true });
   const [follow, dispatchFollow] = useReducer(followReducer, INITIAL_FOLLOW_STATE);
   const [recenterToken, setRecenterToken] = useState(0);
 
   const markers = citizenReportMarkers(userReports, filter);
-  const counts = reportStatusCounts(userReports);
+  const counts = citizenSummary;
   const onMap = citizenReportMarkers(userReports, "all").length;
   const hasPosition = location.permission === "granted" && !!location.fix;
 

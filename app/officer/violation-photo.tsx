@@ -5,7 +5,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { CameraCapture, CaptureSlot } from "../../src/components/CameraCapture";
 import { BackHeader } from "../../src/components/Header";
 import { colors } from "../../src/constants/colors";
-import { settle, useApp } from "../../src/context/AppContext";
+import { settle, useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { describeDomainError } from "../../src/presentation/errors";
 import { OFFICER_PHOTO_KEY_TO_TYPE, OfficerPhotoKey } from "../../src/presentation/viewModels";
 
@@ -24,6 +25,8 @@ const isPhotoKey = (k: string | undefined): k is OfficerPhotoKey => !!k && k in 
 export default function OfficerViolationPhoto() {
   const router = useRouter();
   const { id, target } = useLocalSearchParams<{ id: string; target: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, getInspection, setOfficerPhoto } = useApp();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,6 +34,8 @@ export default function OfficerViolationPhoto() {
   const inspection = c ? getInspection(c.id) : undefined;
   const goBack = () =>
     router.canGoBack() ? router.back() : router.replace({ pathname: "/officer/inspection", params: { id } });
+
+  if (caseLoad.loading && (!c || !inspection?.exists)) return <DetailLoading />;
 
   if (!c || !inspection?.exists || !isPhotoKey(target)) {
     return (

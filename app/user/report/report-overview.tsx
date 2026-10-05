@@ -9,7 +9,8 @@ import { BackHeader } from "../../../src/components/Header";
 import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
-import { useApp } from "../../../src/context/AppContext";
+import { useApp, useReportDetailLoad } from "../../../src/context/AppContext";
+import { InlineLoading } from "../../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
 import { violationLabel } from "../../../src/data/types";
 import { rewardDisplay } from "../../../src/presentation/citizenViews";
@@ -27,7 +28,18 @@ export default function ReportOverview() {
   const { getCitizenReport, citizenProfile } = useApp();
   // Read-only lookup: safe to open directly (deep link) and never mutates state.
   const report = getCitizenReport(id);
+  // Server mode: fetch this report (deep links, notifications, reports beyond the loaded pages).
+  const { loading } = useReportDetailLoad(id);
   const backToMyReports = () => router.dismissTo("/user/reports");
+
+  if (!report && loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BackHeader title="Report overview" onBack={backToMyReports} />
+        <InlineLoading label="Loading report…" />
+      </SafeAreaView>
+    );
+  }
 
   if (!report) {
     return (

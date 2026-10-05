@@ -60,7 +60,13 @@ export function describeDomainError(error: DomainError | { code: string; message
     case "UPLOAD_FAILED":
       return { kind: "BANNER", message: "A photo couldn't be uploaded. Check your connection and try again." };
     case "NO_JURISDICTION":
-      return { kind: "BANNER", message: "Reports can't be received for this area yet." };
+      // Development setup: the service area is configured on the server; citizens never choose one.
+      return { kind: "BANNER", message: "ParkWatch isn't receiving reports here yet. Your report is saved on this phone." };
+    case "RESULT_UNKNOWN":
+      return {
+        kind: "BANNER",
+        message: "The connection dropped before the server answered. Check your connection and try again. The app will check what was already saved.",
+      };
     case "NETWORK_ERROR":
       return { kind: "BANNER", message: "No connection to the ParkWatch server. Check your connection and try again." };
     case "BACKEND_NOT_CONFIGURED":

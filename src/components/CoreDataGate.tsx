@@ -102,3 +102,38 @@ const styles = StyleSheet.create({
   bannerText: { flex: 1, color: "#B3261E", fontSize: 12.5, fontWeight: "600" },
   bannerAction: { color: "#B3261E", fontWeight: "800", fontSize: 12.5 },
 });
+
+/**
+ * Footer for a paged list: first-page loading, "Show more", and a page error
+ * with Retry. Renders nothing for a complete list (always the local demo).
+ */
+export function ListFooter({
+  list,
+}: {
+  list: { loaded: boolean; loading: boolean; hasMore: boolean; error: { code: string } | null; loadMore: () => void };
+}) {
+  if (list.loading) return <InlineLoading label={list.loaded ? "Loading more…" : "Loading…"} />;
+  if (list.error) {
+    return (
+      <View style={{ alignItems: "center", padding: 12, gap: 8 }} accessibilityRole="alert">
+        <Text style={{ color: "#B3261E", fontSize: 12.5, fontWeight: "600", textAlign: "center" }}>{describeDomainError(list.error).message}</Text>
+        <GreenButton label="Retry" small variant="outline" onPress={list.loadMore} />
+      </View>
+    );
+  }
+  if (list.hasMore) return <GreenButton label="Show more" small variant="outline" onPress={list.loadMore} style={{ alignSelf: "center", marginVertical: 12 }} />;
+  return null;
+}
+
+/** Empty states must wait for the first page: "nothing here" while loading would be false. */
+export const listSettledEmpty = (list: { loaded: boolean; loading: boolean; items: unknown[] }) => list.loaded && !list.loading && list.items.length === 0;
+
+/** Detail screen whose case/report is still being fetched for the first time (server mode). */
+export function DetailLoading({ label = "Loading case…" }: { label?: string }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 40 }} accessibilityLabel={label}>
+      <InlineLoading label={label} />
+    </View>
+  );
+}

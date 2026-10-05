@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { demoPhotoSlot, isDemoPhotoUri, isLegacyPlaceholderUri } from "../data/demoPhotos";
 import { isStorageReference } from "../data/storageUri";
+import { useEvidenceUrlRefresh } from "../context/EvidenceUrlContext";
 
 const SLOT_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   LICENSE_PLATE: "pricetag-outline",
@@ -27,6 +28,14 @@ export function EvidencePhoto({
   compact?: boolean;
 }) {
   const [failed, setFailed] = useState<string | null>(null);
+  const refreshUrl = useEvidenceUrlRefresh();
+  // A signed URL that stops loading has most likely expired: ask for a fresh one
+  // (the store re-signs each object at most once a minute, so this cannot loop).
+  // The new URL arrives as a new `uri`, which is tried again automatically.
+  const onError = () => {
+    setFailed(uri ?? null);
+    if (uri) void refreshUrl(uri);
+  };
   // Server evidence that could not be signed (no access, offline) or failed to load:
   // say so instead of showing a broken image. Never fetched through a public URL.
   if (uri && (isStorageReference(uri) || failed === uri)) {
@@ -38,7 +47,7 @@ export function EvidencePhoto({
     );
   }
   if (uri && !isDemoPhotoUri(uri) && !isLegacyPlaceholderUri(uri)) {
-    return <Image source={{ uri }} style={style as StyleProp<ImageStyle>} onError={() => setFailed(uri)} />;
+    return <Image source={{ uri }} style={style as StyleProp<ImageStyle>} onError={onError} />;
   }
   const slot = uri ? demoPhotoSlot(uri) : undefined;
   return (

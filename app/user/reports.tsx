@@ -8,11 +8,11 @@ import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { ReportCard } from "../../src/components/ReportCard";
-import { useApp } from "../../src/context/AppContext";
-import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
-import { filterMyReports, initialReportsTab, myReportsEmptyState } from "../../src/presentation/citizenViews";
+import { initialReportsTab, myReportsEmptyState } from "../../src/presentation/citizenViews";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -23,7 +23,7 @@ const TABS: { key: "all" | UserReportStatus; label: string }[] = [
 
 export default function MyReports() {
   const router = useRouter();
-  const { userReports } = useApp();
+  const { citizenSummary } = useApp();
   const refreshControl = useCoreRefreshControl();
   const { startNewReport } = useReportDraft();
   // Optional ?tab= (Home "Active Reports" opens Under Review); the Reports tab itself opens "All".
@@ -31,8 +31,10 @@ export default function MyReports() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>(() => initialReportsTab(tabParam));
   useEffect(() => setTab(initialReportsTab(tabParam)), [tabParam]);
 
-  const filtered = filterMyReports(userReports, tab);
-  const empty = myReportsEmptyState(tab, userReports.length, filtered.length);
+  // Filtered on the server before paging (BACKEND), so a tab is never wrongly empty.
+  const list = usePagedList({ kind: "citizenReports", tab });
+  const filtered = list.items;
+  const empty = listSettledEmpty(list) ? myReportsEmptyState(tab, citizenSummary.total, 0) : null;
   const startReport = () => {
     startNewReport();
     router.push("/user/report/photos");
@@ -57,6 +59,8 @@ export default function MyReports() {
         {filtered.map((r) => (
           <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
         ))}
+
+        <ListFooter list={list} />
 
         {empty && (
           <View style={styles.emptyState}>

@@ -34,7 +34,10 @@ export type DomainErrorCode =
   | "NETWORK_ERROR"
   | "BACKEND_ERROR"
   | "BACKEND_NOT_CONFIGURED"
-  | "NOT_AVAILABLE";
+  | "NOT_AVAILABLE"
+  // The connection dropped and the server state could not be re-checked.
+  | "RESULT_UNKNOWN"
+  | "INVALID_DATA";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 

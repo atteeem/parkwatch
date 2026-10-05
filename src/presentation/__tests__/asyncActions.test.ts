@@ -57,7 +57,7 @@ describe("server error messages", () => {
     ["FORBIDDEN", /access/i],
     ["UPLOAD_FAILED", /photo/i],
     ["EVIDENCE_NOT_UPLOADED", /photo/i],
-    ["NO_JURISDICTION", /area/i],
+    ["NO_JURISDICTION", /receiving reports here/i],
     ["CASE_TAKEN", /another officer/i],
     ["BACKEND_ERROR", /try again/i],
   ])("%s has a friendly message", (code, re) => {

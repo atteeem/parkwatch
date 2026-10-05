@@ -49,12 +49,22 @@ describe("the server owns the core workflow", () => {
     expect(hits).toEqual([]);
   });
 
-  it("RPC wrappers never send trusted values", () => {
-    const params = [...ops.matchAll(/\b(p_[a-z_]+)\s*:/g)].map((m) => m[1]);
+  it("mutating RPC wrappers never send trusted values", () => {
+    // Mutations: from submitReport up to the read section (reads only filter/page; they change nothing).
+    const mutations = ops.slice(ops.indexOf("async submitReport("), ops.indexOf("getCitizenSummary: ("));
+    const params = [...mutations.matchAll(/\b(p_[a-z_]+)\s*:/g)].map((m) => m[1]);
     expect(params.length).toBeGreaterThan(10);
     for (const forbidden of ["p_citizen_id", "p_status", "p_report_status", "p_case_status", "p_public_report_number", "p_received_at", "p_reward_amount_cents", "p_amount_cents", "p_parking_charge_amount_cents", "p_officer_id", "p_assigned_officer_id", "p_jurisdiction_id", "p_priority"]) {
       expect(params).not.toContain(forbidden);
     }
+  });
+
+  it("read wrappers only send filters, cursors and page sizes", () => {
+    const reads = ops.slice(ops.indexOf("getCitizenSummary: ("));
+    const params = new Set([...reads.matchAll(/\b(p_[a-z_]+)\s*:/g)].map((m) => m[1]));
+    const allowed = ["p_since", "p_status", "p_before_ts", "p_before_id", "p_limit", "p_filter", "p_lat", "p_lng", "p_offset", "p_tab", "p_case_id", "p_public_number"];
+    expect([...params].filter((p) => !allowed.includes(p))).toEqual([]);
+    expect(params.size).toBeGreaterThan(8);
   });
 
   it("the server functions take no trusted values either", () => {

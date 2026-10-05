@@ -46,8 +46,16 @@ export const reportEvidencePath = (citizenUid: string, submissionId: string, evi
 
 export const officerEvidencePath = (caseUuid: string, evidenceId: string, ext: string) => `${caseUuid}/${safeSegment(evidenceId)}.${ext}`;
 
+/** Storage answers 401 (or a JWT message) when the session expired: that is a sign-in problem, not a bad photo. */
+const isAuthFailure = (e: RawServerError | null | undefined) =>
+  e?.status === 401 || String(e?.statusCode ?? "") === "401" || /jwt|token.*(expired|invalid)|invalid.*token|unauthori[sz]ed/i.test(String(e?.message ?? "")) && !/row-level security/i.test(String(e?.message ?? ""));
+
 const uploadError = (e: RawServerError | null | undefined): DomainError =>
-  isNetworkFailure(e) ? { code: "NETWORK_ERROR", message: "NETWORK_ERROR" } : { code: "UPLOAD_FAILED", message: "UPLOAD_FAILED" };
+  isNetworkFailure(e)
+    ? { code: "NETWORK_ERROR", message: "NETWORK_ERROR" }
+    : isAuthFailure(e)
+      ? { code: "UNAUTHENTICATED", message: "UNAUTHENTICATED" }
+      : { code: "UPLOAD_FAILED", message: "UPLOAD_FAILED" };
 
 export type EvidenceStorage = {
   /** Upload one captured photo. `created` is false when the object already existed (a retry). */

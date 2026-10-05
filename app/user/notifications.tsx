@@ -7,8 +7,8 @@ import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
-import { useApp } from "../../src/context/AppContext";
-import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { NotifKind } from "../../src/data/mockNotifications";
 import { citizenNotificationTarget } from "../../src/navigation/notificationTargets";
 
@@ -26,8 +26,10 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 
 export default function UserNotifications() {
   const router = useRouter();
-  const { userNotifications, markUserNotificationsRead, getCitizenReport } = useApp();
+  const { markUserNotificationsRead, getCitizenReport } = useApp();
   const refreshControl = useCoreRefreshControl();
+  const list = usePagedList({ kind: "notifications", role: "CITIZEN" });
+  const userNotifications = list.items;
   useEffect(() => {
     const t = setTimeout(markUserNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -47,7 +49,7 @@ export default function UserNotifications() {
         <Text style={typography.screenSubtitle}>Stay updated with your reports and earnings</Text>
       </View>
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {userNotifications.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
+        {listSettledEmpty(list) && <Text style={styles.empty}>No notifications yet.</Text>}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>
             <Text style={styles.groupLabel}>{group}</Text>
@@ -85,6 +87,7 @@ export default function UserNotifications() {
               })}
           </View>
         ))}
+        <ListFooter list={list} />
       </ScrollView>
       <UserBottomNav />
     </SafeAreaView>

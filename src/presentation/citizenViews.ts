@@ -174,6 +174,17 @@ export function startOfWeek(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
 }
 
+/** The same stats from counts (server-side counts in backend mode). */
+export function citizenStatsFromCounts(c: { total: number; verified: number; rejected: number }): CitizenReportStats {
+  const resolved = c.verified + c.rejected;
+  return {
+    submitted: c.total,
+    verified: c.verified,
+    rejected: c.rejected,
+    acceptanceRateText: resolved > 0 ? `${Math.round((c.verified / resolved) * 100)}%` : "–",
+  };
+}
+
 export type CitizenReportStats = {
   submitted: number;
   verified: number;

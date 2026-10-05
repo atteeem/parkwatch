@@ -22,8 +22,8 @@ import { useGuardedAction } from "../../../src/presentation/useGuardedAction";
 // overview (CIT-08) is a separate screen.
 export default function ReviewSubmit() {
   const router = useRouter();
-  const { draft, submittedReportId, markSubmitted } = useReportDraft();
-  const { submitReport, citizenProfile } = useApp();
+  const { draft, submittedReportId, markSubmitted, uploadedPaths, recordUpload, resetUploads } = useReportDraft();
+  const { submitReport, citizenProfile, dataSource } = useApp();
   const guard = useGuardedAction();
   // "uploading"/"submitting" only appear for the server; the local store answers at once.
   const [phase, setPhase] = useState<"idle" | "uploading" | "submitting" | "failed">("idle");
@@ -51,7 +51,9 @@ export default function ReviewSubmit() {
     setError(null);
     setPhase("submitting");
     // Same draft id on every retry: the server returns the same report instead of a duplicate.
-    guard.run(() => submitReport(draft, setPhase), {
+    // Finished uploads (also from before an app restart) are skipped; the server
+    // recognises the same draft id and never creates a second report.
+    guard.run(() => submitReport(draft, { onProgress: setPhase, uploaded: uploadedPaths, onUploaded: recordUpload, onUploadsInvalid: resetUploads }), {
       onSuccess: ({ reportId }) => {
         setPhase("idle");
         markSubmitted(reportId);
@@ -151,6 +153,7 @@ export default function ReviewSubmit() {
       </ScrollView>
       <View style={styles.bottomBar}>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error && dataSource === "BACKEND" ? <Text style={styles.savedHint}>Your report is saved on this phone until it has been sent.</Text> : null}
         <GreenButton
           label={phase === "uploading" ? "Uploading photos…" : phase === "submitting" ? "Submitting…" : phase === "failed" ? "Try Again" : "Submit Report"}
           loading={submitting || guard.busy}
@@ -179,6 +182,7 @@ const styles = StyleSheet.create({
   moreLabel: { fontWeight: "800", color: colors.textSecondary },
   rewardValue: { fontSize: 24, fontWeight: "800", color: colors.greenDark, marginTop: 4 },
   rewardHint: { fontSize: 12, color: "#0B7A38", marginTop: 10, lineHeight: 16 },
+  savedHint: { color: colors.textSecondary, fontSize: 12, marginBottom: 8, textAlign: "center" },
   errorText: { color: "#B3261E", fontSize: 12.5, fontWeight: "600", marginBottom: 8, textAlign: "center" },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, backgroundColor: colors.background },
 });

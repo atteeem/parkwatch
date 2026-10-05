@@ -51,13 +51,40 @@ afterAll(() => {
 
 type Session = { client: SupabaseClient; userId: string; store: CoreBackendStore };
 
-async function signIn(email: string, readFile: ReadLocalFile = okFile, url = URL_): Promise<Session> {
-  const client = createClient(URL_, "mock-anon", { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: nodeFetch } });
+/**
+ * A fetch that lets the request reach the server but LOSES the response for
+ * the next call of the named server function (the server has committed; the
+ * client sees a network failure). Models a timeout after commit.
+ */
+function lossyFetch() {
+  const drop = new Set<string>();
+  const f = async (input: unknown, init?: Parameters<typeof nodeFetch>[1]) => {
+    const url = typeof input === "string" ? input : String((input as { url?: string }).url ?? input);
+    const fn = /\/rest\/v1\/rpc\/([a-z_]+)/.exec(url)?.[1];
+    const res = await nodeFetch(input, init);
+    if (fn && drop.has(fn)) {
+      drop.delete(fn);
+      throw new TypeError("fetch failed");
+    }
+    return res;
+  };
+  return { fetch: f as unknown as typeof fetch, dropNext: (fn: string) => drop.add(fn) };
+}
+
+async function signIn(email: string, readFile: ReadLocalFile = okFile, url = URL_, lossy?: ReturnType<typeof lossyFetch>): Promise<Session> {
+  const client = createClient(URL_, "mock-anon", { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: lossy?.fetch ?? nodeFetch } });
   const { data, error } = await client.auth.signInWithPassword({ email, password: "mock-password-1" });
   if (error || !data.user) throw new Error(`sign-in failed for ${email}`);
   // `url` lets a test point the data client at a dead port (network failure) with a valid session.
   const dataClient = url === URL_ ? client : createClient(url, "mock-anon", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: nodeFetch, headers: { Authorization: `Bearer ${data.session!.access_token}` } } });
-  const store = createCoreBackendStore({ userId: data.user.id, ops: createCoreOperations(dataClient), storage: createEvidenceStorage(dataClient, readFile), minFocusRefreshMs: 0 });
+  const role = email.includes("officer") ? "officer" : "citizen";
+  const store = createCoreBackendStore({ userId: data.user.id, role, ops: createCoreOperations(dataClient), storage: createEvidenceStorage(dataClient, readFile), minFocusRefreshMs: 0, pageSize: 10 });
+  // The lists the screens would show; every refresh reloads their first page.
+  if (role === "officer") {
+    store.ensureList({ kind: "queue", filter: "all" });
+    store.ensureList({ kind: "cases", tab: "all" });
+  } else store.ensureList({ kind: "reports", status: null });
+  store.ensureList({ kind: "notifications" });
   return { client, userId: data.user.id, store };
 }
 
@@ -103,7 +130,7 @@ describe("core workflow against the mock backend (real SQL, real supabase-js)", 
 
   it("submit: uploads privately, then the server creates the report, case, pending reward and notification", async () => {
     const phases: SubmitProgress[] = [];
-    const r = unwrap(await citizen.store.submitReport(draft("draft-int-1"), (p) => phases.push(p)));
+    const r = unwrap(await citizen.store.submitReport(draft("draft-int-1"), { onProgress: (p) => phases.push(p) }));
     expect(phases).toEqual(["uploading", "submitting"]);
     expect(r.created).toBe(true);
     expect(r.reportId).toMatch(/^\d+$/);
@@ -266,5 +293,131 @@ describe("core workflow against the mock backend (real SQL, real supabase-js)", 
     expect(r).toMatchObject({ ok: false, error: { code: "NETWORK_ERROR" } });
     expect(offline.store.getStatus()).toMatchObject({ phase: "error", error: { code: "NETWORK_ERROR" } });
     expect(offline.store.getState()).toBeNull();
+  });
+});
+
+describe("T8.4 hardening against the mock backend (real SQL)", () => {
+  let citizen: Session;
+  let officer: Session;
+  beforeAll(async () => {
+    citizen = await signIn("citizen@example.test");
+    officer = await signIn("officer@example.test");
+  }, 30_000);
+  const summaryTotal = async (s: Session) => {
+    unwrap(await s.store.refresh());
+    const sum = s.store.getSummary();
+    return sum?.kind === "citizen" ? sum.row.total : -1;
+  };
+  const waitIdle = async (s: Session, spec: Parameters<CoreBackendStore["getList"]>[0]) => {
+    for (let i = 0; i < 100 && s.store.getList(spec).loading; i++) await new Promise((r) => setTimeout(r, 20));
+  };
+
+  it("submit: the server commits but the response is lost; the retry recovers the SAME report (no duplicate)", async () => {
+    const lossy = lossyFetch();
+    const c = await signIn("citizen2@example.test", okFile, URL_, lossy);
+    const before = await summaryTotal(c);
+    lossy.dropNext("submit_report");
+    const first = await c.store.submitReport(draft("draft-lost-1"));
+    expect(first).toMatchObject({ ok: false, error: { code: "NETWORK_ERROR" } });
+    const retry = unwrap(await c.store.submitReport(draft("draft-lost-1")));
+    expect(retry.created).toBe(false);
+    expect(await summaryTotal(c)).toBe(before + 1);
+    const ledger = c.store.getState()!.ledger.filter((l) => l.reportId === retry.reportId);
+    expect(ledger.map((l) => l.type)).toEqual(["REWARD_PENDING"]);
+  });
+
+  it("app restart mid-upload: the new app instance skips finished uploads and submits the same draft once", async () => {
+    let reads = 0;
+    let failAt = 2;
+    const reader: ReadLocalFile = async () => {
+      reads++;
+      if (reads === failAt) throw new Error("connection lost");
+      return JPEG;
+    };
+    const first = await signIn("citizen2@example.test", reader);
+    const uploaded: string[] = [];
+    expect((await first.store.submitReport(draft("draft-restart-1"), { onUploaded: (p) => uploaded.push(p) })).ok).toBe(false);
+    expect(uploaded).toHaveLength(1);
+    first.store.dispose(); // the app is closed; the draft + progress were persisted
+    reads = 0;
+    failAt = -1;
+    const second = await signIn("citizen2@example.test", reader);
+    const r = unwrap(await second.store.submitReport(draft("draft-restart-1"), { uploaded }));
+    expect(r.created).toBe(true);
+    expect(reads).toBe(2); // only the two photos that had not been uploaded
+  });
+
+  it("officer accept: lost response after commit is reconciled into success", async () => {
+    const { reportId } = unwrap(await citizen.store.submitReport(draft("draft-lost-accept")));
+    const lossy = lossyFetch();
+    const o = await signIn("officer@example.test", okFile, URL_, lossy);
+    unwrap(await o.store.refresh());
+    const c = caseOf(o, reportId);
+    lossy.dropNext("accept_case");
+    unwrap(await o.store.acceptCase(c.id));
+    expect(caseOf(o, reportId)).toMatchObject({ status: "EN_ROUTE", assignedOfficerId: o.userId });
+  });
+
+  it("complete_case: lost response after commit -> success, and notifications exist exactly once", async () => {
+    const { reportId } = unwrap(await citizen.store.submitReport(draft("draft-lost-complete")));
+    const lossy = lossyFetch();
+    const o = await signIn("officer@example.test", okFile, URL_, lossy);
+    unwrap(await o.store.refresh());
+    const c = caseOf(o, reportId);
+    unwrap(await o.store.acceptCase(c.id));
+    lossy.dropNext("complete_case");
+    expect(await o.store.completeCase(c.id, "VEHICLE_MOVED")).toEqual({ ok: true, value: { changed: true } });
+    // Pressing again is harmless (idempotent) and a different outcome is refused.
+    expect(unwrap(await o.store.completeCase(c.id, "VEHICLE_MOVED"))).toEqual({ changed: false });
+    expect(await o.store.completeCase(c.id, "REPORT_REJECTED")).toMatchObject({ ok: false, error: { code: "ALREADY_COMPLETED" } });
+    unwrap(await o.store.refresh());
+    const closed = o.store.getState()!.notifications.filter((n) => n.caseId === c.id && n.type === "CASE_CLOSED_WITHOUT_CHARGE");
+    expect(closed).toHaveLength(1);
+  });
+
+  it("pagination: every report exactly once across pages; a status tab finds old rows on its first page", async () => {
+    const c = await signIn("citizen2@example.test");
+    for (let i = 0; i < 12; i++) unwrap(await c.store.submitReport(draft(`draft-page-${i}`)));
+    const all = { kind: "reports", status: null } as const;
+    unwrap(await c.store.refresh());
+    while (c.store.getList(all).hasMore) {
+      c.store.loadMore(all);
+      await new Promise((r) => setTimeout(r, 0));
+      await waitIdle(c, all);
+    }
+    const ids = c.store.getList(all).ids;
+    const total = (c.store.getSummary()?.row as { total: number }).total;
+    expect(total).toBeGreaterThan(10); // more than one page (page size 10)
+    expect(ids.length).toBe(total);
+    expect(new Set(ids).size).toBe(ids.length);
+    // The OLDEST report gets rejected by an officer (found through the officer's queue pages).
+    const oldest = ids[ids.length - 1];
+    const q = { kind: "queue", filter: "all" } as const;
+    unwrap(await officer.store.refresh());
+    while (!officer.store.getState()!.cases.some((x) => x.reportId === oldest) && officer.store.getList(q).hasMore) {
+      officer.store.loadMore(q);
+      await new Promise((r) => setTimeout(r, 0));
+      await waitIdle(officer, q);
+    }
+    const target = officer.store.getState()!.cases.find((x) => x.reportId === oldest)!;
+    unwrap(await officer.store.completeCase(target.id, "REPORT_REJECTED"));
+    // The citizen's Rejected tab shows it on its FIRST page (filtered on the server before paging).
+    const rejected = { kind: "reports", status: "REJECTED" } as const;
+    c.store.ensureList(rejected);
+    unwrap(await c.store.refresh());
+    expect(c.store.getList(rejected).ids).toEqual([oldest]);
+  });
+
+  it("an expired/revoked session: the server refuses, the store asks the auth layer to re-check", async () => {
+    const onUnauthenticated = jest.fn();
+    const client = createClient(URL_, "mock-anon", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: nodeFetch } });
+    const { data } = await client.auth.signInWithPassword({ email: "citizen@example.test", password: "mock-password-1" });
+    const store = createCoreBackendStore({ userId: data.user!.id, role: "citizen", ops: createCoreOperations(client), storage: createEvidenceStorage(client, okFile), onUnauthenticated });
+    unwrap(await store.refresh());
+    // Server-side logout invalidates the access token (models an expired session).
+    await nodeFetch(`${URL_}/auth/v1/logout`, { method: "POST", headers: { authorization: `Bearer ${data.session!.access_token}` } });
+    const r = await store.submitReport(draft("draft-expired"));
+    expect(r.ok).toBe(false);
+    expect(onUnauthenticated).toHaveBeenCalled();
   });
 });

@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
@@ -23,7 +23,8 @@ const MAP_FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Ass
 export default function OfficerLiveMap() {
   const router = useRouter();
   const { caseId } = useLocalSearchParams<{ caseId?: string }>();
-  const { officerCases, officerId, getCase } = useApp();
+  const { getCase } = useApp();
+  useCaseDetailLoad(caseId);
   const focused = caseId ? getCase(caseId) : undefined;
   const focusPoint = focused?.coordinates;
   // Foreground only, while this screen is focused. No background tracking.
@@ -33,7 +34,10 @@ export default function OfficerLiveMap() {
   const [mapFilter, setMapFilter] = useState<QueueFilter>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const officerFix = location.permission === "granted" ? location.fix : undefined;
-  const visible = filterQueue(withDistances(officerCases, officerFix), mapFilter, officerId);
+  useQueuePosition(officerFix);
+  // Markers: the first (server-filtered, nearest-first) pages of the queue for this filter.
+  const mapList = usePagedList({ kind: "queue", filter: mapFilter });
+  const visible = withDistances(mapList.items, officerFix);
   const nearestResult = nearestNewCase(visible, officerFix);
   // The sheet shows the focused case if one was requested, else the nearest new one.
   const sheet = focused

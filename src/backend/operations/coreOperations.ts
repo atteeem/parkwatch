@@ -54,10 +54,64 @@ export type CoreOperations = {
   /** The charge amount is NOT a parameter: the server takes it from its own settings. */
   completeCase(caseUuid: string, code: EnforcementOutcomeCode, notes?: string): Promise<Result<{ changed: boolean; creditedCents: number }>>;
   markMyNotificationsRead(): Promise<Result<{ updated: number }>>;
-  getSnapshot(): Promise<Result<CoreSnapshotRows>>;
+
+  // Reads (T8.4): paginated and filtered on the server; all RLS-limited.
+  getCitizenSummary(since: string | null): Promise<Result<CitizenSummaryRow>>;
+  getOfficerSummary(since: string | null): Promise<Result<OfficerSummaryRow>>;
+  getMyLedger(): Promise<Result<CoreSnapshotRows["ledger"]>>;
+  pageMyReports(status: ReportStatusFilter, cursor: KeysetCursor | null, limit: number): Promise<Result<PageBundle>>;
+  pageMyNotifications(cursor: KeysetCursor | null, limit: number): Promise<Result<PageBundle>>;
+  pageOfficerQueue(filter: QueueFilterKey, position: { lat: number; lng: number } | null, offset: number, limit: number): Promise<Result<PageBundle>>;
+  pageMyCases(tab: CasesTabKey, cursor: KeysetCursor | null, limit: number): Promise<Result<PageBundle>>;
+  getCaseDetail(caseUuid: string): Promise<Result<Partial<CoreSnapshotRows>>>;
+  getMyReport(publicNumber: number): Promise<Result<Partial<CoreSnapshotRows>>>;
+};
+
+export type KeysetCursor = { ts: string; id: string };
+/** One page: the rows to merge, the ordered ids of this page, and where the next page starts. */
+export type PageBundle = Partial<CoreSnapshotRows> & { ids: string[]; next_cursor?: KeysetCursor | null; next_offset?: number | null };
+export type ReportStatusFilter = "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | null;
+export type QueueFilterKey = "all" | "new" | "high" | "assigned";
+export type CasesTabKey = "all" | "completed" | "issued" | "rejected";
+export type CitizenSummaryRow = {
+  total: number;
+  under_review: number;
+  verified: number;
+  rejected: number;
+  since_total: number;
+  since_verified: number;
+  since_rejected: number;
+  unread_notifications: number;
+};
+export type OfficerSummaryRow = {
+  open: number;
+  new: number;
+  high_new: number;
+  high_open: number;
+  assigned_to_me: number;
+  mine_total: number;
+  mine_completed: number;
+  mine_issued: number;
+  mine_rejected: number;
+  since_completed: number;
+  since_issued: number;
+  since_rejected: number;
+  unread_notifications: number;
 };
 
 const n = <T>(v: T | undefined): T | null => (v === undefined ? null : v);
+
+async function object<T>(p: Promise<Result<T>>): Promise<Result<T>> {
+  const r = await p;
+  if (!r.ok) return r;
+  return r.value && typeof r.value === "object" ? r : fail("BACKEND_ERROR", "BACKEND_ERROR");
+}
+
+async function page(p: Promise<Result<unknown>>): Promise<Result<PageBundle>> {
+  const r = await object(p as Promise<Result<PageBundle>>);
+  if (!r.ok) return r;
+  return ok({ ...r.value, ids: Array.isArray(r.value.ids) ? r.value.ids.map(String) : [] });
+}
 
 export function createCoreOperations(client: SupabaseClient): CoreOperations {
   async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<Result<T>> {
@@ -142,11 +196,25 @@ export function createCoreOperations(client: SupabaseClient): CoreOperations {
       const r = await rpc<{ updated?: number }>("mark_my_notifications_read");
       return r.ok ? ok({ updated: Number(r.value?.updated ?? 0) }) : r;
     },
-    async getSnapshot() {
-      const r = await rpc<CoreSnapshotRows>("get_core_snapshot");
-      if (!r.ok) return r;
-      if (!r.value || typeof r.value !== "object") return fail("BACKEND_ERROR", "BACKEND_ERROR");
-      return r;
+    getCitizenSummary: (since) => object(rpc<CitizenSummaryRow>("get_citizen_summary", { p_since: since })),
+    getOfficerSummary: (since) => object(rpc<OfficerSummaryRow>("get_officer_summary", { p_since: since })),
+    async getMyLedger() {
+      const r = await rpc<CoreSnapshotRows["ledger"]>("get_my_ledger");
+      return r.ok ? ok(Array.isArray(r.value) ? r.value : []) : r;
     },
+    pageMyReports: (status, cursor, limit) =>
+      page(rpc("page_my_reports", { p_status: status, p_before_ts: cursor?.ts ?? null, p_before_id: cursor?.id ?? null, p_limit: limit })),
+    pageMyNotifications: (cursor, limit) =>
+      page(rpc("page_my_notifications", { p_before_ts: cursor?.ts ?? null, p_before_id: cursor?.id ?? null, p_limit: limit })),
+    pageOfficerQueue: (filter, position, offset, limit) =>
+      page(rpc("page_officer_queue", { p_filter: filter, p_lat: position?.lat ?? null, p_lng: position?.lng ?? null, p_offset: offset, p_limit: limit })),
+    pageMyCases: (tab, cursor, limit) =>
+      page(rpc("page_my_cases", { p_tab: tab, p_before_ts: cursor?.ts ?? null, p_before_id: cursor?.id ?? null, p_limit: limit })),
+    async getCaseDetail(caseUuid) {
+      if (!isUuid(caseUuid)) return ok({});
+      return object(rpc<Partial<CoreSnapshotRows>>("get_case_detail", { p_case_id: caseUuid }));
+    },
+    getMyReport: (publicNumber) =>
+      Number.isSafeInteger(publicNumber) && publicNumber > 0 ? object(rpc<Partial<CoreSnapshotRows>>("get_my_report", { p_public_number: publicNumber })) : Promise.resolve(ok({})),
   };
 }

@@ -14,18 +14,16 @@ import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { SignOutRow } from "../../src/components/SignOutRow";
 import { Avatar } from "../../src/components/Avatar";
-import { casesStats, myCases } from "../../src/presentation/officerViews";
 
 export default function OfficerProfile() {
   const router = useRouter();
   const me = displayIdentity(useAuth().state, "officer");
   // Shell profile: real counts from this officer's cases only (no gamification,
   // no response-time stats; those need server timestamps).
-  const { officerCases, officerId } = useApp();
-  const mine = myCases(officerCases, officerId);
-  const all = casesStats(mine);
-  const today = new Date().toDateString();
-  const todays = casesStats(mine.filter((c) => c.completedAt && new Date(c.completedAt).toDateString() === today));
+  const { officerSummary: o } = useApp();
+  // Server counts in backend mode (every case, not a loaded page).
+  const all = { total: o.mineTotal, completed: o.mineCompleted, issued: o.mineIssued, rejected: o.mineRejected };
+  const todays = { completed: o.todayCompleted, issued: o.todayIssued, rejected: o.todayRejected };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>

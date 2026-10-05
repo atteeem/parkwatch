@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -10,11 +10,12 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
-import { citizenReportStats, HOME_REPORT_SHORTCUTS, startOfWeek } from "../../src/presentation/citizenViews";
+import { HOME_REPORT_SHORTCUTS } from "../../src/presentation/citizenViews";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
@@ -23,15 +24,19 @@ import { violationLabel } from "../../src/data/types";
 
 export default function UserHome() {
   const router = useRouter();
-  const { userReports, getEarnings, userNotifications } = useApp();
+  const { getEarnings, citizenSummary } = useApp();
   const refreshControl = useCoreRefreshControl();
-  const unread = userNotifications.filter((n) => n.unread).length;
+  // Counts come from the server in backend mode (all reports, not one loaded page).
+  const unread = citizenSummary.unread;
   const me = displayIdentity(useAuth().state, "citizen");
-  const { startNewReport } = useReportDraft();
+  const { startNewReport, unsentDraft, resumeDraft, discardDraft } = useReportDraft();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const recent = usePagedList({ kind: "citizenReports", tab: "all" });
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
-  const latest = userReports.slice(0, 3);
-  const week = citizenReportStats(userReports, startOfWeek(new Date()));
+  const latest = recent.items.slice(0, 3);
+  const week = { submitted: citizenSummary.weekSubmitted, verified: citizenSummary.weekVerified };
   const weekEarned = getEarnings("THIS_WEEK").totalText.replace(/\.00$/, "");
 
   return (
@@ -70,6 +75,26 @@ export default function UserHome() {
           </Pressable>
         </ScrollView>
 
+        {unsentDraft && (
+          <View style={styles.section}>
+            <View style={styles.unsentCard} accessibilityRole="summary">
+              <Ionicons name="document-text-outline" size={20} color={colors.amber} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.unsentTitle}>Unfinished report</Text>
+                <Text style={styles.unsentBody}>This report has not been sent yet. It is saved on this phone.</Text>
+                <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+                  <Pressable accessibilityRole="button" onPress={() => router.push(resumeDraft())}>
+                    <Text style={styles.unsentAction}>Continue unfinished report</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => setConfirmDiscard(true)}>
+                    <Text style={[styles.unsentAction, { color: colors.red }]}>Discard</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Pressable
             onPress={() => {
@@ -103,7 +128,7 @@ export default function UserHome() {
             <LiveMap
               style={styles.mapPreview}
               interactive={false}
-              markers={citizenReportMarkers(userReports, "all")}
+              markers={citizenReportMarkers(recent.items, "all")}
               userFix={location.permission === "granted" ? location.fix : undefined}
               following={false}
             />
@@ -148,12 +173,32 @@ export default function UserHome() {
           </View>
         </View>
       </ScrollView>
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard unfinished report?"
+        message="The photos and details of this unsent report will be deleted from this phone. This cannot be undone."
+        confirmLabel="Discard"
+        destructive
+        busy={discarding}
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          setDiscarding(true);
+          void discardDraft().finally(() => {
+            setDiscarding(false);
+            setConfirmDiscard(false);
+          });
+        }}
+      />
       <UserBottomNav />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  unsentCard: { flexDirection: "row", backgroundColor: colors.amberLight, borderRadius: radius.card, padding: 14 },
+  unsentTitle: { fontWeight: "800", fontSize: 14, color: colors.textPrimary },
+  unsentBody: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
+  unsentAction: { fontWeight: "800", fontSize: 13, color: colors.greenDark },
   bellBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center", marginTop: 4 },
   bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: colors.green, borderRadius: 8, minWidth: 16, height: 16, paddingHorizontal: 3, alignItems: "center", justifyContent: "center" },
   bellBadgeLabel: { fontSize: 9.5, fontWeight: "800", color: "#06210F" },

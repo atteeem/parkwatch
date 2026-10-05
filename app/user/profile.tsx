@@ -14,13 +14,14 @@ import { useApp } from "../../src/context/AppContext";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { SignOutRow } from "../../src/components/SignOutRow";
-import { citizenReportStats } from "../../src/presentation/citizenViews";
+import { citizenStatsFromCounts } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
 
 export default function UserProfile() {
   const router = useRouter();
-  const { walletAvailable, userReports, getEarnings } = useApp();
-  const stats = citizenReportStats(userReports);
+  const { walletAvailable, citizenSummary, getEarnings } = useApp();
+  // Server counts in backend mode (every report, not a loaded page).
+  const stats = citizenStatsFromCounts(citizenSummary);
   const me = displayIdentity(useAuth().state, "citizen");
 
   return (

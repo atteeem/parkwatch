@@ -8,14 +8,12 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
-import { useApp } from "../../src/context/AppContext";
-import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { usePagedList, useApp, useQueuePosition } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import {
-  filterQueue,
   queueEmptyMessage,
   QueueFilter,
-  queueSummary,
   sortQueue,
   withDistances,
 } from "../../src/presentation/officerViews";
@@ -24,18 +22,19 @@ const FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Assigne
 
 export default function ReportQueue() {
   const router = useRouter();
-  const { officerCases, officerId } = useApp();
+  const { officerSummary } = useApp();
   const refreshControl = useCoreRefreshControl();
   const [filter, setFilter] = useState<QueueFilter>("All");
   // Never prompts; distances only when permission was already granted.
   const location = useForegroundLocation();
   const officerFix = location.permission === "granted" ? location.fix : undefined;
 
-  const summary = queueSummary(officerCases, officerId);
-  const withDist = withDistances(officerCases, officerFix);
-  const totalOpen = filterQueue(withDist, "All", officerId).length;
-  const shown = sortQueue(filterQueue(withDist, filter, officerId));
-  const empty = queueEmptyMessage(filter, totalOpen, shown.length);
+  useQueuePosition(officerFix);
+  // Filtered (and nearest-first ordered) on the server before paging; counts from the server.
+  const list = usePagedList({ kind: "queue", filter });
+  const summary = { newCount: officerSummary.newCount, highPriorityCount: officerSummary.highPriorityNew, assignedToMeCount: officerSummary.assignedToMe };
+  const shown = sortQueue(withDistances(list.items, officerFix));
+  const empty = listSettledEmpty(list) ? queueEmptyMessage(filter, officerSummary.open, 0) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -94,6 +93,7 @@ export default function ReportQueue() {
             onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
           />
         ))}
+        <ListFooter list={list} />
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>
