@@ -46,11 +46,14 @@ npm run typecheck
 - **Rewards and withdrawals** — an append-only local ledger; no real payouts.
 - **Parking sessions** — simulated on the phone at a demo rate; no parking operator.
 
-## Backend (foundation only)
+## Backend and accounts
 
-A Supabase schema, Row Level Security, typed mappers and repositories exist under
-`supabase/` and `src/backend/`, but **the app does not use them yet** and runs with no
-backend configured. See [docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md).
+Without Supabase settings the app runs as the **local demo** (no accounts). With
+`EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` set it uses **real Supabase
+accounts**: citizens sign up / sign in, and officer access comes only from server-side
+profile + organization membership. Reports, cases and rewards still use the local store
+in both modes (cutover is the next milestone). See
+[docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md) and [docs/AUTH_ARCHITECTURE.md](docs/AUTH_ARCHITECTURE.md).
 
 ## Project structure
 
@@ -65,7 +68,8 @@ src/
   components/         shared UI
   location/, map/     foreground location store, map logic
   navigation/         role guards, navigation helpers
-  backend/            Supabase config, row types, mappers, repositories (not wired yet)
+  auth/               accounts: auth store, trusted role resolution, sign-in/up service
+  backend/            Supabase config, row types, mappers, repositories
 supabase/
   migrations/         SQL schema + RLS (versioned)
   seed.dev.sql        optional, development only
