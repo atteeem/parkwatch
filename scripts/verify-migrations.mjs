@@ -27,6 +27,15 @@ await db.exec(`
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
   grant usage on schema public to anon, authenticated, service_role;
+  create schema storage;
+  create table storage.buckets (id text primary key, name text not null, public boolean not null default false,
+    file_size_limit bigint, allowed_mime_types text[], created_at timestamptz default now());
+  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id),
+    name text not null, owner uuid, created_at timestamptz default now(), metadata jsonb, unique (bucket_id, name));
+  alter table storage.objects enable row level security;
+  grant usage on schema storage to anon, authenticated, service_role;
+  grant select on storage.buckets to authenticated;
+  grant select, insert, update, delete on storage.objects to authenticated;
 `);
 
 const migrations = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
@@ -152,14 +161,14 @@ const reportSql = (citizen, draft) => `insert into public.reports
    'Mannerheimintie 45, Helsinki', 60.1699, 24.9384, 6, now(), now())
   returning id, public_report_number, status, received_at`;
 let reportA;
-await ok("citizen creates their own report (server assigns number, status and receipt time)", async () => {
-  const r = (await as(U.citizenA, () => q(reportSql(U.citizenA, "draft-1")))).rows[0];
+await ok("a report row gets server-assigned number, status and receipt time", async () => {
+  const r = (await q(reportSql(U.citizenA, "draft-1"))).rows[0];
   reportA = r;
   if (r.status !== "UNDER_REVIEW" || Number(r.public_report_number) < 100000 || !r.received_at) throw new Error(JSON.stringify(r));
   return `#${r.public_report_number}`;
 });
-await fails("the same draft cannot be submitted twice", () => as(U.citizenA, () => q(reportSql(U.citizenA, "draft-1"))), /duplicate key/);
-await fails("citizen cannot create a report for someone else", () => as(U.citizenA, () => q(reportSql(U.citizenB, "draft-x"))), /row-level security/);
+await fails("the same draft cannot be submitted twice", () => q(reportSql(U.citizenA, "draft-1")), /duplicate key/);
+await fails("citizens cannot insert reports directly (submit_report only)", () => as(U.citizenA, () => q(reportSql(U.citizenA, "draft-x"))), /permission denied/);
 await fails("citizen cannot set the report status", () =>
   as(U.citizenA, () => q(`insert into public.reports (citizen_id, source_draft_id, jurisdiction_id, violation_type, location_address, observed_at, submitted_at, status)
     values ('${U.citizenA}', 'd2', 'helsinki-demo', 'no-parking', 'X', now(), now(), 'VERIFIED')`)), /permission denied/);
@@ -173,12 +182,12 @@ await expectRows("the owner can see the report", () => as(U.citizenA, () => q(`s
 // --- citizen evidence --------------------------------------------------------
 const evSql = (report, slot, source, path) =>
   `insert into public.report_evidence (report_id, slot, capture_source, storage_path, captured_at) values ('${report}', '${slot}', '${source}', '${path}', now())`;
-await ok("citizen adds a camera photo to their report", () => as(U.citizenA, () => q(evSql(reportA.id, "FRONT", "CAMERA", `citizen/${reportA.id}/front.jpg`))));
-await fails("a library image cannot fill a required angle", () => as(U.citizenA, () => q(evSql(reportA.id, "SIDE", "LIBRARY", `citizen/${reportA.id}/side.jpg`))), /check constraint/);
-await ok("a library image is fine as an attachment", () => as(U.citizenA, () => q(evSql(reportA.id, "ATTACHMENT", "LIBRARY", `citizen/${reportA.id}/extra.jpg`))));
-await fails("a device file:// URI is not a storage path", () => as(U.citizenA, () => q(evSql(reportA.id, "REAR", "CAMERA", "file:///data/rear.jpg"))), /check constraint/);
-await fails("only one photo per required angle", () => as(U.citizenA, () => q(evSql(reportA.id, "FRONT", "CAMERA", `citizen/${reportA.id}/front2.jpg`))), /duplicate key/);
-await fails("citizen cannot add evidence to someone else's report", () => as(U.citizenB, () => q(evSql(reportA.id, "REAR", "CAMERA", `citizen/${reportA.id}/rear.jpg`))), /row-level security/);
+await ok("a camera photo row is attached to the report", () => q(evSql(reportA.id, "FRONT", "CAMERA", `citizen/${reportA.id}/front.jpg`)));
+await fails("a library image cannot fill a required angle", () => q(evSql(reportA.id, "SIDE", "LIBRARY", `citizen/${reportA.id}/side.jpg`)), /check constraint/);
+await ok("a library image is fine as an attachment", () => q(evSql(reportA.id, "ATTACHMENT", "LIBRARY", `citizen/${reportA.id}/extra.jpg`)));
+await fails("a device file:// URI is not a storage path", () => q(evSql(reportA.id, "REAR", "CAMERA", "file:///data/rear.jpg")), /check constraint/);
+await fails("only one photo per required angle", () => q(evSql(reportA.id, "FRONT", "CAMERA", `citizen/${reportA.id}/front2.jpg`)), /duplicate key/);
+await fails("citizens cannot insert evidence rows directly", () => as(U.citizenA, () => q(evSql(reportA.id, "REAR", "CAMERA", `citizen/${reportA.id}/rear.jpg`))), /permission denied/);
 
 // --- enforcement side (server-created) ----------------------------------------
 const caseId = (await q(`insert into public.officer_cases (report_id, jurisdiction_id, status, assigned_officer_id, assigned_at, en_route_at, inspection_started_at)
