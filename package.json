@@ -11,7 +11,8 @@
     "doctor": "npx expo-doctor",
     "test": "jest",
     "verify:migrations": "node scripts/verify-migrations.mjs",
-    "mock:backend": "node scripts/mock-supabase-backend.mjs"
+    "mock:backend": "node scripts/mock-supabase-backend.mjs",
+    "test:cloud-smoke": "node scripts/cloud-smoke.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

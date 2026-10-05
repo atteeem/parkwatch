@@ -110,6 +110,7 @@ function pgError(res, e, signedIn) {
   return send(res, status, { code: code === "42883" ? "PGRST202" : code, message: String(e?.message ?? "error"), details: null, hint: null });
 }
 const IDENT = /^[a-z_][a-z0-9_]{0,62}$/;
+const TABLES = new Set(["reports", "report_evidence", "officer_cases", "inspections", "inspection_checks", "officer_evidence", "enforcement_outcomes", "reward_ledger", "notifications", "audit_events"]);
 const argValue = (v) => (v !== null && typeof v === "object" ? JSON.stringify(v) : v);
 const storageErr = (res, status, error, message) => send(res, status, { statusCode: String(status), error, message });
 
@@ -205,6 +206,26 @@ const server = http.createServer(async (req, res) => {
         )
       ).rows;
       return send(res, 200, rows);
+    }
+
+    // ---- Plain table reads/inserts (as the user: RLS and grants decide). Enough for security checks.
+    const table = /^\/rest\/v1\/([a-z_]+)$/.exec(p)?.[1];
+    if (table && TABLES.has(table) && (req.method === "GET" || req.method === "POST")) {
+      try {
+        if (req.method === "GET") {
+          const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit") ?? 1000), 1000));
+          const rows = (await asUser(me.id, (db) => db.query(`select * from public.${table} limit ${limit}`))).rows;
+          return send(res, 200, rows);
+        }
+        const body = json(raw);
+        const row = Array.isArray(body) ? body[0] : body;
+        const cols = Object.keys(row ?? {});
+        if (!cols.length || !cols.every((c) => IDENT.test(c))) return send(res, 400, { code: "PGRST100", message: "bad columns" });
+        const r = await asUser(me.id, (db) => db.query(`insert into public.${table} (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning *`, cols.map((c) => argValue(row[c]))));
+        return send(res, 201, r.rows);
+      } catch (e) {
+        return pgError(res, e, true);
+      }
     }
 
     // ---- RPC passthrough: the server function runs as the user
