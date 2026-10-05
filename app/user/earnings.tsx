@@ -11,16 +11,8 @@ import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
 import { Avatar } from "../../src/components/Avatar";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
-import { activityDateLabel, EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
-
-const ACTIVITY_ICON = {
-  REWARD_AVAILABLE: "checkmark-circle",
-  REWARD_PENDING: "time",
-  REWARD_CANCELLED: "remove-circle-outline",
-  WITHDRAWAL_REQUESTED: "hourglass-outline",
-  WITHDRAWAL_PAID: "business",
-  OPENING_BALANCE: "wallet-outline",
-} as const;
+import { EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
+import { WalletActivityRow } from "../../src/components/WalletActivityRow";
 
 export default function Earnings() {
   const router = useRouter();
@@ -30,7 +22,6 @@ export default function Earnings() {
   const earnings = getEarnings(period);
   const max = Math.max(...earnings.buckets, 1);
   const eur = (v: number) => formatEuros(Math.round(v * 100));
-  const toneColor = { positive: colors.greenDark, negative: colors.textPrimary, pending: "#B47A00", neutral: colors.textSecondary };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -56,7 +47,7 @@ export default function Earnings() {
               <Text style={styles.solidBtnLabel}>Withdraw</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
             </Pressable>
-            <Pressable style={styles.outlineBtn}>
+            <Pressable style={styles.outlineBtn} onPress={() => router.push("/user/earnings/history")} accessibilityRole="button">
               <Text style={styles.outlineBtnLabel}>Transaction history</Text>
               <Ionicons name="chevron-forward" size={14} color="#fff" />
             </Pressable>
@@ -109,24 +100,15 @@ export default function Earnings() {
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20, marginBottom: 10 }}>
           <Text style={{ fontSize: 17, fontWeight: "800" }}>Recent activity</Text>
-          <Text style={{ color: colors.greenDark, fontWeight: "700" }}>View all</Text>
+          <Pressable onPress={() => router.push("/user/earnings/history")} hitSlop={10} accessibilityRole="link">
+            <Text style={{ color: colors.greenDark, fontWeight: "700" }}>View all</Text>
+          </Pressable>
         </View>
         {walletActivity.length === 0 && (
           <Text style={{ fontSize: 13, color: colors.textSecondary }}>No wallet activity yet.</Text>
         )}
         {walletActivity.slice(0, 5).map((row) => (
-          <View key={row.id} style={styles.activityRow}>
-            <Ionicons name={ACTIVITY_ICON[row.kind]} size={20} color={toneColor[row.tone]} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{row.title}</Text>
-              <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>{row.subtitle}</Text>
-              <Text style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>{activityDateLabel(row)}</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "800", color: toneColor[row.tone] }}>{row.amountText}</Text>
-              <Text style={{ fontSize: 10.5, color: toneColor[row.tone], marginTop: 2 }}>{row.statusText}</Text>
-            </View>
-          </View>
+          <WalletActivityRow key={row.id} row={row} />
         ))}
       </ScrollView>
       <UserBottomNav />

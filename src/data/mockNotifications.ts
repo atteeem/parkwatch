@@ -14,4 +14,6 @@ export type Notification = {
   unread: boolean;
   /** Case this notification is about (officer notifications), for tap-to-open. */
   caseId?: string;
+  /** Report this notification is about, when it has one (citizen tap-to-open). */
+  reportId?: string;
 };

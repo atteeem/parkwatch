@@ -333,6 +333,7 @@ export function toNotificationView(n: DomainNotification, state: ParkWatchState,
     kind,
     unread: n.readAt === undefined,
     ...(n.caseId ? { caseId: n.caseId } : {}),
+    ...(n.reportId ? { reportId: n.reportId } : {}),
     ...notificationCopy(n, state),
   };
 }

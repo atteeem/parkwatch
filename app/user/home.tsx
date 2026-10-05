@@ -12,7 +12,7 @@ import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
 import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
-import { citizenReportStats, startOfWeek } from "../../src/presentation/citizenViews";
+import { citizenReportStats, HOME_REPORT_SHORTCUTS, startOfWeek } from "../../src/presentation/citizenViews";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
@@ -21,7 +21,8 @@ import { violationLabel } from "../../src/data/types";
 
 export default function UserHome() {
   const router = useRouter();
-  const { userReports, getEarnings } = useApp();
+  const { userReports, getEarnings, userNotifications } = useApp();
+  const unread = userNotifications.filter((n) => n.unread).length;
   const { startNewReport } = useReportDraft();
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
@@ -32,19 +33,34 @@ export default function UserHome() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        <View style={styles.headerBlock}>
-          <Text style={typography.screenTitle}>Hello, {DEMO_CITIZEN_ACCOUNT.firstName}!</Text>
-          <Text style={typography.screenSubtitle}>
-            Together we make traffic flow better and safer.
-          </Text>
+        <View style={[styles.headerBlock, { flexDirection: "row", alignItems: "flex-start" }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={typography.screenTitle}>Hello, {DEMO_CITIZEN_ACCOUNT.firstName}!</Text>
+            <Text style={typography.screenSubtitle}>
+              Together we make traffic flow better and safer.
+            </Text>
+          </View>
+          <Pressable
+            style={styles.bellBtn}
+            onPress={() => router.push("/user/notifications")}
+            accessibilityRole="button"
+            accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+          >
+            <Ionicons name="notifications" size={18} color={colors.textPrimary} />
+            {unread > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeLabel}>{unread}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+          <Pressable style={styles.shortcut} onPress={() => router.replace(HOME_REPORT_SHORTCUTS.activeReports)}>
             <Ionicons name="heart-outline" size={16} color={colors.textPrimary} />
             <Text style={styles.shortcutLabel}>Active Reports</Text>
           </Pressable>
-          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+          <Pressable style={styles.shortcut} onPress={() => router.replace(HOME_REPORT_SHORTCUTS.reportHistory)}>
             <Ionicons name="time-outline" size={16} color={colors.textPrimary} />
             <Text style={styles.shortcutLabel}>Report History</Text>
           </Pressable>
@@ -134,6 +150,9 @@ export default function UserHome() {
 }
 
 const styles = StyleSheet.create({
+  bellBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: colors.green, borderRadius: 8, minWidth: 16, height: 16, paddingHorizontal: 3, alignItems: "center", justifyContent: "center" },
+  bellBadgeLabel: { fontSize: 9.5, fontWeight: "800", color: "#06210F" },
   safe: { flex: 1, backgroundColor: colors.background },
   headerBlock: { paddingHorizontal: 20, paddingTop: 4 },
   shortcut: {

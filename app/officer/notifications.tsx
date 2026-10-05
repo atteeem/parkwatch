@@ -9,6 +9,7 @@ import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { useApp } from "../../src/context/AppContext";
 import { NotifKind } from "../../src/data/mockNotifications";
+import { officerNotificationTarget } from "../../src/navigation/notificationTargets";
 
 const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap }> = {
   success: { bg: colors.greenLight, fg: colors.greenDark, icon: "checkmark-circle" },
@@ -35,6 +36,11 @@ export default function OfficerNotifications() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+        {router.canGoBack() && (
+          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back" style={{ marginBottom: 4, alignSelf: "flex-start" }}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+        )}
         <Text style={typography.screenTitle}>Notifications</Text>
         <Text style={typography.screenSubtitle}>Updates about your cases</Text>
       </View>
@@ -47,14 +53,14 @@ export default function OfficerNotifications() {
               .filter((n) => n.group === group)
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
-                // Tap opens the case only if it still exists.
-                const openable = !!n.caseId && !!getCase(n.caseId);
+                // Tap opens the case only if it still exists; otherwise the card is plain information.
+                const target = officerNotificationTarget(n, (id) => !!getCase(id));
+                const Wrapper = target ? Pressable : View;
                 return (
-                  <Pressable
+                  <Wrapper
                     key={n.id}
                     style={styles.card}
-                    disabled={!openable}
-                    onPress={() => openable && router.push({ pathname: "/officer/report-details", params: { id: n.caseId! } })}
+                    {...(target ? { onPress: () => router.push(target), accessibilityRole: "button" as const } : {})}
                   >
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
                       <Ionicons name={k.icon} size={18} color={k.fg} />
@@ -67,7 +73,8 @@ export default function OfficerNotifications() {
                       <Text style={styles.body}>{n.body}</Text>
                     </View>
                     {n.unread && <View style={styles.dot} />}
-                  </Pressable>
+                    {target && <Ionicons name="chevron-forward" size={16} color={colors.textLight} style={{ marginLeft: 6, alignSelf: "center" }} />}
+                  </Wrapper>
                 );
               })}
           </View>

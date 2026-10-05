@@ -50,13 +50,13 @@ export default function UserMap() {
           <Text style={typography.screenTitle}>Map</Text>
           <Text style={typography.screenSubtitle}>View your reports on the map</Text>
         </View>
-        <Ionicons name="search" size={22} color={colors.textPrimary} />
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }} style={{ flexGrow: 0, marginVertical: 12 }}>
-        <View style={styles.filterPill}>
-          <Ionicons name="options" size={14} color={colors.textPrimary} />
-          <Text style={styles.filterLabel}>Filters</Text>
+        {/* Section label, not a button: the pills next to it are the filters. */}
+        <View style={styles.filterCaption}>
+          <Ionicons name="options" size={14} color={colors.textSecondary} />
+          <Text style={styles.filterCaptionLabel}>Show</Text>
         </View>
         {FILTERS.map((f) => (
           <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.filterPill, filter === f.key && styles.filterPillActive]}>
@@ -109,6 +109,8 @@ export default function UserMap() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 4 },
+  filterCaption: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 2 },
+  filterCaptionLabel: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
   filterPill: {
     flexDirection: "row",
     alignItems: "center",

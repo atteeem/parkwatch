@@ -191,3 +191,17 @@ export function citizenReportStats(reports: CitizenReportView[], since?: Date): 
     acceptanceRateText: resolved > 0 ? `${Math.round((verified / resolved) * 100)}%` : "\u2013",
   };
 }
+
+const MY_REPORTS_TABS: readonly MyReportsTab[] = ["all", "under-review", "verified", "rejected"];
+
+/** Initial My Reports tab from a route param (e.g. Home "Active Reports" -> under-review); unknown/absent -> "all". */
+export function initialReportsTab(param: string | string[] | undefined): MyReportsTab {
+  const v = Array.isArray(param) ? param[0] : param;
+  return MY_REPORTS_TABS.includes(v as MyReportsTab) ? (v as MyReportsTab) : "all";
+}
+
+/** Home shortcuts: distinct destinations within My Reports (opened like the Reports tab: replace, not push). */
+export const HOME_REPORT_SHORTCUTS = {
+  activeReports: { pathname: "/user/reports", params: { tab: "under-review" } },
+  reportHistory: { pathname: "/user/reports", params: { tab: "all" } },
+} as const;

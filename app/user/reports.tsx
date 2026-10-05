@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
@@ -11,7 +11,7 @@ import { ReportCard } from "../../src/components/ReportCard";
 import { useApp } from "../../src/context/AppContext";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
-import { filterMyReports, myReportsEmptyState } from "../../src/presentation/citizenViews";
+import { filterMyReports, initialReportsTab, myReportsEmptyState } from "../../src/presentation/citizenViews";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -24,7 +24,10 @@ export default function MyReports() {
   const router = useRouter();
   const { userReports } = useApp();
   const { startNewReport } = useReportDraft();
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
+  // Optional ?tab= (Home "Active Reports" opens Under Review); the Reports tab itself opens "All".
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>(() => initialReportsTab(tabParam));
+  useEffect(() => setTab(initialReportsTab(tabParam)), [tabParam]);
 
   const filtered = filterMyReports(userReports, tab);
   const empty = myReportsEmptyState(tab, userReports.length, filtered.length);
@@ -37,10 +40,6 @@ export default function MyReports() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.headerRow}>
         <Text style={typography.screenTitle}>My Reports</Text>
-        <View style={{ flexDirection: "row", gap: 14 }}>
-          <Ionicons name="search" size={20} color={colors.textPrimary} />
-          <Ionicons name="filter" size={20} color={colors.textPrimary} />
-        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 20 }} style={{ flexGrow: 0 }}>
