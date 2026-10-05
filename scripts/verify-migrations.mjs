@@ -6,6 +6,7 @@
 //   node scripts/verify-migrations.mjs        -> prints JSON, exit 1 on failure
 
 import { PGlite } from "@electric-sql/pglite";
+import { runT83 } from "./verify-t83.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -323,6 +324,8 @@ await ok("membership without a server-set officer profile role gives NO case acc
   if (rows.length !== 0) throw new Error(`rows=${rows.length}`);
 });
 await expectRows("membership + officer profile role still grants access", () => as(U.officer, () => q(`select id from public.officer_cases`)), 1);
+
+await runT83({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));
