@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,44 +8,12 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
+import { SettingsRow } from "../../src/components/SettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
 import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
 import { citizenReportStats } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
-
-function Row({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  subtitle,
-  right,
-  onPress,
-  destructive,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  onPress?: () => void;
-  destructive?: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={17} color={iconColor} />
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.red }]}>{title}</Text>
-        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textLight} />}
-    </Pressable>
-  );
-}
 
 export default function UserProfile() {
   const router = useRouter();
@@ -96,31 +64,30 @@ export default function UserProfile() {
 
         <Text style={styles.sectionHeading}>Account</Text>
         <Card noPadding>
-          <Row icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
+          <SettingsRow icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
           <View style={styles.divider} />
-          <Row icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234"} />
+          {/* Informational: the demo payout account cannot be edited. */}
+          <SettingsRow icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234 \u00b7 demo payout account, not editable"} />
           <View style={styles.divider} />
-          <Row icon="shield-checkmark" iconBg={colors.purpleLight} iconColor={colors.purple} title="Identity Verification" subtitle="Not available yet" />
+          <SettingsRow icon="shield-checkmark" title="Identity Verification" subtitle="Not available yet" unavailable />
           <View style={styles.divider} />
-          <Row icon="gift" iconBg={colors.amberLight} iconColor="#B47A00" title="Referral Program" subtitle="Invite friends and earn more" />
+          <SettingsRow icon="gift" title="Referral Program" unavailable />
         </Card>
 
         <Text style={styles.sectionHeading}>App</Text>
         <Card noPadding>
-          <Row icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
+          <SettingsRow icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
           <View style={styles.divider} />
-          <Row icon="help-circle" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Help Center" subtitle="FAQs and support" />
+          <SettingsRow icon="help-circle" title="Help Center" unavailable />
           <View style={styles.divider} />
-          <Row icon="document" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Terms of Service" subtitle="Read our terms and conditions" />
+          <SettingsRow icon="document" title="Terms of Service" subtitle={"Not available in demo \u00b7 final terms pending"} unavailable />
           <View style={styles.divider} />
-          <Row icon="lock-closed" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Privacy Policy" subtitle="How we handle your data" />
+          <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle={"Not available in demo \u00b7 final policy pending"} unavailable />
         </Card>
 
-        <Card style={{ alignItems: "center", marginTop: 16 }}>
-          <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons name="log-out-outline" size={18} color={colors.red} />
-            <Text style={{ color: colors.red, fontWeight: "800", fontSize: 15 }}>Log Out</Text>
-          </Pressable>
+        {/* There is no real sign-in in the MVP, so Log Out would only pretend; shown as unavailable. */}
+        <Card noPadding style={{ marginTop: 16 }}>
+          <SettingsRow icon="log-out-outline" title="Log Out" subtitle={"Not available in demo \u00b7 no sign-in yet"} unavailable />
         </Card>
         <DemoTools />
       </ScrollView>

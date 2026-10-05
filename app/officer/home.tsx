@@ -36,7 +36,7 @@ export default function OfficerHome() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.topRow}>
-          <Pressable onPress={() => router.push("/officer/profile")}>
+          <Pressable onPress={() => router.replace("/officer/profile")}>
             <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={52} />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -48,7 +48,7 @@ export default function OfficerHome() {
               <View style={styles.onDutyDot} />
               <Text style={styles.onDutyLabel}>On Duty</Text>
             </View>
-            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")}>
+            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")} accessibilityRole="button" accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}>
               <Ionicons name="notifications" size={18} color={colors.textPrimary} />
               {unread > 0 && (
                 <View style={styles.bellBadge}>

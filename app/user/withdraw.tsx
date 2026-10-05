@@ -61,15 +61,14 @@ export default function Withdraw() {
         </Card>
 
         <Text style={styles.label}>Withdraw to</Text>
-        <View style={styles.bankRow}>
+        <View style={styles.bankRow} accessibilityLabel="Demo payout account, not editable">
           <View style={styles.bankIcon}>
             <Ionicons name="business" size={20} color={colors.greenDark} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={{ fontWeight: "700", fontSize: 15 }}>Bank account {"•••"} 1234</Text>
-            <Text style={{ fontSize: 12, color: colors.textSecondary }}>Saved payout account</Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary }}>Demo payout account {"·"} not editable in demo</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </View>
 
         <Text style={styles.label}>Amount</Text>
