@@ -149,7 +149,7 @@ describe("evidence: citizen and officer can never be interchanged", () => {
     const row: BackendCitizenEvidenceRow = { id: "ev", report_id: REPORT_UUID, slot: "REAR", capture_source: "CAMERA", storage_path: "citizen/r/rear.jpg", captured_at: T, created_at: T };
     const ev = citizenEvidenceFromRow(row);
     expect(ev).toMatchObject({ source: "CITIZEN", type: "REAR" });
-    expect(parseStorageUri(ev.uri)).toEqual({ bucket: "citizen-evidence", path: "citizen/r/rear.jpg" });
+    expect(parseStorageUri(ev.uri)).toEqual({ bucket: "report-evidence", path: "citizen/r/rear.jpg" });
     const orow: BackendOfficerEvidenceRow = { id: "ov", inspection_id: INSPECTION_UUID, case_id: CASE_UUID, evidence_type: "LICENSE_PLATE", capture_source: "CAMERA", storage_path: "officer/c/plate.jpg", captured_at: T, created_at: T };
     expect(officerEvidenceFromRow(orow)).toMatchObject({ source: "OFFICER", type: "LICENSE_PLATE" });
     expect(parseStorageUri(officerEvidenceFromRow(orow).uri)?.bucket).toBe("officer-evidence");

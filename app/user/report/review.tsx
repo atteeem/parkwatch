@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -16,7 +16,7 @@ import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
 import { validateDraft } from "../../../src/domain";
 import { toDraftReview } from "../../../src/presentation/citizenViews";
 import { describeDomainError, draftIssueMessages } from "../../../src/presentation/errors";
-import { createSubmitGuard } from "../../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../../src/presentation/useGuardedAction";
 
 // CIT-05 Final Review & Submit: PRE-submission only. The submitted-report
 // overview (CIT-08) is a separate screen.
@@ -24,9 +24,11 @@ export default function ReviewSubmit() {
   const router = useRouter();
   const { draft, submittedReportId, markSubmitted } = useReportDraft();
   const { submitReport, citizenProfile } = useApp();
-  const guard = useRef(createSubmitGuard());
-  const [submitting, setSubmitting] = useState(false);
+  const guard = useGuardedAction();
+  // "uploading"/"submitting" only appear for the server; the local store answers at once.
+  const [phase, setPhase] = useState<"idle" | "uploading" | "submitting" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
+  const submitting = phase === "uploading" || phase === "submitting";
 
   const view = toDraftReview(draft, citizenProfile);
 
@@ -47,14 +49,16 @@ export default function ReviewSubmit() {
       return;
     }
     setError(null);
-    setSubmitting(true);
-    guard.current.run(() => submitReport(draft), {
+    setPhase("submitting");
+    // Same draft id on every retry: the server returns the same report instead of a duplicate.
+    guard.run(() => submitReport(draft, setPhase), {
       onSuccess: ({ reportId }) => {
+        setPhase("idle");
         markSubmitted(reportId);
         goToSubmitted(reportId);
       },
       onError: (e) => {
-        setSubmitting(false); // stay on Review with the draft intact; user can retry
+        setPhase("failed"); // stay on Review with the draft intact; user can retry
         setError(describeDomainError(e).message);
       },
     });
@@ -76,7 +80,7 @@ export default function ReviewSubmit() {
                   <Text style={styles.trustedText}>Trusted Reporter</Text>
                 </View>
               )}
-              <Text style={styles.smallMuted}>{view.verifiedReports} verified reports</Text>
+              {view.reporterStatsKnown && <Text style={styles.smallMuted}>{view.verifiedReports} verified reports</Text>}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardLabel}>Location</Text>
@@ -148,9 +152,9 @@ export default function ReviewSubmit() {
       <View style={styles.bottomBar}>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <GreenButton
-          label={submitting ? "Submitting…" : "Submit Report"}
-          loading={submitting}
-          disabled={submitting}
+          label={phase === "uploading" ? "Uploading photos…" : phase === "submitting" ? "Submitting…" : phase === "failed" ? "Try Again" : "Submit Report"}
+          loading={submitting || guard.busy}
+          disabled={submitting || guard.busy}
           onPress={handleSubmit}
         />
       </View>

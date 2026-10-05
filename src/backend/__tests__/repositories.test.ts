@@ -60,22 +60,19 @@ describe("repositories", () => {
     expect(r.value[0].report.evidence).toEqual([expect.objectContaining({ source: "CITIZEN", type: "FRONT" })]);
   });
 
-  it("create: inserts as the session user, never with server-owned columns", async () => {
-    const { provider, calls } = fakeClient({ response: { data: { ...reportRow, status: "UNDER_REVIEW", resolved_at: null }, error: null } });
-    const r = await createReportRepository(provider).create(submittedReport());
-    expect(r.ok).toBe(true);
-    const insert = calls.find((c) => c[0] === "insert")![1] as Record<string, unknown>;
-    expect(insert.citizen_id).toBe(USER);
-    for (const k of ["status", "public_report_number", "received_at", "id"]) expect(insert).not.toHaveProperty(k);
+  it("has no write methods: reports are created only by the submit_report server function", () => {
+    const { provider } = fakeClient({ response: { data: null, error: null } });
+    const repo = createReportRepository(provider) as unknown as Record<string, unknown>;
+    expect(Object.keys(repo).sort()).toEqual(["getByPublicNumber", "listMine"]);
   });
 
   it("database errors become typed codes with safe messages", async () => {
     const { provider } = fakeClient({ response: { data: null, error: { code: "42501", message: 'new row violates row-level security policy for table "reports"' }, status: 403 } });
-    const r = await createReportRepository(provider).create(submittedReport());
+    const r = await createReportRepository(provider).listMine();
     expect(r).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     if (!r.ok) expect(r.error.message).not.toMatch(/row-level|reports/);
     const dup = fakeClient({ response: { data: null, error: { code: "23505", message: "duplicate key" }, status: 409 } });
-    expect(await createReportRepository(dup.provider).create(submittedReport())).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+    expect(await createReportRepository(dup.provider).listMine()).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
   });
 
   it("notifications keep their report link as the citizen-visible number", async () => {

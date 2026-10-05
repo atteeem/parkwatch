@@ -8,6 +8,7 @@ import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { NotifKind } from "../../src/data/mockNotifications";
 import { citizenNotificationTarget } from "../../src/navigation/notificationTargets";
 
@@ -26,6 +27,7 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 export default function UserNotifications() {
   const router = useRouter();
   const { userNotifications, markUserNotificationsRead, getCitizenReport } = useApp();
+  const refreshControl = useCoreRefreshControl();
   useEffect(() => {
     const t = setTimeout(markUserNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -44,7 +46,7 @@ export default function UserNotifications() {
         <Text style={typography.screenTitle}>Notifications</Text>
         <Text style={typography.screenSubtitle}>Stay updated with your reports and earnings</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         {userNotifications.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>

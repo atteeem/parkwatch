@@ -6,7 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, WITHDRAWALS_UNAVAILABLE_COPY } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
@@ -18,7 +19,8 @@ import { WalletActivityRow } from "../../src/components/WalletActivityRow";
 export default function Earnings() {
   const router = useRouter();
   // All figures below come from the reward ledger (no hardcoded amounts).
-  const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings } = useApp();
+  const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings, capabilities } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [period, setPeriod] = useState<EarningsPeriod>("ALL_TIME");
   const earnings = getEarnings(period);
   const me = displayIdentity(useAuth().state, "citizen");
@@ -35,7 +37,7 @@ export default function Earnings() {
         <Avatar name={me.fullName} size={40} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card dark>
           <Text style={styles.hbLabel}>Available balance</Text>
           <Text style={styles.hbAmount}>{eur(walletAvailable)}</Text>
@@ -44,8 +46,15 @@ export default function Earnings() {
             <Text style={styles.readyLabel}>Ready to withdraw</Text>
           </View>
           <Text style={styles.pendingLabel}>{eur(walletPending)} pending verification</Text>
+          {!capabilities.withdrawals && <Text style={styles.pendingLabel}>{WITHDRAWALS_UNAVAILABLE_COPY}</Text>}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-            <Pressable style={styles.solidBtn} onPress={() => router.push("/user/withdraw")}>
+            <Pressable
+              style={[styles.solidBtn, !capabilities.withdrawals && { opacity: 0.45 }]}
+              disabled={!capabilities.withdrawals}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !capabilities.withdrawals }}
+              onPress={() => router.push("/user/withdraw")}
+            >
               <Text style={styles.solidBtnLabel}>Withdraw</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
             </Pressable>

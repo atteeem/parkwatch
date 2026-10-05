@@ -9,6 +9,7 @@ import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { ReportCard } from "../../src/components/ReportCard";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
 import { filterMyReports, initialReportsTab, myReportsEmptyState } from "../../src/presentation/citizenViews";
@@ -23,6 +24,7 @@ const TABS: { key: "all" | UserReportStatus; label: string }[] = [
 export default function MyReports() {
   const router = useRouter();
   const { userReports } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const { startNewReport } = useReportDraft();
   // Optional ?tab= (Home "Active Reports" opens Under Review); the Reports tab itself opens "All".
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
@@ -51,7 +53,7 @@ export default function MyReports() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 90 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 90 }}>
         {filtered.map((r) => (
           <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
         ))}

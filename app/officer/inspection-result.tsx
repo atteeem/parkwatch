@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -11,7 +11,7 @@ import { useApp } from "../../src/context/AppContext";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { CLOSE_WITHOUT_CHARGE_REASONS } from "../../src/data/types";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { RESULT_SELECTION_TO_OUTCOME } from "../../src/presentation/viewModels";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
@@ -36,7 +36,7 @@ export default function InspectionResult() {
   const [selection, setSelection] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const guard = useMemo(() => createSubmitGuard(), []);
+  const guard = useGuardedAction();
   const goBack = () => (router.canGoBack() ? router.back() : router.replace({ pathname: "/officer/inspection", params: { id } }));
 
   if (!c || !inspection) {
@@ -189,7 +189,13 @@ export default function InspectionResult() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-        <GreenButton label="Submit result" icon="checkmark-circle" disabled={!selection} onPress={handleSubmit} />
+        <GreenButton
+          label={guard.busy ? "Saving result…" : "Submit result"}
+          icon="checkmark-circle"
+          disabled={!selection || guard.busy}
+          loading={guard.busy}
+          onPress={handleSubmit}
+        />
       </View>
     </SafeAreaView>
   );

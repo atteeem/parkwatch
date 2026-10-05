@@ -7,7 +7,7 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
 import { GreenButton } from "../../src/components/GreenButton";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, WITHDRAWALS_UNAVAILABLE_COPY } from "../../src/context/AppContext";
 import { MIN_WITHDRAWAL_AMOUNT_CENTS } from "../../src/domain";
 import { formatEuros } from "../../src/presentation/viewModels";
 import {
@@ -19,8 +19,43 @@ import {
 } from "../../src/presentation/withdrawForm";
 
 // Simulated withdrawal REQUEST: it reduces the available balance in the
-// ledger, but no real bank transfer happens in the MVP.
+// ledger, but no real bank transfer happens in the MVP. In the server-backed
+// preview there is no payout flow yet, so the screen only says so.
 export default function Withdraw() {
+  const { capabilities } = useApp();
+  return capabilities.withdrawals ? <WithdrawForm /> : <WithdrawUnavailable />;
+}
+
+function WithdrawUnavailable() {
+  const router = useRouter();
+  const { walletAvailable, walletPending } = useApp();
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/user/earnings"));
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.headerRow}>
+        <Pressable onPress={back} hitSlop={10} accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Withdraw money</Text>
+        <View style={{ width: 22 }} />
+      </View>
+      <View style={{ padding: 20 }}>
+        <Card dark>
+          <Text style={styles.hbLabel}>Available balance</Text>
+          <Text style={styles.hbAmount}>{formatEuros(Math.round(walletAvailable * 100))}</Text>
+          <Text style={styles.pendingLabel}>{formatEuros(Math.round(walletPending * 100))} pending verification</Text>
+        </Card>
+        <View style={styles.infoPanel} accessibilityRole="text">
+          <Ionicons name="information-circle" size={16} color={colors.greenDark} />
+          <Text style={styles.infoText}>{WITHDRAWALS_UNAVAILABLE_COPY}</Text>
+        </View>
+        <GreenButton label="Back to Earnings" variant="outline" onPress={back} style={{ marginTop: 20 }} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function WithdrawForm() {
   const router = useRouter();
   const { walletAvailable, walletPending, validateWithdrawal, withdraw } = useApp();
   const availableCents = Math.round(walletAvailable * 100);

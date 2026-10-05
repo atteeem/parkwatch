@@ -9,6 +9,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
@@ -23,6 +24,7 @@ export default function OfficerHome() {
   const router = useRouter();
   const me = displayIdentity(useAuth().state, "officer");
   const { officerCases, officerNotifications, officerId } = useApp();
+  const refreshControl = useCoreRefreshControl();
   // Never prompts here; uses a position only if permission was already granted.
   const location = useForegroundLocation();
   const officerFix = location.permission === "granted" ? location.fix : undefined;
@@ -36,7 +38,7 @@ export default function OfficerHome() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.replace("/officer/profile")}>
             <Avatar name={me.fullName} size={52} />

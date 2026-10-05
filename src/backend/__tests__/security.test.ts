@@ -66,17 +66,19 @@ describe("Supabase stays behind the backend layer", () => {
     expect(hits).toEqual([]);
   });
 
-  it("only the identity layer (src/auth) uses the backend; app data (store/context/presentation/screens) does not", () => {
+  it("only the identity layer (src/auth) and the ONE core data boundary (AppContext) use the backend", () => {
     const hits = appSource
-      .filter((f) => !rel(f).startsWith("src/backend/") && !rel(f).startsWith("src/auth/"))
+      .filter((f) => !rel(f).startsWith("src/backend/") && !rel(f).startsWith("src/auth/") && rel(f) !== "src/context/AppContext.tsx")
       .filter((f) => /from "(\.\.\/)+(src\/)?backend|src\/backend/.test(read(f)))
       .map(rel);
     expect(hits).toEqual([]);
   });
 
-  it("@supabase/supabase-js is imported only by the client factory and repository base", () => {
-    const hits = appSource.filter((f) => /@supabase\/supabase-js/.test(read(f))).map(rel).sort();
-    expect(hits).toEqual(["src/backend/repositories/base.ts", "src/backend/supabase.ts"]);
+  it("@supabase/supabase-js is imported at runtime only by the client factory (elsewhere in src/backend: types only)", () => {
+    const runtime = appSource.filter((f) => /import\s+(?!type\b)[^;]*from "@supabase\/supabase-js"/.test(read(f))).map(rel).sort();
+    expect(runtime).toEqual(["src/backend/supabase.ts"]);
+    const anywhere = appSource.filter((f) => /@supabase\/supabase-js/.test(read(f))).map(rel);
+    expect(anywhere.filter((f) => !f.startsWith("src/backend/"))).toEqual([]);
   });
 });
 

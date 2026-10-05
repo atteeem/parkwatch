@@ -8,6 +8,7 @@ import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { NotifKind } from "../../src/data/mockNotifications";
 import { officerNotificationTarget } from "../../src/navigation/notificationTargets";
 
@@ -26,6 +27,7 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 export default function OfficerNotifications() {
   const router = useRouter();
   const { officerNotifications, markOfficerNotificationsRead, getCase } = useApp();
+  const refreshControl = useCoreRefreshControl();
   useEffect(() => {
     const t = setTimeout(markOfficerNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -44,7 +46,7 @@ export default function OfficerNotifications() {
         <Text style={typography.screenTitle}>Notifications</Text>
         <Text style={typography.screenSubtitle}>Updates about your cases</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         {officerNotifications.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>

@@ -8,6 +8,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { StatusChip } from "../../src/components/StatusChip";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { caseChip, CasesTab, casesStats, filterCasesTab, myCases, sortCases } from "../../src/presentation/officerViews";
 
@@ -24,6 +25,7 @@ const EMPTY_TEXT: Record<CasesTab, string> = {
 export default function MyCases() {
   const router = useRouter();
   const { officerCases, officerId } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [tab, setTab] = useState<CasesTab>("All");
 
   const mine = myCases(officerCases, officerId);
@@ -63,7 +65,7 @@ export default function MyCases() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         {list.length === 0 && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
         {list.map((c) => {
           const chip = caseChip(c);

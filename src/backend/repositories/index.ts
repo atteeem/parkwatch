@@ -1,15 +1,15 @@
-// Backend repositories: the ONLY code that queries Supabase tables. The app
-// does not use them yet (T8.1 is foundation only; the local store is still
-// the source of truth). Cutover happens in a later milestone.
+// Backend repositories: read-only table queries (RLS-limited). Since T8.3 the
+// app reads core data through get_core_snapshot() (src/backend/operations) and
+// every write is a server function; these remain for targeted reads.
 //
-// Writes that change enforcement state (accept, inspect, outcome, rewards)
-// are intentionally NOT here: they will be server-side functions that apply
-// the domain rules atomically (T8.2+). Clients are denied direct writes by RLS.
+// There are deliberately NO write methods here: reports, cases, outcomes,
+// rewards and notifications can only be changed by server functions that
+// apply the domain rules atomically. Clients are denied direct writes.
 
 import { EnforcementOutcome, Notification, Report, RewardLedgerEntry } from "../../domain";
 import { getSupabaseClient } from "../supabase";
 import { backendOk, BackendResult } from "../result";
-import { MappedReport, reportFromRow, reportToInsert } from "../mappers/reports";
+import { MappedReport, reportFromRow } from "../mappers/reports";
 import { caseFromRow, outcomeFromRow } from "../mappers/enforcement";
 import { ledgerEntryFromRow, notificationFromRow } from "../mappers/rewards";
 import {
@@ -30,8 +30,6 @@ export interface ReportRepository {
   /** The signed-in citizen's reports, newest first, with their evidence. */
   listMine(): Promise<BackendResult<MappedReport[]>>;
   getByPublicNumber(publicNumber: number): Promise<BackendResult<MappedReport>>;
-  /** Insert a report owned by the signed-in citizen. Server assigns number, status, receipt time. */
-  create(report: Report): Promise<BackendResult<MappedReport>>;
 }
 
 export type MappedCase = { uuid: string; reportUuid: string; case: ReturnType<typeof caseFromRow> };
@@ -76,13 +74,6 @@ export function createReportRepository(provider: ClientProvider = getSupabaseCli
           await client.from("reports").select(REPORT_SELECT).eq("public_report_number", publicNumber).maybeSingle()
         );
         return res.ok ? backendOk(mapReport(res.value)) : res;
-      }),
-    create: (report) =>
-      withSession(provider, async ({ client, userId }) => {
-        const insert = reportToInsert(report, { citizenUuid: userId });
-        if (!insert.ok) return insert;
-        const res = fromResponse<BackendReportRow>(await client.from("reports").insert(insert.value).select("*").single());
-        return res.ok ? backendOk(reportFromRow(res.value, [])) : res;
       }),
   };
 }

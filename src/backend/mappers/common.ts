@@ -3,7 +3,7 @@
 import { backendFail, backendOk, BackendResult } from "../result";
 
 /** Private Supabase Storage buckets (created in T8.2). Never public. */
-export const EVIDENCE_BUCKETS = { citizen: "citizen-evidence", officer: "officer-evidence" } as const;
+export const EVIDENCE_BUCKETS = { citizen: "report-evidence", officer: "officer-evidence" } as const;
 export type EvidenceBucket = (typeof EVIDENCE_BUCKETS)[keyof typeof EVIDENCE_BUCKETS];
 
 const STORAGE_PATH = /^[A-Za-z0-9][A-Za-z0-9/_.-]{0,255}$/;
@@ -20,7 +20,8 @@ export function validateStoragePath(path: string): BackendResult<string> {
  * Domain evidence carries a `uri`. Evidence read from the backend gets a
  * storage reference URI; T8.2 resolves it to a short-lived signed URL.
  */
-export const STORAGE_URI_SCHEME = "parkwatch-storage://";
+import { STORAGE_URI_SCHEME } from "../../data/storageUri";
+export { STORAGE_URI_SCHEME };
 export const storageUri = (bucket: EvidenceBucket, path: string) => `${STORAGE_URI_SCHEME}${bucket}/${path}`;
 
 export function parseStorageUri(uri: string): { bucket: string; path: string } | null {

@@ -11,6 +11,7 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { citizenReportStats, HOME_REPORT_SHORTCUTS, startOfWeek } from "../../src/presentation/citizenViews";
@@ -23,6 +24,7 @@ import { violationLabel } from "../../src/data/types";
 export default function UserHome() {
   const router = useRouter();
   const { userReports, getEarnings, userNotifications } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const unread = userNotifications.filter((n) => n.unread).length;
   const me = displayIdentity(useAuth().state, "citizen");
   const { startNewReport } = useReportDraft();
@@ -34,7 +36,7 @@ export default function UserHome() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={[styles.headerBlock, { flexDirection: "row", alignItems: "flex-start" }]}>
           <View style={{ flex: 1 }}>
             <Text style={typography.screenTitle}>Hello, {me.firstName}!</Text>

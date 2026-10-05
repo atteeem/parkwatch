@@ -93,7 +93,7 @@ idempotency, append-only history and RLS as citizen / officer / impostor / anony
   ledger or audit events. Those changes will go through server-side functions that
   apply the existing domain rules (next milestones).
 - Citizen and officer evidence are separate tables. Evidence rows store a
-  `storage_path` in a **private** bucket (`citizen-evidence`, `officer-evidence`),
+  `storage_path` in a **private** bucket (`report-evidence`, `officer-evidence`),
   never a device `file://` URI and never image bytes.
 - The reward ledger, enforcement outcomes and audit events are append-only.
 

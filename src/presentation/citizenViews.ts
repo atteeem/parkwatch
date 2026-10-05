@@ -65,6 +65,8 @@ export type DraftReviewView = {
   reporterName: string;
   trustedReporter: boolean;
   verifiedReports: number;
+  /** false: hide the verified-reports line (no statistics exist). */
+  reporterStatsKnown: boolean;
   address: string;
   coordinatesText?: string;
   vehicle: VehicleLines;
@@ -86,6 +88,7 @@ export function toDraftReview(draft: ReportDraft, reporter: ReporterDisplayProfi
     reporterName: reporter.displayName,
     trustedReporter: reporter.reliability === "High",
     verifiedReports: reporter.verifiedReports,
+    reporterStatsKnown: reporter.known,
     address: draft.location.address.trim(),
     coordinatesText: coords ? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}` : undefined,
     vehicle: vehicleLines(draft.vehicle),

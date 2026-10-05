@@ -9,6 +9,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
 import { useApp } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import {
   filterQueue,
@@ -24,6 +25,7 @@ const FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Assigne
 export default function ReportQueue() {
   const router = useRouter();
   const { officerCases, officerId } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [filter, setFilter] = useState<QueueFilter>("All");
   // Never prompts; distances only when permission was already granted.
   const location = useForegroundLocation();
@@ -77,7 +79,7 @@ export default function ReportQueue() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         {empty && (
           <View style={styles.emptyCard}>
             <Ionicons name="checkmark-done" size={22} color={colors.textLight} />
