@@ -42,7 +42,6 @@ export interface CaseRepository {
 
 export interface NotificationRepository {
   listMine(): Promise<BackendResult<Notification[]>>;
-  markRead(notificationIds: string[], at: string): Promise<BackendResult<{ updated: number }>>;
 }
 
 export type Balances = { pendingCents: number; availableCents: number; paidOutCents: number };
@@ -120,14 +119,6 @@ export function createNotificationRepository(provider: ClientProvider = getSupab
         return backendOk(
           res.value.map((n) => notificationFromRow(n, () => (n.reports ? String(n.reports.public_report_number) : undefined)))
         );
-      }),
-    markRead: (ids, at) =>
-      withSession(provider, async ({ client, userId }) => {
-        if (ids.length === 0) return backendOk({ updated: 0 });
-        const res = fromResponse<{ id: string }[]>(
-          await client.from("notifications").update({ read_at: at }).in("id", ids).eq("recipient_id", userId).is("read_at", null).select("id")
-        );
-        return res.ok ? backendOk({ updated: res.value.length }) : res;
       }),
   };
 }

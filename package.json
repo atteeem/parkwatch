@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
     "test": "jest",
-    "verify:migrations": "node scripts/verify-migrations.mjs"
+    "verify:migrations": "node scripts/verify-migrations.mjs",
+    "mock:backend": "node scripts/mock-supabase-backend.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

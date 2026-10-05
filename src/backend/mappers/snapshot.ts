@@ -6,7 +6,7 @@
 // see); cases, inspections, evidence, ledger and notification ids stay the
 // server uuids. Report uuids are translated wherever rows reference them.
 
-import { Inspection } from "../../domain";
+import { Inspection, RewardLedgerEntry, rewardEntryKey } from "../../domain";
 import { EMPTY_STATE, ParkWatchState } from "../../store/state";
 import {
   BackendCaseRow,
@@ -52,6 +52,14 @@ export function normalizeSnapshot(raw: Partial<CoreSnapshotRows> | null | undefi
   };
 }
 
+/** Server reward keys use the report uuid; the domain derives reward state from its own key per public report id. */
+function toDomainLedgerKey(e: RewardLedgerEntry): RewardLedgerEntry {
+  if ((e.type === "REWARD_PENDING" || e.type === "REWARD_RELEASED" || e.type === "REWARD_VOIDED") && e.reportId) {
+    return { ...e, idempotencyKey: rewardEntryKey(e.type, e.reportId) };
+  }
+  return e;
+}
+
 /** Every private storage object referenced by the snapshot, per bucket (for signing). */
 export function storagePathsOf(rows: CoreSnapshotRows): { report: string[]; officer: string[] } {
   return { report: rows.report_evidence.map((e) => e.storage_path), officer: rows.officer_evidence.map((e) => e.storage_path) };
@@ -92,7 +100,7 @@ export function snapshotToState(input: Partial<CoreSnapshotRows>, resolveUri: (u
     reports,
     cases,
     inspections,
-    ledger: rows.ledger.map((l) => ledgerEntryFromRow(l, reportIdOf)),
+    ledger: rows.ledger.map((l) => toDomainLedgerKey(ledgerEntryFromRow(l, reportIdOf))),
     notifications: rows.notifications.map((n) => notificationFromRow(n, reportIdOf)),
     // Parking is local-only in T8.3 and is not part of the server snapshot.
     vehicles: [],
