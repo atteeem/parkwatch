@@ -21,7 +21,7 @@ await db.exec(`
   create role authenticated nologin;
   create role service_role nologin bypassrls;
   create schema auth;
-  create table auth.users (id uuid primary key, email text);
+  create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb not null default '{}'::jsonb);
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role;
@@ -274,6 +274,46 @@ await fails("audit events cannot be truncated", () => q(`truncate public.audit_e
 await denied("clients cannot read audit events", () => as(U.officer, () => q(`select id from public.audit_events`)));
 await fails("clients cannot write audit events", () =>
   as(U.citizenA, () => q(`insert into public.audit_events (actor_role, source, entity_type, entity_id, event_type) values ('CITIZEN', 'USER_ACTION', 'report', '${reportA.id}', 'FAKE_EVENT')`)), /permission denied/);
+
+// --- T8.2: sign-up bootstrap, metadata role injection, recovery, membership+role ---
+const NEW_USER = "00000000-0000-4000-8000-0000000000d1";
+const INJECT = "00000000-0000-4000-8000-0000000000d2";
+const ORPHAN = "00000000-0000-4000-8000-0000000000d3";
+const MEMBER_ONLY = "00000000-0000-4000-8000-0000000000d4";
+await ok("sign-up copies the display name from metadata (sanitized)", async () => {
+  await db.exec(`insert into auth.users (id, raw_user_meta_data) values ('${NEW_USER}', '{"display_name":"  Mika Salo  "}')`);
+  const p = (await q(`select role, display_name from public.profiles where id = '${NEW_USER}'`)).rows[0];
+  if (p.role !== "CITIZEN" || p.display_name !== "Mika Salo") throw new Error(JSON.stringify(p));
+});
+await ok("a role in sign-up metadata is ignored: the account is CITIZEN", async () => {
+  await db.exec(`insert into auth.users (id, raw_user_meta_data) values ('${INJECT}', '{"display_name":"x","role":"OFFICER","app_role":"ADMIN"}')`);
+  const p = (await q(`select role from public.profiles where id = '${INJECT}'`)).rows[0];
+  if (p.role !== "CITIZEN") throw new Error(JSON.stringify(p));
+});
+await fails("a client cannot insert its own profile (e.g. as OFFICER)", () =>
+  as(INJECT, () => q(`insert into public.profiles (id, role) values ('${INJECT}', 'OFFICER')`)), /permission denied/);
+await ok("ensure_my_profile recreates a missing profile as CITIZEN for the caller only", async () => {
+  await db.exec(`insert into auth.users (id) values ('${ORPHAN}'); delete from public.profiles where id = '${ORPHAN}';`);
+  const p = (await as(ORPHAN, () => q(`select id, role from public.ensure_my_profile()`))).rows[0];
+  if (p.id !== ORPHAN || p.role !== "CITIZEN") throw new Error(JSON.stringify(p));
+});
+await ok("ensure_my_profile never changes an existing (officer) profile", async () => {
+  const p = (await as(U.officer, () => q(`select role from public.ensure_my_profile()`))).rows[0];
+  if (p.role !== "OFFICER") throw new Error(JSON.stringify(p));
+});
+await denied("anonymous callers cannot use ensure_my_profile", () => anon(() => q(`select * from public.ensure_my_profile()`)));
+await ok("a user reads their own memberships (for role resolution)", async () => {
+  const rows = (await as(U.officer, () => q(`select member_role, active from public.organization_members`))).rows;
+  if (rows.length !== 1 || rows[0].member_role !== "OFFICER" || !rows[0].active) throw new Error(JSON.stringify(rows));
+});
+await expectRows("a user cannot see other users' memberships", () => as(U.citizenA, () => q(`select 1 from public.organization_members`)), 0);
+await ok("membership without a server-set officer profile role gives NO case access", async () => {
+  await db.exec(`insert into auth.users (id) values ('${MEMBER_ONLY}');
+    insert into public.organization_members (organization_id, user_id, member_role) values ('${org}', '${MEMBER_ONLY}', 'OFFICER');`);
+  const rows = (await as(MEMBER_ONLY, () => q(`select id from public.officer_cases`))).rows;
+  if (rows.length !== 0) throw new Error(`rows=${rows.length}`);
+});
+await expectRows("membership + officer profile role still grants access", () => as(U.officer, () => q(`select id from public.officer_cases`)), 1);
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));
