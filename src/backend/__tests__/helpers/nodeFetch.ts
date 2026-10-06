@@ -1,7 +1,8 @@
-// Test helper: a minimal fetch over Node's http module. The Expo Jest preset
+// Test helper: a minimal fetch over Node's http/https modules. The Expo Jest preset
 // replaces the global fetch with a native-module polyfill that cannot make
 // real requests, so integration tests pass this to supabase-js instead.
 import * as http from "http";
+import * as https from "https";
 
 type Init = { method?: string; headers?: unknown; body?: unknown };
 
@@ -27,11 +28,15 @@ async function bodyToBuffer(b: unknown): Promise<Buffer | undefined> {
 
 export async function nodeFetch(input: unknown, init: Init = {}): Promise<Response> {
   const url = new URL(typeof input === "string" ? input : (input as { url?: string }).url ?? String(input));
+  // Local mock backend: http. Real Supabase projects: https. Anything else is a
+  // caller bug, so fail loudly instead of sending it over the wrong transport.
+  const request = url.protocol === "https:" ? https.request : url.protocol === "http:" ? http.request : null;
+  if (!request) throw new TypeError(`Unsupported protocol: ${url.protocol}`);
   const headers = headersToObject(init.headers);
   const body = await bodyToBuffer(init.body);
   if (body) headers["content-length"] = String(body.length);
   return new Promise((resolve, reject) => {
-    const req = http.request(url, { method: init.method ?? "GET", headers }, (res) => {
+    const req = request(url, { method: init.method ?? "GET", headers }, (res) => {
       const chunks: Buffer[] = [];
       res.on("data", (c: Buffer) => chunks.push(c));
       res.on("end", () => {
