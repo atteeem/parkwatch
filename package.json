@@ -12,7 +12,8 @@
     "test": "jest",
     "verify:migrations": "node scripts/verify-migrations.mjs",
     "mock:backend": "node scripts/mock-supabase-backend.mjs",
-    "test:cloud-smoke": "node scripts/cloud-smoke.mjs"
+    "test:cloud-smoke": "node scripts/cloud-smoke.mjs",
+    "test:cloud-qa": "jest --runInBand --testTimeout=60000 --testMatch \"**/__cloudqa__/**/*.cloudqa.ts\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

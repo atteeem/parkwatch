@@ -8,7 +8,7 @@ function listFiles(dir: string, re: RegExp): string[] {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) return ["node_modules", ".git", "__tests__", ".expo", "dist"].includes(e.name) ? [] : listFiles(p, re);
+    if (e.isDirectory()) return ["node_modules", ".git", "__tests__", "__cloudqa__", ".expo", "dist"].includes(e.name) ? [] : listFiles(p, re);
     return re.test(e.name) ? [p] : [];
   });
 }

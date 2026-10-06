@@ -21,8 +21,25 @@
 // manual cleanup SQL (run by the project owner in the SQL editor).
 
 import { createClient } from "@supabase/supabase-js";
+import { existsSync, readFileSync } from "node:fs";
 
-const env = process.env;
+// Values may also come from the git-ignored local files (`.env` for the project
+// URL/anon key, `.env.cloudqa.local` for TEST account credentials). Explicit
+// environment variables win. Nothing read here is ever printed.
+const readEnvFile = (f) =>
+  existsSync(f)
+    ? Object.fromEntries(readFileSync(f, "utf8").split(/\r?\n/).filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]))
+    : {};
+const files = { ...readEnvFile(".env"), ...readEnvFile(".env.cloudqa.local") };
+const fallback = {
+  CLOUD_SMOKE_SUPABASE_URL: files.EXPO_PUBLIC_SUPABASE_URL,
+  CLOUD_SMOKE_ANON_KEY: files.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  CLOUD_SMOKE_CITIZEN_EMAIL: files.CLOUDQA_CITIZEN_A_EMAIL,
+  CLOUD_SMOKE_CITIZEN_PASSWORD: files.CLOUDQA_CITIZEN_A_PASSWORD,
+  CLOUD_SMOKE_OFFICER_EMAIL: files.CLOUDQA_OFFICER_A_EMAIL,
+  CLOUD_SMOKE_OFFICER_PASSWORD: files.CLOUDQA_OFFICER_A_PASSWORD,
+};
+const env = { ...Object.fromEntries(Object.entries(fallback).filter(([, v]) => v)), ...process.env };
 const REQUIRED = [
   "CLOUD_SMOKE_SUPABASE_URL",
   "CLOUD_SMOKE_ANON_KEY",

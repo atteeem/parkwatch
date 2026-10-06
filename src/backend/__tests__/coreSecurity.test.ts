@@ -8,7 +8,7 @@ function listFiles(dir: string, re: RegExp): string[] {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) return ["node_modules", ".git", "__tests__", ".expo", "dist"].includes(e.name) ? [] : listFiles(p, re);
+    if (e.isDirectory()) return ["node_modules", ".git", "__tests__", "__cloudqa__", ".expo", "dist"].includes(e.name) ? [] : listFiles(p, re);
     return re.test(e.name) ? [p] : [];
   });
 }
@@ -114,5 +114,19 @@ describe("backend mode behaviour", () => {
   it("no tokens, passwords or signed URLs are logged", () => {
     const hits = appSource.filter((f) => /console\.(log|warn|error|info)\([^)]*(token|password|signedUrl|access_token|authorization)/i.test(read(f))).map(rel);
     expect(hits).toEqual([]);
+  });
+});
+
+describe("test-only code stays out of the app (T8.5)", () => {
+  it("nothing in app/ or src/ imports the real-cloud QA suite or test helpers", () => {
+    const hits = appSource.filter((f) => /from ["'][^"']*(__cloudqa__|__tests__)/.test(read(f))).map(rel);
+    expect(hits).toEqual([]);
+  });
+
+  it("the real-cloud QA suite is not matched by the default Jest run", () => {
+    const pkg = JSON.parse(read(path.join(ROOT, "package.json")));
+    const patterns: string[] = pkg.jest.testMatch;
+    expect(patterns.some((p) => p.includes("cloudqa"))).toBe(false);
+    expect(pkg.scripts["test:cloud-qa"]).toMatch(/__cloudqa__/);
   });
 });
