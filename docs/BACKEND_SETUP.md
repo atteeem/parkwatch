@@ -43,6 +43,10 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
    evidence buckets + storage policies, `app_settings` (T8.3)
 5. `20261008000001_paged_reads.sql` — paginated, filter-aware reads and server-side
    counts (T8.4; all SECURITY INVOKER, so RLS applies)
+6. `20261009000001_function_execute_hardening.sql` — no function is executable by
+   `anon`; policy helpers only by signed-in users; trigger functions by nobody; every
+   function pins `search_path` (T8.5, found by the Supabase security advisor on the
+   real development project)
 
 After applying (4), set the enforcement area new reports go to. **This is a
 development-only routing setting**, controlled on the server; citizens never choose an
@@ -178,7 +182,7 @@ a service-role key in the app.
 
 1. Create the project (section 1). In **Authentication → Providers → Email**, decide
    whether email confirmation is on (the app handles both).
-2. Apply the five migrations in order (section 4).
+2. Apply the six migrations in order (section 4).
 3. Run `supabase/seed.dev.sql` (demo organization, `helsinki-demo` jurisdiction,
    default jurisdiction).
 4. Verify in the SQL editor:

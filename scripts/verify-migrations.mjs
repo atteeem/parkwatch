@@ -8,6 +8,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { runT83 } from "./verify-t83.mjs";
 import { runT84 } from "./verify-t84.mjs";
+import { runT85, runT85SearchPath } from "./verify-t85.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,11 @@ await db.exec(`
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
   grant usage on schema public to anon, authenticated, service_role;
+  -- Supabase default privileges (as on a real project): new tables, sequences and
+  -- functions in public are granted to anon/authenticated unless a migration revokes.
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
   create schema storage;
   create table storage.buckets (id text primary key, name text not null, public boolean not null default false,
     file_size_limit bigint, allowed_mime_types text[], created_at timestamptz default now());
@@ -328,6 +334,8 @@ await expectRows("membership + officer profile role still grants access", () => 
 
 await runT83({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT84({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
+await runT85({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
+await runT85SearchPath({ q, ok });
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));
