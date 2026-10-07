@@ -133,6 +133,7 @@ export function reportLocationStatus(a: LocationInputs): { ok: boolean; text: st
     return { ok: true, text: lookup ? "GPS location found. Finding the address…" : `GPS location attached${acc}.${noAddress}` };
   }
   if (a.permission === "granted" && a.loading) return { ok: false, text: "Getting your GPS location…" };
+  if (a.permission === "undetermined") return { ok: false, text: "Use your location above, or type the address." };
   return { ok: false, text: "GPS location unavailable. Please type the address." };
 }
 

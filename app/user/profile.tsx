@@ -113,6 +113,8 @@ export default function UserProfile() {
           <View style={styles.divider} />
           <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About ParkWatch" subtitle="What this version does" onPress={() => router.push("/user/info/about")} />
           <View style={styles.divider} />
+          <SettingsRow icon="play-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} title="How ParkWatch Works" subtitle="Replay the introduction" onPress={() => router.push({ pathname: "/onboarding", params: { mode: "review" } })} />
+          <View style={styles.divider} />
           <SettingsRow icon="document" title="Terms of Service" subtitle="Draft · final terms not yet published" onPress={() => router.push("/user/info/terms")} />
           <View style={styles.divider} />
           <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle="Draft · final policy not yet published" onPress={() => router.push("/user/info/privacy-policy")} />

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius } from "../constants/spacing";
 import { permissionView, takePhotoSafely } from "./cameraCapture.logic";
+import { CAMERA_EDUCATION } from "../presentation/permissionEducation";
 import { CameraGuideOverlay } from "./CameraGuideOverlay";
 import type { CameraGuideKind } from "../presentation/cameraGuides";
 
@@ -90,7 +91,7 @@ export function CameraCapture({
         <Ionicons name="camera-outline" size={40} color={colors.textSecondary} />
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionBody}>
-          ParkWatch needs your camera to capture evidence photos for this report. Photos must be taken on the spot.
+          {CAMERA_EDUCATION} Photos must be taken on the spot; ParkWatch only asks when you tap Allow camera.
         </Text>
         {view === "ask" ? (
           <Pressable style={styles.permissionBtn} onPress={requestPermission}>

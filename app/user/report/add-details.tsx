@@ -20,6 +20,7 @@ import { useForegroundLocation } from "../../../src/location/useForegroundLocati
 import { addressNeedsTyping, GeocodeStatus, reportLocationStatus } from "../../../src/map/mapLogic";
 import { reverseGeocodeAddress } from "../../../src/location/geocode";
 import { expoReverseGeocoder } from "../../../src/location/expoLocationProvider";
+import { LOCATION_EDUCATION, LOCATION_EDUCATION_ACTION, showLocationEducation } from "../../../src/presentation/permissionEducation";
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -30,7 +31,9 @@ export default function AddDetails() {
   const { draft, setLocation, setDeviceFix, selectMapPoint, resetToDeviceFix, setGeocodedAddress, setNotes, addAttachment, removeAttachment } =
     useReportDraft();
   // Foreground location while this screen is open (no background tracking).
-  const location = useForegroundLocation({ autoRequest: true });
+  // The OS permission is asked from the explained "Use my location" button the
+  // first time; once granted, the location is fetched automatically.
+  const location = useForegroundLocation();
   const coords = draft.location.coordinates;
   const deviceFix = draft.location.deviceFix;
   const [geocode, setGeocode] = useState<GeocodeStatus>("idle");
@@ -142,6 +145,22 @@ export default function AddDetails() {
 
         <Card>
           <Text style={styles.sectionTitle}>Location</Text>
+          {showLocationEducation(location.permission) ? (
+            <View style={styles.educationBox}>
+              <Ionicons name="navigate-circle-outline" size={20} color={colors.greenDark} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.educationText}>{LOCATION_EDUCATION}</Text>
+                <Pressable
+                  onPress={() => void location.requestPermission()}
+                  style={styles.educationBtn}
+                  accessibilityRole="button"
+                  accessibilityHint="Asks for location permission while you use ParkWatch"
+                >
+                  <Text style={styles.educationBtnLabel}>{LOCATION_EDUCATION_ACTION}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
           {typing ? (
             <View style={[styles.addressRow, showErrors && messages.location ? styles.addressRowError : null]}>
               <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
@@ -170,7 +189,7 @@ export default function AddDetails() {
               color={gps.ok ? colors.greenDark : colors.textSecondary}
             />
             <Text style={[styles.gpsText, gps.ok && { color: colors.greenDark }]}>{gps.text}</Text>
-            {location.permission === "undetermined" || location.permission === "denied" ? (
+            {location.permission === "denied" ? (
               <Pressable onPress={() => void location.requestPermission()} hitSlop={6}>
                 <Text style={styles.gpsAction}>Use GPS</Text>
               </Pressable>
@@ -352,5 +371,9 @@ const styles = StyleSheet.create({
   },
   attachLabel: { color: colors.greenDark, fontWeight: "700", fontSize: 13.5 },
   attachHint: { color: colors.textLight, fontSize: 11.5 },
+  educationBox: { flexDirection: "row", gap: 10, backgroundColor: colors.greenLight, borderRadius: 12, padding: 12, marginTop: 10, marginBottom: 4 },
+  educationText: { fontSize: 13, lineHeight: 18, color: colors.textPrimary },
+  educationBtn: { alignSelf: "flex-start", marginTop: 8, minHeight: 36, justifyContent: "center", paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.green },
+  educationBtnLabel: { fontSize: 13.5, fontWeight: "800", color: "#06210F" },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, backgroundColor: colors.background },
 });
