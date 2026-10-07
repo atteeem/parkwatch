@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { AnimatedPressable } from "./motion/AnimatedPressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius, shadow } from "../constants/spacing";
@@ -24,7 +25,7 @@ export function ReportCard({ report, onPress }: { report: UserReport; onPress?: 
       : "Estimated";
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+    <AnimatedPressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}>
       <VehicleThumbnail uri={report.images[0]} size={60} radius={14} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <StatusChip status={report.status} />
@@ -47,7 +48,7 @@ export function ReportCard({ report, onPress }: { report: UserReport; onPress?: 
         )}
         <Text style={styles.rewardLabel}>{rewardLabel}</Text>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

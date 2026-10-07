@@ -1,8 +1,9 @@
 import React from "react";
-import { Pressable, Text, StyleSheet, ViewStyle, ActivityIndicator } from "react-native";
+import { Text, StyleSheet, ViewStyle, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius } from "../constants/spacing";
+import { AnimatedPressable } from "./motion/AnimatedPressable";
 
 type Variant = "solid" | "outline" | "gray" | "destructive";
 
@@ -32,7 +33,7 @@ export function GreenButton({
 }: Props) {
   const isSolidDisabled = disabled && variant === "solid";
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={disabled || loading ? undefined : onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
@@ -46,7 +47,7 @@ export function GreenButton({
         variant === "destructive" && styles.destructive,
         // Every disabled variant must read as disabled (not just the solid one).
         disabled && variant !== "solid" && styles.dimmed,
-        pressed && !disabled && { opacity: 0.85 },
+        pressed && !disabled && { opacity: 0.92 },
         style,
       ]}
     >
@@ -78,7 +79,7 @@ export function GreenButton({
           )}
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
