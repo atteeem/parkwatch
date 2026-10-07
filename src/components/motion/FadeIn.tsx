@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Animated, StyleProp, ViewStyle } from "react-native";
 import { MOTION, motionDuration } from "../../constants/motion";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { clampedOpacity } from "./clampedOpacity";
 
 /**
  * Content that enters once: opacity 0 -> 1 and a small upward move.
@@ -47,7 +48,8 @@ export function FadeIn({
       style={[
         style,
         {
-          opacity: progress,
+          // The spring may overshoot 1: movement may, opacity may not.
+          opacity: clampedOpacity(progress),
           transform: [
             { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [offsetY, 0] }) },
             { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [fromScale, 1] }) },

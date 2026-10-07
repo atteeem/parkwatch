@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/colors";
 import { MOTION, motionDuration } from "../../constants/motion";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { clampedOpacity } from "./clampedOpacity";
 
 /**
  * Success circle used after a citizen submits a report and after an officer
@@ -49,7 +50,8 @@ export function SuccessMark({
       style={[
         { width: size, height: size, borderRadius: size / 2, backgroundColor: background, alignItems: "center", justifyContent: "center" },
         style,
-        { opacity: circle, transform: [{ scale: circle.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] },
+        // Easing.back overshoots: keep the scale overshoot, clamp the opacity.
+        { opacity: clampedOpacity(circle), transform: [{ scale: circle.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] },
       ]}
     >
       <Animated.View style={{ opacity: check, transform: [{ scale: check.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }}>

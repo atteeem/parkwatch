@@ -23,6 +23,8 @@ import type { CasesTab, QueueFilter } from "../officerViews";
 import { MOTION, motionDuration, pressScale } from "../../constants/motion";
 import { interpolateValue } from "../../components/motion/AnimatedNumber";
 import { progressFraction } from "../../components/motion/ProgressBar";
+import { clampedOpacity } from "../../components/motion/clampedOpacity";
+import { Animated } from "react-native";
 import { DRAFT_LEGAL_LABEL, INFO_PAGES, INFO_PAGE_ROUTE, type InfoPage } from "../../content/infoPages";
 import { NOT_AVAILABLE_YET, rowKind } from "../../components/SettingsRow";
 import { USER_NAV_ITEMS } from "../../components/userNavItems";
@@ -168,6 +170,26 @@ describe("motion: reduced motion and pure helpers", () => {
     expect(interpolateValue(10, 0, -1)).toBe(10);
   });
 
+  it("clampedOpacity keeps opacity in 0..1 when the progress overshoots", () => {
+    const at = (v: number) => (clampedOpacity(new Animated.Value(v)) as unknown as { __getValue(): number }).__getValue();
+    expect(at(0)).toBe(0);
+    expect(at(0.5)).toBe(0.5);
+    expect(at(1)).toBe(1);
+    expect(at(1.15)).toBe(1); // spring / Easing.back overshoot
+    expect(at(-0.1)).toBe(0);
+  });
+
+  it("FadeIn and SuccessMark use the clamped opacity (scale overshoot kept)", () => {
+    const fade = read("src/components/motion/FadeIn.tsx");
+    expect(fade).toMatch(/opacity: clampedOpacity\(progress\)/);
+    expect(fade).not.toMatch(/opacity: progress\b/);
+    const mark = read("src/components/motion/SuccessMark.tsx");
+    expect(mark).toMatch(/opacity: clampedOpacity\(circle\)/);
+    expect(mark).toMatch(/Easing\.back/);
+    // Reduce Motion still shows both immediately.
+    expect(mark).toMatch(/if \(total === 0\) \{\s*circle\.setValue\(1\);\s*check\.setValue\(1\);/);
+  });
+
   it("progressFraction guards zero totals and overflow", () => {
     expect(progressFraction(0, 0)).toBe(0);
     expect(progressFraction(2, 4)).toBe(0.5);
@@ -221,9 +243,35 @@ describe("informational pages", () => {
       for (const m of t.matchAll(/(\S+\s+\S+)\s+guarantee/gi)) expect([p.id, m[1]]).toEqual([p.id, "does not"]);
     }
     // Where withdrawals / push / deletion are mentioned, they are described as unavailable.
-    expect(text(INFO_PAGES.help)).toMatch(/Withdrawing money is not available/);
     expect(text(INFO_PAGES.about)).toMatch(/Push and email notifications are not available/);
     expect(text(INFO_PAGES["privacy-data"])).toMatch(/Deleting your account from inside the app is not available yet/);
+  });
+
+  it("Help outcomes match the citizen outcome rules (other closures leave status unchanged, no notification)", () => {
+    const t = text(INFO_PAGES.help);
+    expect(t).toMatch(/Verified and rejected reports update the report's status/);
+    expect(t).toMatch(/closed for another reason, the report's status currently stays as it is and no outcome notification is sent/);
+    // Not the old blanket claim that every no-charge closure shows up as a status.
+    expect(t).not.toMatch(/closed without a parking charge, or rejected/);
+    expect(t).not.toMatch(/end up verified/);
+  });
+
+  it("withdrawal copy separates the simulated local-demo request from a real payout", () => {
+    for (const id of ["help", "about"] as const) {
+      const t = text(INFO_PAGES[id]);
+      expect([id, /Real withdrawals are not available/.test(t)]).toEqual([id, true]);
+      expect([id, /local demo, a simulated withdrawal request can be recorded, but no bank transfer is made/.test(t)]).toEqual([id, true]);
+      expect([id, /Withdrawing money is not available|Withdrawals, payment methods/.test(t)]).toEqual([id, false]);
+    }
+  });
+
+  it("location copy allows foreground report/map use and rules out background tracking", () => {
+    for (const id of ["help", "privacy-data"] as const) {
+      const t = text(INFO_PAGES[id]);
+      expect([id, /while relevant report or map screens are open/.test(t)]).toEqual([id, true]);
+      expect([id, /does not track your location in the background/.test(t)]).toEqual([id, true]);
+      expect([id, /read once|location once/.test(t)]).toEqual([id, false]);
+    }
   });
 
   it("outcomes are described as human decisions", () => {

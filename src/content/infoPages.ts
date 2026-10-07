@@ -35,14 +35,15 @@ const HELP: InfoPage = {
       heading: "What happens after you submit",
       paragraphs: [
         "An enforcement officer reviews the report and may inspect the location. The officer decides the outcome; ParkWatch does not make enforcement decisions automatically.",
-        "A report can end up verified, closed without a parking charge, or rejected. Its status is shown under Reports and in Notifications.",
+        "An officer may verify the report, reject it, or close the case for another reason (for example, the vehicle had moved or had a valid permit).",
+        "Verified and rejected reports update the report's status under Reports and send you a notification. When a case is closed for another reason, the report's status currently stays as it is and no outcome notification is sent.",
       ],
     },
     {
       heading: "Rewards",
       paragraphs: [
-        "When an eligible report is verified, a €5 reward is added to your wallet. Rejected reports do not earn a reward.",
-        "Withdrawing money is not available in this version of the app.",
+        "When an eligible report is verified, a €5 reward is added to your wallet. Rejected reports, and cases closed for another reason, do not earn a reward.",
+        "Real withdrawals are not available. In the local demo, a simulated withdrawal request can be recorded, but no bank transfer is made.",
       ],
     },
     {
@@ -52,7 +53,7 @@ const HELP: InfoPage = {
     {
       heading: "Location",
       paragraphs: [
-        "When you create a report, the app asks for your location once to place the report on the map. You can also type the address yourself. The app does not track your location in the background.",
+        "With your permission, ParkWatch uses your location while relevant report or map screens are open, for example to place a new report on the map. You can also type the address yourself. The app does not track your location in the background.",
       ],
     },
   ],
@@ -73,7 +74,8 @@ const ABOUT: InfoPage = {
       heading: "Pre-launch version",
       paragraphs: ["This is a pre-launch version of ParkWatch. Features that are not available yet are shown dimmed instead of pretending to work."],
       bullets: [
-        "Withdrawals, payment methods and identity verification are not available yet.",
+        "Real withdrawals are not available. In the local demo, a simulated withdrawal request can be recorded, but no bank transfer is made.",
+        "Payment methods and identity verification are not available yet.",
         "Parking sessions do not take payments.",
         "Push and email notifications are not available; updates appear in the app's Notifications screen.",
       ],
@@ -103,7 +105,10 @@ const PRIVACY_DATA: InfoPage = {
     },
     {
       heading: "Location",
-      paragraphs: ["Location is read once, while you are creating a report, and only if you allow it. The app does not track you in the background."],
+      paragraphs: [
+        "ParkWatch may use your location while relevant report or map screens are open and permission has been granted. The app does not track your location in the background.",
+        "When you submit a report, its location (and map coordinates, if available) is saved as part of the report.",
+      ],
     },
     {
       heading: "Parking and vehicles",
