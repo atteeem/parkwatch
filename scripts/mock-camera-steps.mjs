@@ -54,7 +54,7 @@ if (cmd === "submit") {
   const report = snap.reports.find((r) => String(r.public_report_number) === String(arg));
   const c = report && snap.cases.find((x) => x.report_id === report.id);
   if (!c) throw new Error("case not visible to officer@example.test");
-  for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"]) {
+  for (const type of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"]) {
     const path = `${c.id}/${type}-walk.png`;
     await upload(me.token, "officer-evidence", path);
     await rpc(me.token, "add_officer_evidence", { p_case_id: c.id, p_evidence_type: type, p_storage_path: path, p_captured_at: new Date().toISOString() });

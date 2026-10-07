@@ -102,7 +102,7 @@ describe("v2 -> v3 demo cleanup", () => {
     envelope.version = 2;
     const r = deserializeState(JSON.stringify(envelope));
     if (r.status !== "ok") throw new Error(JSON.stringify(r));
-    expect(PERSIST_VERSION).toBe(4);
+    expect(PERSIST_VERSION).toBe(5);
     expect(r.migratedFrom).toBe(2);
     expect(r.state.reports.map((x) => x.id)).toEqual(v2.reports.map((x) => x.id));
     expect(r.state.ledger).toEqual(v2.ledger);

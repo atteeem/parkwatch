@@ -33,10 +33,10 @@ const CHECK_ROWS: {
 ];
 
 const PHOTO_TARGETS: readonly { key: OfficerPhotoKey; label: string }[] = [
-  { key: "overview", label: "Vehicle overview" },
+  { key: "front", label: "Vehicle front" },
   { key: "plate", label: "License plate" },
   { key: "sign", label: "Parking sign" },
-  { key: "context", label: "Violation context" },
+  { key: "rear", label: "Vehicle rear" },
 ];
 
 // OFF-06. Everything here reads/writes THIS case's inspection only. Opening
@@ -234,6 +234,15 @@ export default function OnSiteInspection() {
               <Text style={{ color: colors.greenDark }}>{photosCompleted}</Text> / 4 completed
             </Text>
           </View>
+          <GreenButton
+            label={photosCompleted === 0 ? "Start evidence capture" : photosCompleted < 4 ? "Continue evidence capture" : "Review / retake photos"}
+            icon="camera"
+            small
+            variant={photosCompleted < 4 ? "solid" : "outline"}
+            trailingIcon={null}
+            onPress={() => router.push({ pathname: "/officer/violation-photo", params: { id: c.id } })}
+            style={{ marginBottom: 12 }}
+          />
           <View style={styles.photoGrid}>
             {PHOTO_TARGETS.map((t) => {
               const uri = inspection.officerPhotos[t.key];
@@ -241,7 +250,8 @@ export default function OnSiteInspection() {
                 <Pressable
                   key={t.key}
                   style={styles.photoCell}
-                  accessibilityLabel={`${t.label} photo`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.label} photo, ${uri ? "captured, tap to retake" : "required, tap to capture"}`}
                   onPress={() =>
                     router.push({ pathname: "/officer/violation-photo", params: { id: c.id, target: t.key } })
                   }

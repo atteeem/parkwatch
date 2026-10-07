@@ -14,6 +14,7 @@ import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
 import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
+import { EvidenceThumbnails } from "../../src/components/EvidenceGallery";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
@@ -229,11 +230,8 @@ export default function ReportDetails() {
               <Text style={styles.smallHeading}>Evidence</Text>
               <Text style={styles.smallMuted}>{c.photoCount} photos</Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
-              {c.images.slice(0, 4).map((uri, i) => (
-                <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
-              ))}
-            </View>
+            {/* Tap any photo: full screen, swipe through Front / Side / Rear / attachments. */}
+            <EvidenceThumbnails items={detail.evidence} thumbStyle={styles.evidenceThumb} max={4} style={{ gap: 4, marginTop: 8 }} />
           </Card>
         </View>
 
@@ -336,7 +334,7 @@ const styles = StyleSheet.create({
   mapThumb: { height: 80, borderRadius: 10, marginTop: 8 },
   mapThumbEmpty: { backgroundColor: "#EAF0EC", alignItems: "center", justifyContent: "center" },
   viewOnMap: { color: colors.greenDark, fontWeight: "700", fontSize: 11.5 },
-  evidenceThumb: { flex: 1, aspectRatio: 0.8, borderRadius: 6 },
+  evidenceThumb: { width: "100%", aspectRatio: 0.8, borderRadius: 6 },
   checkLine: { fontSize: 11.5, color: colors.textSecondary, marginTop: 6 },
   notesText: { fontSize: 12, color: colors.textSecondary, marginTop: 8, lineHeight: 16 },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: colors.background },

@@ -248,7 +248,7 @@ d("REAL Supabase development project — T8.5 cloud QA", () => {
       unwrap(await o.store.setChecklistItem(charge.caseId, "vehiclePresent", null));
       for (const k of ["vehiclePresent", "violationConfirmed", "restrictionVerified"] as const) unwrap(await o.store.setChecklistItem(charge.caseId, k, true));
       unwrap(await o.store.confirmPlateBySimulatedScan(charge.caseId));
-      for (const t of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
+      for (const t of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"] as const) {
         unwrap(await o.store.setOfficerPhoto(charge.caseId, t, `file:///${t.toLowerCase()}.png`), t);
       }
       const before = unwrap(await o.ops.getCaseDetail(charge.caseId)).officer_evidence!.find((e) => e.evidence_type === "PARKING_SIGN")!.storage_path;

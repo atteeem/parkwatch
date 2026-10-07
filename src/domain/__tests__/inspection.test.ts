@@ -106,7 +106,7 @@ describe("inspection completion", () => {
   });
 
   it("CHARGE_ISSUED is refused when the inspection is not complete", () => {
-    const r = completeInspection(withoutPhoto(readyInspection(), "VIOLATION_CONTEXT"), outcome("CHARGE_ISSUED"));
+    const r = completeInspection(withoutPhoto(readyInspection(), "VEHICLE_REAR"), outcome("CHARGE_ISSUED"));
     expect(errorCode(r)).toBe("INSPECTION_NOT_READY");
   });
 

@@ -152,7 +152,7 @@ try {
   check("officer starts the inspection", !!(await rpc(officer, "start_inspection", { p_case_id: caseId })).data);
   for (const k of ["vehiclePresent", "violationConfirmed", "restrictionVerified"]) await rpc(officer, "set_inspection_check", { p_case_id: caseId, p_check_key: k, p_answer: true });
   await rpc(officer, "confirm_plate_by_scan", { p_case_id: caseId });
-  for (const t of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"]) {
+  for (const t of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"]) {
     const path = `${caseId}/${t}-smoke.png`;
     const up = await officer.client.storage.from("officer-evidence").upload(path, PNG, { contentType: "image/png", upsert: false });
     const add = await rpc(officer, "add_officer_evidence", { p_case_id: caseId, p_evidence_type: t, p_storage_path: path, p_captured_at: new Date().toISOString() });
@@ -183,7 +183,7 @@ try {
     caseId,
     storageObjects: [
       ...evidence.map((e) => `report-evidence/${e.storage_path}`),
-      ...(caseId ? ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"].map((t) => `officer-evidence/${caseId}/${t}-smoke.png`) : []),
+      ...(caseId ? ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"].map((t) => `officer-evidence/${caseId}/${t}-smoke.png`) : []),
     ],
   };
   console.log(JSON.stringify({ ran: true, project: new URL(URL_).host, total: results.length, failed: failed.length, results, manualCleanup }, null, 2));

@@ -100,7 +100,7 @@ async function inspectAndPhotograph(officer: Session, caseId: string) {
   unwrap(await officer.store.startInspection(caseId));
   for (const key of ["vehiclePresent", "violationConfirmed", "restrictionVerified"] as const) unwrap(await officer.store.setChecklistItem(caseId, key, true));
   unwrap(await officer.store.confirmPlateBySimulatedScan(caseId));
-  for (const t of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
+  for (const t of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"] as const) {
     unwrap(await officer.store.setOfficerPhoto(caseId, t, "file:///officer.jpg", new Date().toISOString()));
   }
 }

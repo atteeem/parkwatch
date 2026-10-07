@@ -260,12 +260,12 @@ export async function runT83(ctx) {
   await fails("T8.3: citizen evidence cannot be registered as officer evidence", () =>
     as(U.officer, () => call("add_officer_evidence", sub1.case_id, "PARKING_SIGN", `${U.citizenA}/sub-1/FRONT.jpg`, now())), /EVIDENCE_NOT_UPLOADED/);
   await ok("T8.3: the wrong officer cannot register evidence even for an uploaded file", async () => {
-    await as(U.officer, () => upload("officer-evidence", offPath(sub1.case_id, "VEHICLE_OVERVIEW")));
-    const r = await as(OFF2, () => call("add_officer_evidence", sub1.case_id, "VEHICLE_OVERVIEW", offPath(sub1.case_id, "VEHICLE_OVERVIEW"), now()).then(() => "ok", (e) => String(e.message)));
+    await as(U.officer, () => upload("officer-evidence", offPath(sub1.case_id, "VEHICLE_FRONT")));
+    const r = await as(OFF2, () => call("add_officer_evidence", sub1.case_id, "VEHICLE_FRONT", offPath(sub1.case_id, "VEHICLE_FRONT"), now()).then(() => "ok", (e) => String(e.message)));
     if (!/CASE_TAKEN/.test(r)) throw new Error(r);
   });
   await fails("T8.3: a citizen cannot register officer evidence", () =>
-    as(U.citizenA, () => call("add_officer_evidence", sub1.case_id, "VEHICLE_OVERVIEW", offPath(sub1.case_id, "VEHICLE_OVERVIEW"), now())), /FORBIDDEN/);
+    as(U.citizenA, () => call("add_officer_evidence", sub1.case_id, "VEHICLE_FRONT", offPath(sub1.case_id, "VEHICLE_FRONT"), now())), /FORBIDDEN/);
 
   // ===================================================================
   // CHARGE_ISSUED requirements (server-side) and consequences
@@ -276,7 +276,7 @@ export async function runT83(ctx) {
       for (const key of ["vehiclePresent", "violationConfirmed"]) await call("set_inspection_check", sub1.case_id, key, true);
       await call("set_inspection_check", sub1.case_id, "restrictionVerified", false);
       await call("confirm_plate_by_scan", sub1.case_id);
-      await call("add_officer_evidence", sub1.case_id, "VEHICLE_OVERVIEW", offPath(sub1.case_id, "VEHICLE_OVERVIEW"), now());
+      await call("add_officer_evidence", sub1.case_id, "VEHICLE_FRONT", offPath(sub1.case_id, "VEHICLE_FRONT"), now());
     }));
   await fails("T8.3: charge with one check answered NO is refused", charge, /INSPECTION_NOT_READY/);
   await ok("T8.3: Confirm Plate records the plate check as YES via the simulated control", async () => {
@@ -301,8 +301,8 @@ export async function runT83(ctx) {
     if (rows.length !== 1 || !rows[0].storage_path.endsWith("PARKING_SIGN-2.jpg")) throw new Error(JSON.stringify(rows));
   });
   await ok("T8.3: officer uploads and registers the fourth photo", () => as(U.officer, async () => {
-    await upload("officer-evidence", offPath(sub1.case_id, "VIOLATION_CONTEXT"));
-    await call("add_officer_evidence", sub1.case_id, "VIOLATION_CONTEXT", offPath(sub1.case_id, "VIOLATION_CONTEXT"), now());
+    await upload("officer-evidence", offPath(sub1.case_id, "VEHICLE_REAR"));
+    await call("add_officer_evidence", sub1.case_id, "VEHICLE_REAR", offPath(sub1.case_id, "VEHICLE_REAR"), now());
   }));
   await expectRows("T8.3: the citizen cannot read officer evidence files", () => as(U.citizenA, () => q(`select name from storage.objects where bucket_id = 'officer-evidence'`)), 0);
   await expectRows("T8.3: an officer of another organization cannot read them", () => as(OFFB, () => q(`select name from storage.objects where bucket_id = 'officer-evidence'`)), 0);

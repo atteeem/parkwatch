@@ -23,7 +23,7 @@ const load = () => {
 describe("v1 -> v2 migration", () => {
   it("the fixture really is v1 and loads through the whole migration chain", () => {
     expect(v1Envelope.version).toBe(1);
-    expect(PERSIST_VERSION).toBe(4);
+    expect(PERSIST_VERSION).toBe(5);
     expect(load().migratedFrom).toBe(1);
   });
 
