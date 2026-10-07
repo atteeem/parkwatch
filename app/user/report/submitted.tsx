@@ -9,6 +9,8 @@ import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useApp, useReportDetailLoad } from "../../../src/context/AppContext";
+import { SuccessMark } from "../../../src/components/motion/SuccessMark";
+import { FadeIn } from "../../../src/components/motion/FadeIn";
 import { toSubmittedSummary } from "../../../src/presentation/citizenViews";
 
 // CIT-06: confirmation only. There is deliberately no submit action here, and
@@ -58,9 +60,8 @@ export default function ReportSubmitted() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={{ flex: 1, padding: 24, alignItems: "center" }}>
-        <View style={styles.successCircle}>
-          <Ionicons name="checkmark" size={40} color={colors.greenDark} />
-        </View>
+        <SuccessMark style={styles.successCircle} />
+        <FadeIn delay={180} style={{ width: "100%", alignItems: "center" }}>
         <Text style={styles.title}>Report Submitted!</Text>
         <Text style={styles.subtitle}>
           Thank you for helping keep our streets safe and accessible.
@@ -96,6 +97,9 @@ export default function ReportSubmitted() {
           </View>
         </Card>
 
+        </FadeIn>
+
+        <FadeIn delay={300} style={{ width: "100%" }}>
         <View style={styles.whatNext}>
           <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
             <Ionicons name="shield-checkmark" size={18} color={colors.greenDark} />
@@ -108,6 +112,7 @@ export default function ReportSubmitted() {
             </View>
           </View>
         </View>
+        </FadeIn>
 
         <View style={{ width: "100%", marginTop: "auto", gap: 10 }}>
           <GreenButton label="View My Reports" onPress={() => router.replace("/user/reports")} />

@@ -6,6 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../src/constants/colors";
 import { radius, shadow } from "../../../src/constants/spacing";
 import { BackHeader } from "../../../src/components/Header";
+import { EmptyFromCopy } from "../../../src/components/EmptyState";
+import { PARKING_HISTORY_EMPTY } from "../../../src/presentation/emptyStates";
 import { useApp } from "../../../src/context/AppContext";
 
 // Parking History: completed simulated sessions, newest first.
@@ -18,11 +20,7 @@ export default function ParkingHistory() {
       <BackHeader title="Parking History" onBack={() => (router.canGoBack() ? router.back() : router.replace("/user/parking"))} />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
         {parkingHistory.length === 0 && (
-          <View style={styles.empty}>
-            <Ionicons name="time-outline" size={30} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>No parking history yet</Text>
-            <Text style={styles.emptyText}>Ended parking sessions appear here.</Text>
-          </View>
+          <EmptyFromCopy copy={PARKING_HISTORY_EMPTY} onAction={() => router.replace("/user/parking")} />
         )}
         {parkingHistory.map((h) => (
           <View key={h.id} style={styles.card}>

@@ -12,7 +12,11 @@ import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
 import { usePagedList, useApp } from "../../src/context/AppContext";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
-import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { HOME_LATEST_EMPTY } from "../../src/presentation/emptyStates";
+import { listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { HOME_REPORT_SHORTCUTS } from "../../src/presentation/citizenViews";
@@ -36,6 +40,10 @@ export default function UserHome() {
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
   const latest = recent.items.slice(0, 3);
+  const startReport = () => {
+    startNewReport();
+    router.push("/user/report/photos");
+  };
   const week = { submitted: citizenSummary.weekSubmitted, verified: citizenSummary.weekVerified };
   const weekEarned = getEarnings("THIS_WEEK").totalText.replace(/\.00$/, "");
 
@@ -153,9 +161,13 @@ export default function UserHome() {
 
         <View style={styles.section}>
           <Text style={typography.sectionHeading}>Latest reports</Text>
-          <View style={{ marginTop: 10, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, ...shadow.card }}>
+          {listSettledEmpty(recent) && (
+            <EmptyFromCopy copy={HOME_LATEST_EMPTY} variant="compact" style={{ marginTop: 10 }} onAction={startReport} />
+          )}
+          {latest.length > 0 && (
+          <FadeIn style={{ marginTop: 10, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, ...shadow.card }}>
             {latest.map((r, i) => (
-              <Pressable
+              <AnimatedPressable
                 key={r.id}
                 onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })}
                 style={[styles.reportRow, i < latest.length - 1 && styles.reportRowDivider]}
@@ -168,9 +180,10 @@ export default function UserHome() {
                   </Text>
                   <Text style={styles.reportMetaLight}>{violationLabel(r.violation)}</Text>
                 </View>
-              </Pressable>
+              </AnimatedPressable>
             ))}
-          </View>
+          </FadeIn>
+          )}
         </View>
       </ScrollView>
       <ConfirmDialog

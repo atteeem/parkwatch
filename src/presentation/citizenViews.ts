@@ -135,25 +135,6 @@ export function filterMyReports(reports: CitizenReportView[], tab: MyReportsTab)
   return tab === "all" ? reports : reports.filter((r) => r.status === tab);
 }
 
-const TAB_EMPTY: Record<Exclude<MyReportsTab, "all">, string> = {
-  "under-review": "No reports under review right now.",
-  verified: "No verified reports yet.",
-  rejected: "No rejected reports.",
-};
-
-/** Empty state for My Reports: global "no reports yet" vs. a tab-specific message. */
-export function myReportsEmptyState(
-  tab: MyReportsTab,
-  totalCount: number,
-  shownCount: number
-): { title: string; body: string; showReportCta: boolean } | null {
-  if (shownCount > 0) return null;
-  if (totalCount === 0) {
-    return { title: "No reports yet", body: "Spotted a parking violation? Report it to help keep streets safe.", showReportCta: true };
-  }
-  return { title: "Nothing here", body: TAB_EMPTY[tab as Exclude<MyReportsTab, "all">], showReportCta: false };
-}
-
 /** Status counts for the map summary. */
 export function reportStatusCounts(reports: CitizenReportView[]) {
   return {
