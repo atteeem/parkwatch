@@ -47,6 +47,24 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
    `anon`; policy helpers only by signed-in users; trigger functions by nobody; every
    function pins `search_path` (T8.5, found by the Supabase security advisor on the
    real development project)
+7. `20261010000001_report_location_provenance.sql` — T8.7: `reports.location_source`
+   (`GPS` / `MAP_SELECTED`) + the raw device fix (`device_*`); a map-picked point may
+   not carry GPS accuracy/time. `submit_report` gains five optional trailing
+   parameters (old signature dropped). Existing points are backfilled as `GPS`.
+8. `20261010000002_officer_evidence_front_rear.sql` — T8.7: renames the officer
+   evidence enum values in place: `VEHICLE_OVERVIEW → VEHICLE_FRONT`,
+   `VIOLATION_CONTEXT → VEHICLE_REAR` (existing rows keep their photos). **Apps older
+   than T8.7 send the old labels and stop working for officer photos after this
+   migration**; deploy the T8.7 app together with it.
+9. `20261010000003_officer_monthly_stats.sql` — T8.7: `get_officer_monthly_stats`
+   (SECURITY INVOKER; the signed-in officer's own outcomes only).
+10. `20261010000004_profile_avatars.sql` — T8.7: private `profile-avatars` bucket
+    (2 MB, JPEG/PNG/WebP) with own-folder-only storage policies,
+    `profiles.avatar_storage_path` (path only, not client-writable) and
+    `set_my_avatar(path | null)`.
+
+> T8.7 migrations (7–10) are **not applied to the real development project yet**.
+> Review them, run `npm run verify:migrations`, then apply in order.
 
 After applying (4), set the enforcement area new reports go to. **This is a
 development-only routing setting**, controlled on the server; citizens never choose an
@@ -182,7 +200,7 @@ a service-role key in the app.
 
 1. Create the project (section 1). In **Authentication → Providers → Email**, decide
    whether email confirmation is on (the app handles both).
-2. Apply the six migrations in order (section 4).
+2. Apply the migrations in order (section 4; ten as of T8.7).
 3. Run `supabase/seed.dev.sql` (demo organization, `helsinki-demo` jurisdiction,
    default jurisdiction).
 4. Verify in the SQL editor:

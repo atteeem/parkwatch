@@ -9,6 +9,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { runT83 } from "./verify-t83.mjs";
 import { runT84 } from "./verify-t84.mjs";
 import { runT85, runT85SearchPath } from "./verify-t85.mjs";
+import { runT87, runT87EnumRename } from "./verify-t87.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +20,7 @@ const results = [];
 const db = new PGlite();
 
 // --- Minimal Supabase environment -----------------------------------------
-await db.exec(`
+const SETUP_SQL = `
   create role anon nologin;
   create role authenticated nologin;
   create role service_role nologin bypassrls;
@@ -44,7 +45,8 @@ await db.exec(`
   grant usage on schema storage to anon, authenticated, service_role;
   grant select on storage.buckets to authenticated;
   grant select, insert, update, delete on storage.objects to authenticated;
-`);
+`;
+await db.exec(SETUP_SQL);
 
 const migrations = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
 for (const f of migrations) {
@@ -336,6 +338,8 @@ await runT83({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT84({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT85({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT85SearchPath({ q, ok });
+await runT87({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
+await runT87EnumRename({ ok }, { migrationsDir, setupSql: SETUP_SQL });
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));

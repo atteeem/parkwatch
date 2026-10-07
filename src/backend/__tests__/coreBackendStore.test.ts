@@ -66,6 +66,7 @@ function setup(overrides: Partial<CoreOperations> = {}, storageOverrides: Partia
     markMyNotificationsRead: jest.fn(async () => ok({ updated: 1 })),
     getCitizenSummary: jest.fn(async () => (log.push("summary"), ok(citizenSummary))),
     getOfficerSummary: jest.fn(async () => (log.push("summary"), ok(officerSummary))),
+    getOfficerMonthlyStats: jest.fn(async () => ok({ completed: 0, issued: 0, rejected: 0, no_charge: 0, days: [] })),
     getMyLedger: jest.fn(async () => ok([])),
     pageMyReports: jest.fn(async () => ok(emptyPage())),
     pageMyNotifications: jest.fn(async () => ok(emptyPage())),
@@ -278,6 +279,30 @@ describe("submit + upload recovery", () => {
     const input = (ops.submitReport as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     for (const k of ["citizenId", "citizen_id", "status", "publicReportNumber", "rewardCents", "receivedAt", "jurisdictionId", "priority"]) expect(input).not.toHaveProperty(k);
     expect(input.submissionId).toBe("draft-8");
+  });
+
+  it("T8.7: a map-picked point is sent as MAP_SELECTED without GPS accuracy/time, with the raw device fix separately", async () => {
+    const { store, ops } = setup();
+    const fix = { latitude: 60.17, longitude: 24.94, accuracyMeters: 25, capturedAt: "2026-10-07T09:40:00.000Z" };
+    const d = completeDraft("draft-map");
+    d.location = { address: "Kaivokatu 1", coordinates: { latitude: 60.1712, longitude: 24.9411 }, coordinatesSource: "MAP_SELECTED", deviceFix: fix };
+    await store.submitReport(d);
+    const input = (ops.submitReport as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(input).toMatchObject({ latitude: 60.1712, longitude: 24.9411, locationSource: "MAP_SELECTED", deviceLatitude: 60.17, deviceAccuracyM: 25, deviceCapturedAt: fix.capturedAt });
+    expect(input.locationAccuracyM).toBeUndefined();
+    expect(input.locationCapturedAt).toBeUndefined();
+  });
+
+  it("T8.7: a GPS point is sent with its accuracy/time and source GPS; observedAt is the earliest photo", async () => {
+    const { store, ops } = setup();
+    const fix = { latitude: 60.17, longitude: 24.94, accuracyMeters: 7, capturedAt: "2026-10-07T09:40:00.000Z" };
+    const d = completeDraft("draft-gps");
+    d.location = { address: "Kaivokatu 1", coordinates: fix, coordinatesSource: "GPS", deviceFix: fix };
+    await store.submitReport(d);
+    const input = (ops.submitReport as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
+    expect(input).toMatchObject({ locationSource: "GPS", locationAccuracyM: 7, locationCapturedAt: fix.capturedAt });
+    const earliest = Object.values(d.photos).map((p) => p!.capturedAt).sort()[0];
+    expect(input.observedAt).toBe(earliest);
   });
 
   it("an upload failure keeps finished uploads (no cleanup) and never calls the server", async () => {

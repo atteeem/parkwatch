@@ -140,11 +140,12 @@ describe("settings / profile rows are honest", () => {
     expect(read(f)).not.toMatch(/useState/);
   });
 
-  it("Officer Profile: Notifications, Case History and Help & Support work; the rest is informational or unavailable", () => {
+  it("Officer Profile: Notifications, Case History, Monthly Statistics and Help & Support work; the rest is informational or unavailable", () => {
     const f = "app/officer/profile.tsx";
     expect(row(f, "Notifications")).toMatch(/router\.push\("\/officer\/notifications"\)/);
     expect(row(f, "Case History")).toMatch(/router\.replace\("\/officer\/cases"\)/);
-    unavailable(f, ["Personal Information", "Equipment Status", "Monthly Statistics", "Dark Mode"]);
+    unavailable(f, ["Personal Information", "Equipment Status", "Dark Mode"]);
+    opens(f, "Monthly Statistics", "/officer/statistics");
     opens(f, "Help & Support", "/officer/info/officer-help");
     for (const t of ["Assigned District", "Work Vehicle"]) expect(row(f, t)).not.toMatch(/onPress=/);
     expect(read(f)).not.toMatch(/Edit Profile/);
@@ -187,7 +188,7 @@ describe("route audit", () => {
     "/officer/report-details", "/officer/en-route", "/officer/inspection", "/officer/inspection-result",
     "/officer/inspection-completed", "/officer/violation-photo",
     "/user/info/help", "/user/info/about", "/user/info/privacy-data", "/user/info/terms", "/user/info/privacy-policy",
-    "/officer/info/officer-help",
+    "/officer/info/officer-help", "/officer/statistics",
   ];
 
   it.each(REQUIRED)("%s exists", (p) => expect(routeExists(p)).toBe(true));

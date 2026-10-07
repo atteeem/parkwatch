@@ -41,6 +41,18 @@ describe("migrations on a real Postgres", () => {
     "clients cannot read audit events",
     "officers cannot change cases directly (server functions only)",
     "no policy is unconditionally true",
+    // T8.7
+    "T8.7: a point picked on the map keeps the raw device fix separately",
+    "T8.7: a map-picked point cannot carry GPS accuracy/time (it would pose as a GPS fix)",
+    "T8.7: renaming VEHICLE_OVERVIEW/VIOLATION_CONTEXT keeps existing officer photos (old rows read back as FRONT/REAR)",
+    "T8.7: monthly stats = exactly the outcomes this officer decided (server-side)",
+    "T8.7: another officer's statistics never include the first officer's decisions",
+    "T8.7: a citizen gets no officer statistics",
+    "T8.7: the profile-avatars bucket exists and is private",
+    "T8.7: a user cannot upload into someone else's avatar folder",
+    "T8.7: another user cannot read someone's avatar object",
+    "T8.7: the avatar path column is not directly writable by clients",
+    "T8.7: set_my_avatar refuses another user's folder",
   ])("%s", (name) => {
     const r = report.results.find((x) => x.name === name);
     expect(r).toBeDefined();

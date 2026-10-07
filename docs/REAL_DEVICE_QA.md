@@ -217,6 +217,33 @@ device model + OS for every run.
       officer Help & Support open, scroll and go back (incl. Android hardware Back).
 - [ ] Small phone (e.g. iPhone SE) and large text: empty-state CTAs and info pages don't clip.
 
+### C3c. T8.7 device UX + evidence workflow — NOT VERIFIED on a phone
+
+Real Supabase is **NOT VERIFIED** for T8.7: migrations 20261010000001–4 are not
+applied to the development project yet. Offline: Jest, typecheck and
+`npm run verify:migrations` (PGlite, real migrations) pass.
+
+- [ ] Add Details: permission prompt → GPS fix → address fills in by itself; no typing needed.
+- [ ] Tap the map → red pin moves → address updates; status says "Point set on the map"
+      (never "GPS"); "Use my GPS" returns to the device fix.
+- [ ] Permission denied / GPS off / no geocoder → text field appears and works.
+- [ ] Observed time shows "Observed automatically" from the first photo; not editable.
+- [ ] Review: Change violation / Edit location / Edit notes / Edit photos each return to
+      Review after Continue; retake one photo from Review; real map preview shows the pin.
+- [ ] Gallery (citizen Review + officer Report Details): tap → full screen, swipe with
+      paging, "1 / N", caption, close, Android Back closes; VoiceOver/TalkBack next/previous.
+- [ ] Camera guides: outline visible but subtle on small and large phones; shutter and
+      slot buttons still tappable through/around it.
+- [ ] Officer camera: Front → Plate → Sign → Rear without leaving the camera; airplane
+      mode during an upload → error, stays on the same target; tap a captured slot to
+      retake; close keeps saved photos; arrow returns to Inspection.
+- [ ] Parking: wheel snaps to 5-minute rows; Ends at / duration / cost update live;
+      presets move the wheel; VoiceOver/TalkBack swipe up/down changes the end time.
+- [ ] Wallet: Profile → Wallet opens the screen titled "Wallet".
+- [ ] Officer Profile → Monthly Statistics: numbers match the officer's completed cases.
+- [ ] Profile photo: library, camera (permission prompt), remove; survives app restart;
+      signed in on a second device shows the same photo (BACKEND, after migrations).
+
 ### C4. Results
 
 | Area | Pass/Fail | Device / OS / notes |

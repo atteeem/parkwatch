@@ -81,6 +81,34 @@ describe("reports", () => {
     }
   });
 
+  it("T8.7: location provenance from the row: map-picked point + device fix; a point without a source is GPS", () => {
+    const insert = unwrap(reportToInsert(report, { citizenUuid: CITIZEN }));
+    const picked = reportFromRow(
+      {
+        ...asStoredReport(insert, 100024),
+        latitude: 60.1712,
+        longitude: 24.9411,
+        location_accuracy_m: null,
+        location_captured_at: null,
+        location_source: "MAP_SELECTED",
+        device_latitude: 60.17,
+        device_longitude: 24.94,
+        device_accuracy_m: 25,
+        device_captured_at: T,
+      },
+      []
+    );
+    expect(picked.report.location).toEqual({
+      address: "Mannerheimintie 45, Helsinki",
+      coordinates: { latitude: 60.1712, longitude: 24.9411 },
+      coordinatesSource: "MAP_SELECTED",
+      deviceFix: { latitude: 60.17, longitude: 24.94, accuracyMeters: 25, capturedAt: T },
+    });
+    const legacy = reportFromRow(asStoredReport(insert, 100025), []);
+    expect(legacy.report.location.coordinatesSource).toBe("GPS");
+    expect(legacy.report.location.deviceFix).toBeUndefined();
+  });
+
   it("round trip: same report data; public number and uuid stay separate", () => {
     const insert = unwrap(reportToInsert(report, { citizenUuid: CITIZEN }));
     const mapped = reportFromRow(asStoredReport(insert, 100023), [], { caseId: CASE_UUID });

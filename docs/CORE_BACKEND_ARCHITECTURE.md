@@ -54,6 +54,31 @@ assignment as a parameter. Rule failures are raised as `CODE: message`.
   response followed by a retry still finds the report. A retaken officer
   photo replaces its slot and the old object is removed.
 
+## T8.7 additions
+
+- **Report location provenance.** `latitude/longitude` is the report point officers
+  navigate to. `location_source` says where it came from: `GPS` (the device fix;
+  `location_accuracy_m` / `location_captured_at` describe it) or `MAP_SELECTED` (the
+  citizen corrected it on the map; accuracy/time must be null, enforced by
+  `reports_map_point_not_gps`). The raw device fix taken while reporting is kept in
+  `device_*` even when the point was moved. A point with a null source is older data
+  (GPS). The address is reverse-geocoded on the phone (expo-location); typing is the
+  fallback. `observed_at` = earliest required camera photo (device clock, read-only for
+  the citizen); `received_at` stays the trusted server time.
+- **Officer evidence types** are `VEHICLE_FRONT`, `LICENSE_PLATE`, `PARKING_SIGN`,
+  `VEHICLE_REAR` (renamed in place from `VEHICLE_OVERVIEW` / `VIOLATION_CONTEXT`;
+  local demo data is migrated v4 → v5 the same way).
+- **Monthly statistics**: `get_officer_monthly_stats(from, to, time_zone)` counts the
+  outcomes the signed-in officer decided (SECURITY INVOKER + `decided_by = auth.uid()`),
+  with per-day buckets in the officer's zone. The app never derives these from loaded
+  pages. Only recorded data: no response times, distances, money or scores.
+- **Profile pictures**: private bucket `profile-avatars`, objects under
+  `<user id>/<file>.jpg`, readable/writable/deletable only by their owner. The profile
+  stores only the path (`avatar_storage_path`, not client-writable); `set_my_avatar`
+  validates own folder + uploaded object and returns the replaced path, which the app
+  deletes. Images are cropped square and resized to 512 px JPEG on the phone before
+  upload; shown via a 1-hour signed URL. Local demo: kept on the phone only.
+
 ## App layers
 
 ```

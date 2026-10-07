@@ -62,7 +62,8 @@ describe("the server owns the core workflow", () => {
   it("read wrappers only send filters, cursors and page sizes", () => {
     const reads = ops.slice(ops.indexOf("getCitizenSummary: ("));
     const params = new Set([...reads.matchAll(/\b(p_[a-z_]+)\s*:/g)].map((m) => m[1]));
-    const allowed = ["p_since", "p_status", "p_before_ts", "p_before_id", "p_limit", "p_filter", "p_lat", "p_lng", "p_offset", "p_tab", "p_case_id", "p_public_number"];
+    // T8.7 monthly statistics: a period (p_from, p_to) and the officer's time zone for day buckets. No officer id: the server uses auth.uid().
+    const allowed = ["p_since", "p_status", "p_before_ts", "p_before_id", "p_limit", "p_filter", "p_lat", "p_lng", "p_offset", "p_tab", "p_case_id", "p_public_number", "p_from", "p_to", "p_time_zone"];
     expect([...params].filter((p) => !allowed.includes(p))).toEqual([]);
     expect(params.size).toBeGreaterThan(8);
   });
