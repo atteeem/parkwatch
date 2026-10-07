@@ -6,8 +6,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius } from "../constants/spacing";
 import { permissionView, takePhotoSafely } from "./cameraCapture.logic";
+import { CameraGuideOverlay } from "./CameraGuideOverlay";
+import type { CameraGuideKind } from "../presentation/cameraGuides";
 
-export type CaptureSlot = { key: string; label: string; done: boolean };
+export type CaptureSlot = { key: string; label: string; done: boolean; icon?: keyof typeof Ionicons.glyphMap };
 
 type Props = {
   headerTitle: string;
@@ -25,6 +27,10 @@ type Props = {
   onContinue: () => void;
   onClose: () => void;
   continueLabel?: string;
+  /** Framing outline for the active slot (purely visual). */
+  guide?: CameraGuideKind;
+  /** Busy text shown on the shutter area while the parent saves (e.g. "Uploading…"). */
+  busyLabel?: string;
 };
 
 export function CameraCapture({
@@ -38,6 +44,9 @@ export function CameraCapture({
   onCapturePhoto,
   onContinue,
   onClose,
+  continueLabel = "Continue",
+  guide,
+  busyLabel,
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing] = useState<CameraType>("back");
@@ -114,9 +123,11 @@ export function CameraCapture({
   return (
     <View style={styles.fill}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} enableTorch={flash === "on"} />
+      {/* Behind every control: drawn before them and never takes touches. */}
+      {guide && activeSlot ? <CameraGuideOverlay kind={guide} /> : null}
 
       <View style={[styles.overlayTop, { marginTop: insets.top + 10 }]}>
-        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
+        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close camera">
           <Ionicons name="close" size={20} color="#fff" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -147,14 +158,17 @@ export function CameraCapture({
           return (
             <Pressable
               key={s.key}
-              disabled={!onSelectSlot}
+              disabled={!onSelectSlot || capturing}
               onPress={() => onSelectSlot?.(s.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive, disabled: !onSelectSlot || capturing }}
+              accessibilityLabel={`${s.label}, ${s.done ? (isActive ? "captured, selected for retake" : "captured") : isActive ? "next photo" : "not taken yet"}`}
               style={[styles.slotCard, s.done && styles.slotCardDone, isActive && styles.slotCardActive]}
             >
               {s.done ? (
                 <Ionicons name="checkmark-circle" size={22} color={colors.green} />
               ) : (
-                <Ionicons name="car-outline" size={22} color="#fff" />
+                <Ionicons name={s.icon ?? "car-outline"} size={22} color="#fff" />
               )}
               <Text style={[styles.slotLabel, s.done && { color: colors.green }]} numberOfLines={1}>
                 {s.label}
@@ -167,6 +181,7 @@ export function CameraCapture({
         })}
       </View>
 
+      {capturing && busyLabel ? <Text style={styles.busyLabel}>{busyLabel}</Text> : null}
       <View style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
         <Pressable
           style={styles.sideControl}
@@ -180,6 +195,9 @@ export function CameraCapture({
           style={[styles.shutter, (!activeSlot || capturing) && { opacity: 0.5 }]}
           onPress={handleShutter}
           disabled={!activeSlot || capturing}
+          accessibilityRole="button"
+          accessibilityLabel={activeSlot ? `Take photo: ${activeSlot.label}` : "Take photo"}
+          accessibilityState={{ disabled: !activeSlot || capturing, busy: capturing }}
         >
           <View style={styles.shutterInner} />
         </Pressable>
@@ -189,6 +207,9 @@ export function CameraCapture({
           onPress={allDone ? onContinue : undefined}
           disabled={!allDone}
           hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={continueLabel}
+          accessibilityState={{ disabled: !allDone }}
         >
           <Ionicons name="arrow-forward" size={22} color="#fff" />
         </Pressable>
@@ -244,6 +265,7 @@ const styles = StyleSheet.create({
 
   spacer: { flex: 1 },
 
+  busyLabel: { color: "#fff", fontSize: 12.5, fontWeight: "700", textAlign: "center", marginBottom: 8 },
   slotsRow: {
     flexDirection: "row",
     gap: 10,

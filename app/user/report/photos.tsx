@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { CameraCapture, CaptureSlot } from "../../../src/components/CameraCapture";
 import { ReportStepper } from "../../../src/components/ReportStepper";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { CitizenEvidenceType, isDraftValid, qualifiesAsRequiredEvidence } from "../../../src/domain";
-import { CITIZEN_PHOTO_SLOTS, nextMissingSlot } from "../../../src/presentation/reportDraft";
+import { afterStep, CITIZEN_PHOTO_SLOTS, nextMissingSlot } from "../../../src/presentation/reportDraft";
+import { CITIZEN_CAMERA_GUIDE } from "../../../src/presentation/cameraGuides";
 
 export default function ReportPhotos() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { draft, capturePhoto } = useReportDraft();
   const [selected, setSelected] = useState<CitizenEvidenceType | undefined>(undefined);
 
@@ -22,7 +24,12 @@ export default function ReportPhotos() {
       headerTitle="Report a Parking Violation"
       stepper={<ReportStepper activeStep={1} />}
       instructionTitle="Take 3 Photos"
-      instructionBody="Please take clear photos of the vehicle from all 3 angles."
+      instructionBody={
+        activeSlot
+          ? "Line the vehicle up with the guide and take a clear photo."
+          : "All 3 photos are taken. Tap a photo below to retake it, or continue."
+      }
+      guide={activeSlot ? CITIZEN_CAMERA_GUIDE[activeSlot] : undefined}
       slots={slots}
       activeSlotKey={activeSlot}
       onSelectSlot={(key) => setSelected(key as CitizenEvidenceType)}
@@ -31,7 +38,10 @@ export default function ReportPhotos() {
         setSelected(undefined); // advance to the next missing angle
       }}
       onContinue={() => {
-        if (isDraftValid(draft, "PHOTOS")) router.push("/user/report/select-violation");
+        if (!isDraftValid(draft, "PHOTOS")) return;
+        const step = afterStep("photos", from);
+        if (step.kind === "backToReview") router.back();
+        else router.push(step.route);
       }}
       onClose={() => (router.canGoBack() ? router.back() : router.replace("/user/home"))}
     />

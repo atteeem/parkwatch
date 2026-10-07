@@ -13,14 +13,15 @@ import { DEMO_PARKING_ZONES } from "../../../src/domain";
 import { describeDomainError } from "../../../src/presentation/errors";
 import { createSubmitGuard } from "../../../src/presentation/submitGuard";
 import {
-  clampCustomDuration,
-  CUSTOM_DURATION_STEP_MINUTES,
-  formatDurationMinutes,
+  clampEndTime,
+  durationUntil,
+  endTimeForPreset,
+  endTimeOptions,
   PARKING_DURATION_PRESETS,
   parkingQuote,
+  wheelAccessibilityText,
 } from "../../../src/presentation/parkingViews";
-
-type DurationChoice = { kind: "preset"; minutes: number } | { kind: "custom" };
+import { EndTimeWheel } from "../../../src/components/EndTimeWheel";
 
 // Start Parking: vehicle -> zone -> duration -> summary -> start a SIMULATED
 // local session (no provider call, no payment).
@@ -31,8 +32,8 @@ export default function StartParking() {
   const now = useNow(30_000);
   const [chosenVehicleId, setChosenVehicleId] = useState<string | null>(null);
   const [zoneId, setZoneId] = useState(DEMO_PARKING_ZONES[0].id);
-  const [choice, setChoice] = useState<DurationChoice>({ kind: "preset", minutes: 60 });
-  const [customMinutes, setCustomMinutes] = useState(90);
+  // The citizen picks the END time (5-minute grid); the session is still started with a duration.
+  const [chosenEnd, setChosenEnd] = useState(() => endTimeForPreset(now, 60));
   const [error, setError] = useState<string | null>(null);
   const guard = useMemo(() => createSubmitGuard(), []);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/user/parking"));
@@ -43,7 +44,10 @@ export default function StartParking() {
     vehicles.find((v) => v.isDefault)?.id;
   const vehicle = vehicles.find((v) => v.id === vehicleId);
   const zone = DEMO_PARKING_ZONES.find((z) => z.id === zoneId)!;
-  const minutes = choice.kind === "custom" ? customMinutes : choice.minutes;
+  const options = useMemo(() => endTimeOptions(now), [now]);
+  // Stays valid as time passes: never in the past, never longer than allowed.
+  const endMs = clampEndTime(options, chosenEnd) ?? chosenEnd;
+  const minutes = durationUntil(now, endMs);
   const quote = parkingQuote(minutes, now);
 
   if (activeParking) {
@@ -138,50 +142,31 @@ export default function StartParking() {
           <Text style={styles.sectionTitle}>Duration</Text>
           <View style={styles.chipRow}>
             {PARKING_DURATION_PRESETS.map((p) => {
-              const selected = choice.kind === "preset" && choice.minutes === p.minutes;
+              const selected = endMs === clampEndTime(options, endTimeForPreset(now, p.minutes));
               return (
                 <Pressable
                   key={p.minutes}
                   style={[styles.chip, selected && styles.chipSelected]}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: selected }}
-                  onPress={() => setChoice({ kind: "preset", minutes: p.minutes })}
+                  accessibilityLabel={`About ${p.label}`}
+                  onPress={() => setChosenEnd(endTimeForPreset(now, p.minutes))}
                 >
                   <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{p.label}</Text>
                 </Pressable>
               );
             })}
-            <Pressable
-              style={[styles.chip, choice.kind === "custom" && styles.chipSelected]}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: choice.kind === "custom" }}
-              onPress={() => setChoice({ kind: "custom" })}
-            >
-              <Text style={[styles.chipLabel, choice.kind === "custom" && styles.chipLabelSelected]}>Custom</Text>
-            </Pressable>
           </View>
-          {choice.kind === "custom" && (
-            <View style={styles.stepper}>
-              <Pressable
-                style={styles.stepBtn}
-                accessibilityLabel="Less time"
-                onPress={() => setCustomMinutes((m) => clampCustomDuration(m - CUSTOM_DURATION_STEP_MINUTES))}
-              >
-                <Ionicons name="remove" size={20} color={colors.greenDark} />
-              </Pressable>
-              <View style={{ alignItems: "center", flex: 1 }}>
-                <Text style={styles.stepValue}>{formatDurationMinutes(customMinutes)}</Text>
-                <Text style={styles.helper}>Ends at {quote.endText}</Text>
-              </View>
-              <Pressable
-                style={styles.stepBtn}
-                accessibilityLabel="More time"
-                onPress={() => setCustomMinutes((m) => clampCustomDuration(m + CUSTOM_DURATION_STEP_MINUTES))}
-              >
-                <Ionicons name="add" size={20} color={colors.greenDark} />
-              </Pressable>
-            </View>
-          )}
+          <View style={styles.wheelHeader}>
+            <Text style={styles.wheelLabel}>Parking ends at</Text>
+            <Text style={styles.helper}>Now {quote.startText}</Text>
+          </View>
+          <EndTimeWheel options={options} value={endMs} onChange={setChosenEnd} accessibilityValueText={wheelAccessibilityText(now, endMs)} />
+          <View style={styles.liveRow} accessibilityLiveRegion="polite">
+            <Text style={styles.liveEnd}>Ends at {quote.endText}</Text>
+            <Text style={styles.liveDuration}>{quote.durationText}</Text>
+            <Text style={styles.liveCost}>Estimated cost {quote.estimateText}</Text>
+          </View>
         </View>
 
         <View style={styles.summary}>
@@ -229,9 +214,12 @@ const styles = StyleSheet.create({
   chipLabel: { fontWeight: "700", fontSize: 13, color: colors.textPrimary },
   chipLabelSelected: { color: "#06210F" },
   helper: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
-  stepper: { flexDirection: "row", alignItems: "center", marginTop: 12, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 10, backgroundColor: colors.white },
-  stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center" },
-  stepValue: { fontSize: 20, fontWeight: "800" },
+  wheelHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: 14, marginBottom: 6 },
+  wheelLabel: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
+  liveRow: { alignItems: "center", marginTop: 10, gap: 2 },
+  liveEnd: { fontSize: 18, fontWeight: "800", color: colors.textPrimary },
+  liveDuration: { fontSize: 13.5, fontWeight: "700", color: colors.textSecondary },
+  liveCost: { fontSize: 13.5, fontWeight: "700", color: colors.greenDark },
   summary: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 16, ...shadow.card },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, gap: 12 },
   summaryKey: { fontSize: 13, color: colors.textSecondary },
