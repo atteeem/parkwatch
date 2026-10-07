@@ -34,6 +34,9 @@ export function GreenButton({
   return (
     <Pressable
       onPress={disabled || loading ? undefined : onPress}
+      disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         styles.base,
         small && styles.small,
@@ -41,6 +44,8 @@ export function GreenButton({
         variant === "outline" && styles.outline,
         variant === "gray" && styles.gray,
         variant === "destructive" && styles.destructive,
+        // Every disabled variant must read as disabled (not just the solid one).
+        disabled && variant !== "solid" && styles.dimmed,
         pressed && !disabled && { opacity: 0.85 },
         style,
       ]}
@@ -53,7 +58,7 @@ export function GreenButton({
             <Ionicons
               name={icon}
               size={18}
-              color={variant === "outline" ? colors.textPrimary : variant === "destructive" ? colors.red : "#06210F"}
+              color={isSolidDisabled ? colors.textLight : variant === "outline" ? colors.textPrimary : variant === "destructive" ? colors.red : "#06210F"}
               style={{ marginRight: 8 }}
             />
           )}
@@ -63,6 +68,7 @@ export function GreenButton({
               variant === "outline" && { color: colors.textPrimary },
               variant === "gray" && { color: colors.white },
               variant === "destructive" && { color: colors.red },
+              isSolidDisabled && { color: colors.textLight },
             ]}
           >
             {label}
@@ -93,6 +99,9 @@ const styles = StyleSheet.create({
   },
   solid: {
     backgroundColor: colors.green,
+  },
+  dimmed: {
+    opacity: 0.45,
   },
   solidDisabled: {
     backgroundColor: colors.backgroundSunk,

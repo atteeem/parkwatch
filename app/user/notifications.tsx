@@ -1,13 +1,16 @@
 import React, { useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { NotifKind } from "../../src/data/mockNotifications";
+import { citizenNotificationTarget } from "../../src/navigation/notificationTargets";
 
 const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap }> = {
   success: { bg: colors.greenLight, fg: colors.greenDark, icon: "checkmark-circle" },
@@ -22,7 +25,11 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 };
 
 export default function UserNotifications() {
-  const { userNotifications, markUserNotificationsRead } = useApp();
+  const router = useRouter();
+  const { markUserNotificationsRead, getCitizenReport } = useApp();
+  const refreshControl = useCoreRefreshControl();
+  const list = usePagedList({ kind: "notifications", role: "CITIZEN" });
+  const userNotifications = list.items;
   useEffect(() => {
     const t = setTimeout(markUserNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -33,10 +40,16 @@ export default function UserNotifications() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+        {router.canGoBack() && (
+          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back" style={{ marginBottom: 4, alignSelf: "flex-start" }}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+        )}
         <Text style={typography.screenTitle}>Notifications</Text>
         <Text style={typography.screenSubtitle}>Stay updated with your reports and earnings</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        {listSettledEmpty(list) && <Text style={styles.empty}>No notifications yet.</Text>}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>
             <Text style={styles.groupLabel}>{group}</Text>
@@ -44,8 +57,10 @@ export default function UserNotifications() {
               .filter((n) => n.group === group)
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
-                return (
-                  <View key={n.id} style={styles.card}>
+                // Only notifications about one of this citizen's own reports open something.
+                const target = citizenNotificationTarget(n, (id) => getCitizenReport(id) !== null);
+                const content = (
+                  <>
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
                       <Ionicons name={k.icon} size={18} color={k.fg} />
                     </View>
@@ -57,11 +72,22 @@ export default function UserNotifications() {
                       <Text style={styles.body}>{n.body}</Text>
                     </View>
                     {n.unread && <View style={styles.dot} />}
+                    {target && <Ionicons name="chevron-forward" size={16} color={colors.textLight} style={{ marginLeft: 6, alignSelf: "center" }} />}
+                  </>
+                );
+                return target ? (
+                  <Pressable key={n.id} style={styles.card} onPress={() => router.push(target)} accessibilityRole="button">
+                    {content}
+                  </Pressable>
+                ) : (
+                  <View key={n.id} style={styles.card}>
+                    {content}
                   </View>
                 );
               })}
           </View>
         ))}
+        <ListFooter list={list} />
       </ScrollView>
       <UserBottomNav />
     </SafeAreaView>
@@ -70,6 +96,7 @@ export default function UserNotifications() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  empty: { color: colors.textSecondary, fontSize: 13, textAlign: "center", marginTop: 20 },
   groupLabel: { fontSize: 16, fontWeight: "800", marginBottom: 10 },
   card: {
     flexDirection: "row",

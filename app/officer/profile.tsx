@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Switch, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,49 +7,23 @@ import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { Card } from "../../src/components/Card";
+import { SettingsRow } from "../../src/components/SettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
+import { SignOutRow } from "../../src/components/SignOutRow";
 import { Avatar } from "../../src/components/Avatar";
-import { casesStats, myCases } from "../../src/presentation/officerViews";
-
-function Row({
-  icon,
-  title,
-  subtitle,
-  destructive,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  destructive?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
-      <View style={[styles.rowIcon, destructive && { backgroundColor: colors.redLight }]}>
-        <Ionicons name={icon} size={17} color={destructive ? colors.red : colors.greenDark} />
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.red }]}>{title}</Text>
-        <Text style={styles.rowSubtitle}>{subtitle}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-    </Pressable>
-  );
-}
 
 export default function OfficerProfile() {
   const router = useRouter();
-  const [dark, setDark] = React.useState(false);
+  const me = displayIdentity(useAuth().state, "officer");
   // Shell profile: real counts from this officer's cases only (no gamification,
   // no response-time stats; those need server timestamps).
-  const { officerCases, officerId } = useApp();
-  const mine = myCases(officerCases, officerId);
-  const all = casesStats(mine);
-  const today = new Date().toDateString();
-  const todays = casesStats(mine.filter((c) => c.completedAt && new Date(c.completedAt).toDateString() === today));
+  const { officerSummary: o } = useApp();
+  // Server counts in backend mode (every case, not a loaded page).
+  const all = { total: o.mineTotal, completed: o.mineCompleted, issued: o.mineIssued, rejected: o.mineRejected };
+  const todays = { completed: o.todayCompleted, issued: o.todayIssued, rejected: o.todayRejected };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -59,24 +33,34 @@ export default function OfficerProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={64} />
+            <Avatar name={me.fullName} size={64} />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.name}>{DEMO_OFFICER_ACCOUNT.fullName}</Text>
-              <Text style={styles.role}>{DEMO_OFFICER_ACCOUNT.unit}</Text>
-              <View style={styles.onDutyChip}>
-                <View style={styles.onDutyDot} />
-                <Text style={styles.onDutyLabel}>On Duty</Text>
-              </View>
-              <Text style={styles.officerId}>{DEMO_OFFICER_ACCOUNT.badge}</Text>
-              <Text style={styles.verifiedLine}>
-                <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer
-              </Text>
-              <Text style={styles.authorizedLine}>Authorized to issue parking charges</Text>
+              <Text style={styles.name}>{me.fullName}</Text>
+              {me.source === "DEMO" ? (
+                <>
+                  <Text style={styles.role}>{me.demo?.unit}</Text>
+                  <View style={styles.onDutyChip}>
+                    <View style={styles.onDutyDot} />
+                    <Text style={styles.onDutyLabel}>On Duty</Text>
+                  </View>
+                  <Text style={styles.officerId}>{me.demo?.badge}</Text>
+                  <Text style={styles.verifiedLine}>
+                    <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Verified officer (demo)
+                  </Text>
+                  <Text style={styles.authorizedLine}>Demo identity</Text>
+                </>
+              ) : (
+                <>
+                  {!!me.email && <Text style={styles.role}>{me.email}</Text>}
+                  {/* Only what the server confirmed: active enforcement membership. */}
+                  <Text style={styles.verifiedLine}>
+                    <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Active enforcement member
+                  </Text>
+                  <Text style={styles.authorizedLine}>{(me.activeOrganizations ?? []).join(", ")}</Text>
+                </>
+              )}
             </View>
-            <View style={styles.editBtn}>
-              <Ionicons name="pencil" size={12} color={colors.greenDark} />
-              <Text style={styles.editLabel}>Edit Profile</Text>
-            </View>
+
           </View>
         </Card>
 
@@ -127,40 +111,31 @@ export default function OfficerProfile() {
 
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <Card noPadding>
-          <Row icon="person" title="Personal Information" subtitle="Name, Contact details, emergency contact" />
+          <SettingsRow icon="person" title="Personal Information" unavailable />
           <View style={styles.divider} />
-          <Row icon="location" title="Assigned District" subtitle={DEMO_OFFICER_ACCOUNT.district} />
+          <SettingsRow icon="location" title="Assigned District" subtitle={me.demo?.district ?? "Set by your organization"} />
           <View style={styles.divider} />
-          <Row icon="car" title="Work Vehicle" subtitle="Service van 1" />
+          <SettingsRow icon="car" title="Work Vehicle" subtitle={me.source === "DEMO" ? "Service van 1" : "Set by your organization"} />
           <View style={styles.divider} />
-          <Row icon="hardware-chip" title="Equipment Status" subtitle="Bodycam, printer, handheld device" />
+          <SettingsRow icon="hardware-chip" title="Equipment Status" unavailable />
         </Card>
 
         <Text style={styles.sectionLabel}>PERFORMANCE</Text>
         <Card noPadding>
-          <Row icon="stats-chart" title="Monthly Statistics" subtitle="Detailed performance overview" />
+          <SettingsRow icon="stats-chart" title="Monthly Statistics" unavailable />
           <View style={styles.divider} />
-          <Row icon="folder" title="Case History" subtitle="View your inspection history" onPress={() => router.replace("/officer/cases")} />
+          <SettingsRow icon="folder" title="Case History" subtitle="View your inspection history" onPress={() => router.replace("/officer/cases")} />
         </Card>
 
         <Text style={styles.sectionLabel}>APP</Text>
         <Card noPadding>
-          <Row icon="notifications" title="Notifications" subtitle="Manage your notification preferences" />
+          <SettingsRow icon="notifications" title="Notifications" subtitle="Case updates and alerts" onPress={() => router.push("/officer/notifications")} />
           <View style={styles.divider} />
-          <Pressable style={styles.row}>
-            <View style={styles.rowIcon}>
-              <Ionicons name="moon" size={17} color={colors.greenDark} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.rowTitle}>Dark Mode</Text>
-              <Text style={styles.rowSubtitle}>Switch between light and dark theme</Text>
-            </View>
-            <Switch value={dark} onValueChange={setDark} trackColor={{ true: colors.green, false: colors.border }} thumbColor="#fff" />
-          </Pressable>
+          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available in demo · light theme only" unavailable />
           <View style={styles.divider} />
-          <Row icon="help-circle" title="Help & Support" subtitle="Get help or contact support" />
+          <SettingsRow icon="help-circle" title="Help & Support" unavailable />
           <View style={styles.divider} />
-          <Row icon="log-out" title="Sign Out" subtitle="Sign out of your account" destructive />
+          <SignOutRow />
         </Card>
         <DemoTools />
       </ScrollView>

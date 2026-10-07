@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -16,17 +16,19 @@ import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
 import { validateDraft } from "../../../src/domain";
 import { toDraftReview } from "../../../src/presentation/citizenViews";
 import { describeDomainError, draftIssueMessages } from "../../../src/presentation/errors";
-import { createSubmitGuard } from "../../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../../src/presentation/useGuardedAction";
 
 // CIT-05 Final Review & Submit: PRE-submission only. The submitted-report
 // overview (CIT-08) is a separate screen.
 export default function ReviewSubmit() {
   const router = useRouter();
-  const { draft, submittedReportId, markSubmitted } = useReportDraft();
-  const { submitReport, citizenProfile } = useApp();
-  const guard = useRef(createSubmitGuard());
-  const [submitting, setSubmitting] = useState(false);
+  const { draft, submittedReportId, markSubmitted, uploadedPaths, recordUpload, resetUploads } = useReportDraft();
+  const { submitReport, citizenProfile, dataSource } = useApp();
+  const guard = useGuardedAction();
+  // "uploading"/"submitting" only appear for the server; the local store answers at once.
+  const [phase, setPhase] = useState<"idle" | "uploading" | "submitting" | "failed">("idle");
   const [error, setError] = useState<string | null>(null);
+  const submitting = phase === "uploading" || phase === "submitting";
 
   const view = toDraftReview(draft, citizenProfile);
 
@@ -47,14 +49,18 @@ export default function ReviewSubmit() {
       return;
     }
     setError(null);
-    setSubmitting(true);
-    guard.current.run(() => submitReport(draft), {
+    setPhase("submitting");
+    // Same draft id on every retry: the server returns the same report instead of a duplicate.
+    // Finished uploads (also from before an app restart) are skipped; the server
+    // recognises the same draft id and never creates a second report.
+    guard.run(() => submitReport(draft, { onProgress: setPhase, uploaded: uploadedPaths, onUploaded: recordUpload, onUploadsInvalid: resetUploads }), {
       onSuccess: ({ reportId }) => {
+        setPhase("idle");
         markSubmitted(reportId);
         goToSubmitted(reportId);
       },
       onError: (e) => {
-        setSubmitting(false); // stay on Review with the draft intact; user can retry
+        setPhase("failed"); // stay on Review with the draft intact; user can retry
         setError(describeDomainError(e).message);
       },
     });
@@ -76,7 +82,7 @@ export default function ReviewSubmit() {
                   <Text style={styles.trustedText}>Trusted Reporter</Text>
                 </View>
               )}
-              <Text style={styles.smallMuted}>{view.verifiedReports} verified reports</Text>
+              {view.reporterStatsKnown && <Text style={styles.smallMuted}>{view.verifiedReports} verified reports</Text>}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardLabel}>Location</Text>
@@ -147,10 +153,11 @@ export default function ReviewSubmit() {
       </ScrollView>
       <View style={styles.bottomBar}>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error && dataSource === "BACKEND" ? <Text style={styles.savedHint}>Your report is saved on this phone until it has been sent.</Text> : null}
         <GreenButton
-          label={submitting ? "Submitting…" : "Submit Report"}
-          loading={submitting}
-          disabled={submitting}
+          label={phase === "uploading" ? "Uploading photos…" : phase === "submitting" ? "Submitting…" : phase === "failed" ? "Try Again" : "Submit Report"}
+          loading={submitting || guard.busy}
+          disabled={submitting || guard.busy}
           onPress={handleSubmit}
         />
       </View>
@@ -175,6 +182,7 @@ const styles = StyleSheet.create({
   moreLabel: { fontWeight: "800", color: colors.textSecondary },
   rewardValue: { fontSize: 24, fontWeight: "800", color: colors.greenDark, marginTop: 4 },
   rewardHint: { fontSize: 12, color: "#0B7A38", marginTop: 10, lineHeight: 16 },
+  savedHint: { color: colors.textSecondary, fontSize: 12, marginBottom: 8, textAlign: "center" },
   errorText: { color: "#B3261E", fontSize: 12.5, fontWeight: "600", marginBottom: 8, textAlign: "center" },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, backgroundColor: colors.background },
 });

@@ -3,6 +3,7 @@ import {
   ChecklistKey,
   EnforcementOutcomeCode,
   fail,
+  NewVehicleInput,
   Notification,
   OfficerEvidenceType,
   ReportDraft,
@@ -138,6 +139,18 @@ export function createParkWatchStore(options: StoreOptions) {
 
     requestWithdrawal: (citizenId: string, amountCents: number, withdrawalId?: string) =>
       run((s) => commands.requestCitizenWithdrawal(s, { citizenId, amountCents, withdrawalId, at: now() })),
+
+    // --- simulated parking (local only) ----------------------------------------
+    addVehicle: (citizenId: string, vehicle: NewVehicleInput) =>
+      run((s) => commands.addCitizenVehicle(s, { citizenId, vehicle, at: now() })),
+
+    startParking: (citizenId: string, vehicleId: string, zoneId: string, durationMinutes: number) =>
+      run((s) => commands.startCitizenParking(s, { citizenId, vehicleId, zoneId, durationMinutes, at: now() })),
+
+    extendParking: (citizenId: string, addedMinutes: number) =>
+      run((s) => commands.extendCitizenParking(s, { citizenId, addedMinutes, at: now() })),
+
+    endParking: (citizenId: string) => run((s) => commands.endCitizenParking(s, { citizenId, at: now() })),
 
     markNotificationsRead: (recipient: Notification["recipient"]) =>
       run((s) => commands.markRead(s, { recipient, at: now() })),

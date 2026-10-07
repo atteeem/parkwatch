@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -11,13 +11,14 @@ import { Card } from "../../src/components/Card";
 import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import {
   CASE_ACTION_LABEL,
   canDecideAtDesk,
@@ -47,6 +48,8 @@ export default function ReportDetails() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase } = useApp();
   const detail = getCaseDetail(id);
   const c = detail?.case;
@@ -56,7 +59,9 @@ export default function ReportDetails() {
   const [decision, setDecision] = useState<DeskDecision | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   // One guard per case stage: a second tap in the same stage is ignored.
-  const guard = useMemo(() => createSubmitGuard(), [c?.status, c?.assignedOfficerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guard = useGuardedAction(`${c?.status}|${c?.assignedOfficerId}`);
+
+  if (caseLoad.loading && !c) return <DetailLoading />;
 
   if (!detail || !c) {
     return (
@@ -154,7 +159,7 @@ export default function ReportDetails() {
               <Text style={styles.fieldLabel}>Reported Violation</Text>
               <Text style={styles.fieldValue}>{c.violation}</Text>
               <Text style={styles.fieldLabel}>Reporter Reliability</Text>
-              <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{c.reporterReliability}</Text>
+              <Text style={[styles.fieldValue, { color: c.reporterStatsKnown ? colors.greenDark : colors.textSecondary }]}>{c.reporterReliability}</Text>
               {c.reporterReliability === "High" && (
                 <View style={styles.trustedBadge}>
                   <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} />
@@ -177,6 +182,7 @@ export default function ReportDetails() {
             </View>
             <Text style={{ fontWeight: "800", fontSize: 14, flex: 1 }}>{c.reporterName}</Text>
           </View>
+          {c.reporterStatsKnown ? (
           <View style={{ flexDirection: "row", marginTop: 10, gap: 20 }}>
             <Text style={styles.reporterStat}>
               <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Acceptance Rate <Text style={{ fontWeight: "800" }}>{c.reporterAcceptanceRate}%</Text>
@@ -185,6 +191,9 @@ export default function ReportDetails() {
               <Ionicons name="checkmark-circle" size={12} color={colors.greenDark} /> Verified Reports <Text style={{ fontWeight: "800" }}>{c.reporterVerifiedReports}</Text>
             </Text>
           </View>
+          ) : (
+            <Text style={[styles.reporterStat, { marginTop: 10 }]}>No reporter statistics yet. Verify the report on site.</Text>
+          )}
         </Card>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
@@ -260,7 +269,8 @@ export default function ReportDetails() {
           label={CASE_ACTION_LABEL[action]}
           icon={action === "ACCEPT" ? "checkmark-circle" : undefined}
           trailingIcon={action === "ACCEPT" ? null : undefined}
-          disabled={action === "TAKEN"}
+          disabled={action === "TAKEN" || guard.busy}
+          loading={guard.busy && decision === null}
           onPress={handlePrimary}
         />
         {deskAllowed && (
@@ -295,6 +305,7 @@ export default function ReportDetails() {
         confirmLabel={decision ? DESK_CONFIRM[decision].confirm : ""}
         destructive
         error={dialogError}
+        busy={guard.busy}
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />

@@ -36,7 +36,9 @@ export type DraftAction =
   | { type: "SET_NOTES"; notes: string }
   | { type: "ADD_ATTACHMENT"; uri: string; pickedAt: IsoTimestamp }
   | { type: "REMOVE_ATTACHMENT"; evidenceId: string }
-  | { type: "MARK_SUBMITTED"; reportId: string };
+  | { type: "MARK_SUBMITTED"; reportId: string }
+  /** Recover a persisted unsent draft (same draft id = same server submission). */
+  | { type: "RESTORE"; draft: ReportDraft };
 
 export function newDraftState(draftId: string): CitizenDraftState {
   return { draft: { ...createEmptyDraft(draftId), vehicle: { ...MVP_MOCK_DETECTED_VEHICLE } } };
@@ -44,6 +46,7 @@ export function newDraftState(draftId: string): CitizenDraftState {
 
 export function draftReducer(state: CitizenDraftState, action: DraftAction): CitizenDraftState {
   if (action.type === "START_NEW") return newDraftState(action.draftId);
+  if (action.type === "RESTORE") return { draft: action.draft };
   // A submitted draft is finished: ignore any further edits.
   if (state.submittedReportId !== undefined) return state;
 
@@ -57,7 +60,9 @@ export function draftReducer(state: CitizenDraftState, action: DraftAction): Cit
           photos: {
             ...d.photos,
             [action.slot]: createCitizenEvidence({
-              id: `${d.draftId}-${action.slot}`,
+              // One id per capture: a retake gets a new id (and storage path), so an
+              // earlier upload of the replaced photo is never mistaken for this one.
+              id: `${d.draftId}-${action.slot}-${(Date.parse(action.capturedAt) || 0).toString(36)}`,
               type: action.slot,
               captureSource: "CAMERA",
               uri: action.uri,

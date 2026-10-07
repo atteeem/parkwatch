@@ -8,7 +8,8 @@ import { radius } from "../../src/constants/spacing";
 import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
 import { BackHeader } from "../../src/components/Header";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { filterQueue, sortQueue, toCompletionSummary, withDistances } from "../../src/presentation/officerViews";
@@ -19,10 +20,15 @@ import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNa
 export default function InspectionCompleted() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getCase, getCaseDetail, getInspection, officerCases, officerId } = useApp();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
+  const { getCase, getCaseDetail, getInspection } = useApp();
+  const freshQueue = usePagedList({ kind: "queue", filter: "New" });
   const location = useForegroundLocation();
   const c = getCase(id);
   const summary = c ? toCompletionSummary(c, getInspection(c.id), getCaseDetail(c.id)?.outcomeNotes) : null;
+
+  if (caseLoad.loading && (!c || !summary)) return <DetailLoading />;
 
   if (!c || !summary) {
     return (
@@ -35,7 +41,7 @@ export default function InspectionCompleted() {
 
   const handleNextCase = () => {
     const fix = location.permission === "granted" ? location.fix : undefined;
-    const next = sortQueue(filterQueue(withDistances(officerCases, fix), "New", officerId)).find((x) => x.id !== c.id);
+    const next = sortQueue(withDistances(freshQueue.items, fix)).find((x) => x.id !== c.id);
     if (next) openNextCase(router, next.id);
     else {
       resetToOfficerHome(router);

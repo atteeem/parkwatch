@@ -102,11 +102,12 @@ describe("v2 -> v3 demo cleanup", () => {
     envelope.version = 2;
     const r = deserializeState(JSON.stringify(envelope));
     if (r.status !== "ok") throw new Error(JSON.stringify(r));
-    expect(PERSIST_VERSION).toBe(3);
+    expect(PERSIST_VERSION).toBe(4);
     expect(r.migratedFrom).toBe(2);
     expect(r.state.reports.map((x) => x.id)).toEqual(v2.reports.map((x) => x.id));
     expect(r.state.ledger).toEqual(v2.ledger);
-    expect([r.state.seq, r.state.nextReportNumber]).toEqual([v2.seq, v2.nextReportNumber]);
+    expect(r.state.nextReportNumber).toBe(v2.nextReportNumber);
+    expect(r.state.seq).toBe(v2.seq + 2); // v3 -> v4 registers the two demo vehicles
     expect(r.state.notifications).toHaveLength(v2.notifications.length - OBSOLETE_SEED_NOTIFICATION_IDS.length);
   });
 });

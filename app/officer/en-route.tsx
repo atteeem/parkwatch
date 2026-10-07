@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -10,13 +10,14 @@ import { GreenButton } from "../../src/components/GreenButton";
 import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
 
@@ -26,6 +27,8 @@ export default function EnRoute() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, officerId, startInspection, completeCase } = useApp();
   const c = getCase(id);
   // Live foreground updates while this screen is open (released on leave).
@@ -34,7 +37,9 @@ export default function EnRoute() {
   const [error, setError] = useState<string | null>(null);
   const [confirmMoved, setConfirmMoved] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const guard = useMemo(() => createSubmitGuard(), [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guard = useGuardedAction(c?.status);
+
+  if (caseLoad.loading && !c) return <DetailLoading />;
 
   if (!c) {
     return (
@@ -202,7 +207,8 @@ export default function EnRoute() {
             <GreenButton
               label={action === "CONTINUE_INSPECTION" ? "Continue Inspection" : "Start On-site Inspection"}
               icon="clipboard"
-              disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION")}
+              disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION") || guard.busy}
+              loading={guard.busy && !confirmMoved}
               onPress={handleStartInspection}
               trailingIcon={null}
             />
@@ -236,6 +242,7 @@ export default function EnRoute() {
         confirmLabel="Close Case"
         destructive
         error={dialogError}
+        busy={guard.busy}
         onConfirm={handleVehicleMoved}
         onCancel={() => setConfirmMoved(false)}
       />

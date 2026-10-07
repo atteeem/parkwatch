@@ -284,3 +284,21 @@ describe("My Reports and map helpers", () => {
     });
   });
 });
+
+describe("evidence identity per capture (T8.4)", () => {
+  it("a retaken photo gets a new evidence id (and storage path); the draft id never changes", () => {
+    let s = newDraftState("draft-retake");
+    s = draftReducer(s, { type: "CAPTURE_PHOTO", slot: "FRONT", uri: "file:///a.jpg", capturedAt: "2026-10-05T10:00:00.000Z" });
+    const first = s.draft.photos.FRONT!.id;
+    s = draftReducer(s, { type: "CAPTURE_PHOTO", slot: "FRONT", uri: "file:///b.jpg", capturedAt: "2026-10-05T10:00:05.000Z" });
+    expect(s.draft.photos.FRONT!.id).not.toBe(first);
+    expect(s.draft.photos.FRONT!.id.startsWith("draft-retake-FRONT-")).toBe(true);
+    expect(s.draft.draftId).toBe("draft-retake");
+  });
+
+  it("RESTORE brings back the exact persisted draft (same id = same server submission)", () => {
+    const restored = draftReducer(newDraftState("draft-new"), { type: "RESTORE", draft: { ...newDraftState("draft-old").draft, notes: "kept" } });
+    expect(restored.draft).toMatchObject({ draftId: "draft-old", notes: "kept" });
+    expect(restored.submittedReportId).toBeUndefined();
+  });
+});

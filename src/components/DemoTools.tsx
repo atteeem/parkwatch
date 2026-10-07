@@ -22,7 +22,7 @@ export function DemoTools() {
   const [message, setMessage] = useState<string | null>(null);
 
   if (!__DEV__ || !devSwitchRole) return null;
-  const other = role === "citizen" ? "officer" : "citizen";
+  const other = role === "officer" ? "citizen" : "officer";
 
   return (
     <View style={styles.card}>
@@ -50,7 +50,7 @@ export function DemoTools() {
       <ConfirmDialog
         visible={confirmReset}
         title="Reset demo data?"
-        message="All reports, cases, inspections, wallet activity and notifications return to the standard demo state. Anything created in this session is removed."
+        message="All reports, cases, inspections, wallet activity, notifications, vehicles and parking sessions return to the standard demo state. Anything created in this session is removed."
         confirmLabel="Reset"
         destructive
         busy={busy}

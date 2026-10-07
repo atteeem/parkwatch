@@ -24,3 +24,5 @@ coverage/
 
 # local Claude Code tooling
 .claude/
+# T8.5 real-cloud QA output (ids only) and local test credentials
+cloud-qa-results.local.json

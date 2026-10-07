@@ -19,7 +19,25 @@ export type DomainErrorCode =
   | "INVALID_DRAFT"
   | "NOT_FOUND"
   | "CASE_TAKEN"
-  | "EVIDENCE_SOURCE_NOT_ALLOWED";
+  | "EVIDENCE_SOURCE_NOT_ALLOWED"
+  | "INVALID_PLATE"
+  | "DUPLICATE_VEHICLE"
+  | "PARKING_ALREADY_ACTIVE"
+  | "NO_ACTIVE_PARKING"
+  | "INVALID_DURATION"
+  // Server-backed mode (T8.3): failures reported by the server or the network.
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "EVIDENCE_NOT_UPLOADED"
+  | "UPLOAD_FAILED"
+  | "NO_JURISDICTION"
+  | "NETWORK_ERROR"
+  | "BACKEND_ERROR"
+  | "BACKEND_NOT_CONFIGURED"
+  | "NOT_AVAILABLE"
+  // The connection dropped and the server state could not be re-checked.
+  | "RESULT_UNKNOWN"
+  | "INVALID_DATA";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 

@@ -5,7 +5,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { CameraCapture, CaptureSlot } from "../../src/components/CameraCapture";
 import { BackHeader } from "../../src/components/Header";
 import { colors } from "../../src/constants/colors";
-import { useApp } from "../../src/context/AppContext";
+import { settle, useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { describeDomainError } from "../../src/presentation/errors";
 import { OFFICER_PHOTO_KEY_TO_TYPE, OfficerPhotoKey } from "../../src/presentation/viewModels";
 
@@ -24,12 +25,17 @@ const isPhotoKey = (k: string | undefined): k is OfficerPhotoKey => !!k && k in 
 export default function OfficerViolationPhoto() {
   const router = useRouter();
   const { id, target } = useLocalSearchParams<{ id: string; target: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, getInspection, setOfficerPhoto } = useApp();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const c = getCase(id);
   const inspection = c ? getInspection(c.id) : undefined;
   const goBack = () =>
     router.canGoBack() ? router.back() : router.replace({ pathname: "/officer/inspection", params: { id } });
+
+  if (caseLoad.loading && (!c || !inspection?.exists)) return <DetailLoading />;
 
   if (!c || !inspection?.exists || !isPhotoKey(target)) {
     return (
@@ -50,13 +56,16 @@ export default function OfficerViolationPhoto() {
       <CameraCapture
         headerTitle={label}
         instructionTitle="Capture Evidence"
-        instructionBody={saveError ?? `Take a clear photo for: ${label}.`}
+        instructionBody={saving ? "Uploading photo…" : saveError ?? `Take a clear photo for: ${label}.`}
         slots={slots}
         activeSlotKey={target}
-        onCapturePhoto={(_slotKey, uri, capturedAt) => {
-          const r = setOfficerPhoto(c.id, target, uri, capturedAt);
+        onCapturePhoto={async (_slotKey, uri, capturedAt) => {
+          setSaving(true);
+          setSaveError(null);
+          const r = await settle(setOfficerPhoto(c.id, target, uri, capturedAt));
+          setSaving(false);
           if (!r.ok) {
-            setSaveError(describeDomainError(r.error).message);
+            setSaveError(describeDomainError(r.error).message); // stay here; nothing was stored
             return;
           }
           // Single-shot: return to the same inspection screen (pop, not push).

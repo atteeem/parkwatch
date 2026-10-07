@@ -179,6 +179,7 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
     reporterName: reporter.displayName,
     reporterAcceptanceRate: reporter.acceptanceRate,
     reporterVerifiedReports: reporter.verifiedReports,
+    reporterStatsKnown: reporter.known,
     images: report.evidence.map((e) => e.uri),
     reportedAgo: formatRelativeTime(report.submittedAt, now),
     notes: report.notes || undefined,
@@ -304,7 +305,7 @@ function notificationCopy(n: DomainNotification, state: ParkWatchState): { title
     case "CASE_ACCEPTED": {
       const report = state.reports.find((r) => r.id === n.reportId);
       const detail = report
-        ? `\n${violationLabel(report.violationId)} • ${officerCase?.distanceMeters ?? "?"}m away`
+        ? `\n${violationLabel(report.violationId)}` +(officerCase?.distanceMeters !== undefined ? ` • ${officerCase.distanceMeters}m away` : "")
         : "";
       return { title: "Case Accepted", body: `You have accepted case ${ref}${detail}` };
     }
@@ -333,6 +334,7 @@ export function toNotificationView(n: DomainNotification, state: ParkWatchState,
     kind,
     unread: n.readAt === undefined,
     ...(n.caseId ? { caseId: n.caseId } : {}),
+    ...(n.reportId ? { reportId: n.reportId } : {}),
     ...notificationCopy(n, state),
   };
 }

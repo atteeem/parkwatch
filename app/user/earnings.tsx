@@ -6,31 +6,26 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { Card } from "../../src/components/Card";
-import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
+import { useApp, WITHDRAWALS_UNAVAILABLE_COPY } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
-import { activityDateLabel, EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
-
-const ACTIVITY_ICON = {
-  REWARD_AVAILABLE: "checkmark-circle",
-  REWARD_PENDING: "time",
-  REWARD_CANCELLED: "remove-circle-outline",
-  WITHDRAWAL_REQUESTED: "hourglass-outline",
-  WITHDRAWAL_PAID: "business",
-  OPENING_BALANCE: "wallet-outline",
-} as const;
+import { EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
+import { WalletActivityRow } from "../../src/components/WalletActivityRow";
 
 export default function Earnings() {
   const router = useRouter();
   // All figures below come from the reward ledger (no hardcoded amounts).
-  const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings } = useApp();
+  const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings, capabilities } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [period, setPeriod] = useState<EarningsPeriod>("ALL_TIME");
   const earnings = getEarnings(period);
+  const me = displayIdentity(useAuth().state, "citizen");
   const max = Math.max(...earnings.buckets, 1);
   const eur = (v: number) => formatEuros(Math.round(v * 100));
-  const toneColor = { positive: colors.greenDark, negative: colors.textPrimary, pending: "#B47A00", neutral: colors.textSecondary };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -39,10 +34,10 @@ export default function Earnings() {
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Earnings</Text>
-        <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={40} />
+        <Avatar name={me.fullName} size={40} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card dark>
           <Text style={styles.hbLabel}>Available balance</Text>
           <Text style={styles.hbAmount}>{eur(walletAvailable)}</Text>
@@ -51,12 +46,19 @@ export default function Earnings() {
             <Text style={styles.readyLabel}>Ready to withdraw</Text>
           </View>
           <Text style={styles.pendingLabel}>{eur(walletPending)} pending verification</Text>
+          {!capabilities.withdrawals && <Text style={styles.pendingLabel}>{WITHDRAWALS_UNAVAILABLE_COPY}</Text>}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-            <Pressable style={styles.solidBtn} onPress={() => router.push("/user/withdraw")}>
+            <Pressable
+              style={[styles.solidBtn, !capabilities.withdrawals && { opacity: 0.45 }]}
+              disabled={!capabilities.withdrawals}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !capabilities.withdrawals }}
+              onPress={() => router.push("/user/withdraw")}
+            >
               <Text style={styles.solidBtnLabel}>Withdraw</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
             </Pressable>
-            <Pressable style={styles.outlineBtn}>
+            <Pressable style={styles.outlineBtn} onPress={() => router.push("/user/earnings/history")} accessibilityRole="button">
               <Text style={styles.outlineBtnLabel}>Transaction history</Text>
               <Ionicons name="chevron-forward" size={14} color="#fff" />
             </Pressable>
@@ -109,24 +111,15 @@ export default function Earnings() {
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 20, marginBottom: 10 }}>
           <Text style={{ fontSize: 17, fontWeight: "800" }}>Recent activity</Text>
-          <Text style={{ color: colors.greenDark, fontWeight: "700" }}>View all</Text>
+          <Pressable onPress={() => router.push("/user/earnings/history")} hitSlop={10} accessibilityRole="link">
+            <Text style={{ color: colors.greenDark, fontWeight: "700" }}>View all</Text>
+          </Pressable>
         </View>
         {walletActivity.length === 0 && (
           <Text style={{ fontSize: 13, color: colors.textSecondary }}>No wallet activity yet.</Text>
         )}
         {walletActivity.slice(0, 5).map((row) => (
-          <View key={row.id} style={styles.activityRow}>
-            <Ionicons name={ACTIVITY_ICON[row.kind]} size={20} color={toneColor[row.tone]} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{row.title}</Text>
-              <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 2 }}>{row.subtitle}</Text>
-              <Text style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>{activityDateLabel(row)}</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontWeight: "800", color: toneColor[row.tone] }}>{row.amountText}</Text>
-              <Text style={{ fontSize: 10.5, color: toneColor[row.tone], marginTop: 2 }}>{row.statusText}</Text>
-            </View>
-          </View>
+          <WalletActivityRow key={row.id} row={row} />
         ))}
       </ScrollView>
       <UserBottomNav />

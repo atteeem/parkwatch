@@ -1,4 +1,4 @@
-import { migrateV1toV2, migrateV2toV3, V1State } from "./migrations";
+import { migrateV1toV2, migrateV2toV3, migrateV3toV4, V1State, V3State } from "./migrations";
 import { ParkWatchState } from "./state";
 
 /**
@@ -14,7 +14,7 @@ import { ParkWatchState } from "./state";
  * actor/source on events, report event log (see migrations.ts).
  */
 export const PERSIST_KEY = "parkwatch:state";
-export const PERSIST_VERSION = 3;
+export const PERSIST_VERSION = 4;
 
 export type PersistedEnvelope = { version: number; savedAt: string; state: ParkWatchState };
 
@@ -50,7 +50,7 @@ export function deserializeState(raw: string | null): DeserializeResult {
   }
   let migrated: unknown;
   try {
-    migrated = migrate(envelope.version, envelope.state);
+    migrated = migrate(envelope.version, envelope.state, typeof envelope.savedAt === "string" ? envelope.savedAt : new Date(0).toISOString());
   } catch {
     return { status: "discarded", reason: `v${envelope.version} migration failed` };
   }
@@ -61,10 +61,11 @@ export function deserializeState(raw: string | null): DeserializeResult {
 }
 
 /** Apply each migration step from `version` up to PERSIST_VERSION. */
-function migrate(version: number, state: unknown): unknown {
+function migrate(version: number, state: unknown, savedAt: string): unknown {
   let s = state;
   if (version < 2) s = migrateV1toV2(s as V1State);
   if (version < 3) s = migrateV2toV3(s as ParkWatchState);
+  if (version < 4) s = migrateV3toV4(s as V3State, savedAt);
   return s;
 }
 
@@ -79,6 +80,8 @@ function isStateShape(s: unknown): s is ParkWatchState {
     !Array.isArray(x.inspections) &&
     Array.isArray(x.ledger) &&
     Array.isArray(x.notifications) &&
+    Array.isArray(x.vehicles) &&
+    Array.isArray(x.parkingSessions) &&
     typeof x.seq === "number" &&
     typeof x.nextReportNumber === "number" &&
     (x.reports as Record<string, unknown>[]).every((r) => typeof r.jurisdictionId === "string" && Array.isArray(r.events)) &&

@@ -40,3 +40,20 @@ export const MVP_MOCK_DETECTED_VEHICLE: Readonly<VehicleInfo> = {
   color: "Dark Grey",
   source: "MOCK_DETECTED",
 };
+
+// ---------------------------------------------------------------------------
+// Local (simulated) parking. DEMO values only: not the price of any real
+// zone, municipality or parking operator. No provider is contacted.
+
+/** Demo hourly rate for simulated parking (€2.00 / hour). */
+export const DEMO_PARKING_HOURLY_RATE_CENTS = 200;
+
+/** Longest single parking duration (start or extension) the MVP accepts. */
+export const MAX_PARKING_DURATION_MINUTES = 24 * 60;
+
+/** Demo zones offered when starting simulated parking. */
+export const DEMO_PARKING_ZONES: readonly { id: string; label: string; location: string }[] = [
+  { id: "B2", label: "Zone B2", location: "Fredrikinkatu 22, Helsinki" },
+  { id: "A1", label: "Zone A1", location: "Kaivokatu 12, Helsinki" },
+  { id: "C4", label: "Zone C4", location: "Pohjoisesplanadi 33, Helsinki" },
+];

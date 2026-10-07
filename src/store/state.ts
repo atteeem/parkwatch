@@ -1,4 +1,4 @@
-import { Inspection, Notification, OfficerCase, Report, RewardLedgerEntry } from "../domain";
+import { Inspection, Notification, OfficerCase, ParkingSession, Report, RewardLedgerEntry, Vehicle } from "../domain";
 
 /**
  * The complete persisted ParkWatch MVP state. Domain objects only — no
@@ -11,6 +11,10 @@ export type ParkWatchState = {
   inspections: Record<string, Inspection>;
   ledger: RewardLedgerEntry[];
   notifications: Notification[];
+  /** Citizens' registered vehicles (local; no ownership verification yet). */
+  vehicles: Vehicle[];
+  /** Simulated parking sessions, ACTIVE or COMPLETED (history). */
+  parkingSessions: ParkingSession[];
   /** Monotonic counter for generated ids; persisted so ids never repeat after reload. */
   seq: number;
   /** Next citizen-visible report number (e.g. "12600"). */
@@ -23,6 +27,8 @@ export const EMPTY_STATE: ParkWatchState = {
   inspections: {},
   ledger: [],
   notifications: [],
+  vehicles: [],
+  parkingSessions: [],
   seq: 1,
   nextReportNumber: 12600,
 };

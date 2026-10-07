@@ -21,6 +21,8 @@ describe("native permissions", () => {
       isAndroidForegroundServiceEnabled: false,
       locationAlwaysAndWhenInUsePermission: false,
       locationAlwaysPermission: false,
+      motionUsagePermission: false,
+      isAndroidMotionActivityEnabled: false,
     });
     expect(expo.ios.infoPlist.UIBackgroundModes).toBeUndefined();
   });

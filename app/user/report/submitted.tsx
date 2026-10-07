@@ -8,7 +8,7 @@ import { radius } from "../../../src/constants/spacing";
 import { GreenButton } from "../../../src/components/GreenButton";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
-import { useApp } from "../../../src/context/AppContext";
+import { useApp, useReportDetailLoad } from "../../../src/context/AppContext";
 import { toSubmittedSummary } from "../../../src/presentation/citizenViews";
 
 // CIT-06: confirmation only. There is deliberately no submit action here, and
@@ -16,8 +16,30 @@ import { toSubmittedSummary } from "../../../src/presentation/citizenViews";
 export default function ReportSubmitted() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getCitizenReport } = useApp();
+  const { getCitizenReport, dataSource, coreStatus, refreshCore } = useApp();
   const report = getCitizenReport(id);
+  useReportDetailLoad(id);
+
+  // Server mode: the report was accepted but the refreshed list hasn't arrived
+  // (e.g. the connection dropped right after). Offer to load it, don't claim "not found".
+  if (!report && dataSource === "BACKEND" && id) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <Ionicons name="cloud-download-outline" size={40} color={colors.textSecondary} />
+          <Text style={styles.title}>Loading report #{id}…</Text>
+          <GreenButton
+            label={coreStatus.refreshing ? "Loading…" : "Try Again"}
+            loading={coreStatus.refreshing}
+            disabled={coreStatus.refreshing}
+            onPress={() => void refreshCore()}
+            style={{ alignSelf: "stretch" }}
+          />
+          <GreenButton label="View My Reports" variant="outline" onPress={() => router.replace("/user/reports")} style={{ alignSelf: "stretch" }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!report) {
     return (

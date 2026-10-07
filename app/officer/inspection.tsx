@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -7,10 +7,11 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
-import { useApp } from "../../src/context/AppContext";
+import { settle, useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { formatDateTime } from "../../src/presentation/time";
 import { InspectionCheckKey, OfficerPhotoKey } from "../../src/presentation/viewModels";
@@ -41,11 +42,17 @@ export default function OnSiteInspection() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection } = useApp();
   const c = getCase(id);
   const [error, setError] = useState<string | null>(null);
-  const startGuard = useMemo(() => createSubmitGuard(), [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One checklist change at a time: further taps are ignored until the server (or store) answers.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const startGuard = useGuardedAction(c?.status);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/officer/home"));
+
+  if (caseLoad.loading && (!c || !getInspection(c.id).exists)) return <DetailLoading />;
 
   if (!c) {
     return (
@@ -89,6 +96,8 @@ export default function OnSiteInspection() {
             <GreenButton
               label="Start On-site Inspection"
               small
+              loading={startGuard.busy}
+              disabled={startGuard.busy}
               style={{ marginTop: 16 }}
               onPress={() =>
                 startGuard.run(() => startInspection(c.id), {
@@ -103,8 +112,14 @@ export default function OnSiteInspection() {
     );
   }
 
-  const report = (r: { ok: boolean; error?: { code: string; message?: string } }) =>
-    setError(r.ok || !r.error ? null : describeDomainError(r.error).message);
+  const runCheck = (key: string, action: () => Parameters<typeof settle>[0]) => {
+    if (pendingKey) return;
+    setPendingKey(key);
+    void settle(action()).then((r) => {
+      setPendingKey(null);
+      setError(r.ok ? null : describeDomainError(r.error).message);
+    });
+  };
 
   const checksCompleted = inspection.checklistConfirmed;
   const photosCompleted = inspection.photosCaptured;
@@ -160,13 +175,15 @@ export default function OnSiteInspection() {
                 style={[styles.checkRow, yes && styles.checkRowDone, no && styles.checkRowNo]}
                 accessibilityRole="button"
                 accessibilityLabel={`${row.title}: ${yes ? "confirmed" : no ? "not confirmed" : "not answered"}`}
-                onPress={() => report(setChecklistItem(c.id, row.key, next))}
+                accessibilityState={{ busy: pendingKey === row.key, disabled: pendingKey !== null }}
+                disabled={pendingKey !== null}
+                onPress={() => runCheck(row.key, () => setChecklistItem(c.id, row.key, next))}
               >
                 <Ionicons name={row.icon} size={20} color={yes ? "#06210F" : no ? colors.red : colors.textSecondary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[styles.checkTitle, yes && { color: "#06210F" }]}>{row.title}</Text>
                   <Text style={[styles.checkBody, yes && { color: "#0B3D22" }, no && styles.checkBodyNo]}>
-                    {no ? "Not confirmed" : confirmedPlate ? "Plate confirmed against the report" : row.body}
+                    {pendingKey === row.key ? "Saving…" : no ? "Not confirmed" : confirmedPlate ? "Plate confirmed against the report" : row.body}
                   </Text>
                 </View>
                 {row.scan && value == null ? (
@@ -174,7 +191,8 @@ export default function OnSiteInspection() {
                     style={styles.scanBtn}
                     hitSlop={6}
                     accessibilityLabel="Confirm plate"
-                    onPress={() => report(confirmPlateBySimulatedScan(c.id))}
+                    disabled={pendingKey !== null}
+                    onPress={() => runCheck(row.key, () => confirmPlateBySimulatedScan(c.id))}
                   >
                     <Text style={styles.scanLabel}>Confirm Plate</Text>
                   </Pressable>
@@ -226,7 +244,7 @@ export default function OnSiteInspection() {
                 >
                   <View style={[styles.photoSlot, uri && styles.photoSlotDone]}>
                     {uri ? (
-                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFillObject} compact />
+                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
                     ) : (
                       <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
                     )}

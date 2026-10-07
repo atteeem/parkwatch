@@ -20,7 +20,8 @@ type Props = {
   /** Lets the user pick which angle to capture (shown as tappable slot cards). */
   onSelectSlot?: (slotKey: string) => void;
   /** Called only with a real captured photo (never a placeholder). */
-  onCapturePhoto: (slotKey: string, uri: string, capturedAt: string) => void;
+  /** May return a Promise (e.g. an upload): the shutter stays locked until it settles. */
+  onCapturePhoto: (slotKey: string, uri: string, capturedAt: string) => void | Promise<void>;
   onContinue: () => void;
   onClose: () => void;
   continueLabel?: string;
@@ -54,10 +55,17 @@ export function CameraCapture({
     setCapturing(true);
     setCaptureError(null);
     const outcome = await takePhotoSafely(() => cameraRef.current!.takePictureAsync({ quality: 0.6 }));
-    setCapturing(false);
     // On failure: stay here, keep earlier photos, show the error. No fake image.
-    if (outcome.ok) onCapturePhoto(activeSlot.key, outcome.uri, outcome.capturedAt);
-    else setCaptureError(outcome.message);
+    if (outcome.ok) {
+      try {
+        await onCapturePhoto(activeSlot.key, outcome.uri, outcome.capturedAt);
+      } finally {
+        setCapturing(false);
+      }
+    } else {
+      setCapturing(false);
+      setCaptureError(outcome.message);
+    }
   };
 
   const view = permissionView(permission);
