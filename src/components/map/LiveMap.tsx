@@ -7,7 +7,7 @@ import { LiveMapProps, MARKER_STYLE } from "./liveMap.types";
 // WEB DEVELOPMENT FALLBACK ONLY. iOS/Android load LiveMap.native.tsx (real
 // react-native-maps). react-native-maps has no web support, so on Expo Web
 // we draw markers at their relative positions (no map tiles) and say so.
-export function LiveMap({ markers, userFix, onMarkerPress, reportPoint, style }: LiveMapProps) {
+export function LiveMap({ markers, userFix, onMarkerPress, reportPoint, selectedId, style }: LiveMapProps) {
   const points = [...markers, ...(userFix ? [userFix] : []), ...(reportPoint ? [reportPoint] : [])];
   const lats = points.map((p) => p.latitude);
   const lngs = points.map((p) => p.longitude);
@@ -26,9 +26,16 @@ export function LiveMap({ markers, userFix, onMarkerPress, reportPoint, style }:
       </View>
       {markers.map((m) => {
         const look = MARKER_STYLE[m.kind];
+        const selected = m.id === selectedId;
         return (
-          <Pressable key={m.id} onPress={() => onMarkerPress?.(m.id)} style={[styles.pin, { borderColor: look.color }, pos(m)]}>
-            <Ionicons name={look.icon} size={13} color={look.color} />
+          <Pressable
+            key={m.id}
+            onPress={() => onMarkerPress?.(m.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${m.title ?? "Case"} marker${selected ? ", selected" : ""}`}
+            style={[styles.pin, { borderColor: look.color }, selected && [styles.pinSelected, { backgroundColor: look.color }], pos(m)]}
+          >
+            <Ionicons name={look.icon} size={selected ? 16 : 13} color={selected ? "#fff" : look.color} />
           </Pressable>
         );
       })}
@@ -71,6 +78,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  pinSelected: { width: 34, height: 34, marginLeft: -17, marginTop: -17, borderRadius: 17, borderWidth: 3, borderColor: "#fff", zIndex: 3 },
   userDot: {
     position: "absolute",
     width: 16,

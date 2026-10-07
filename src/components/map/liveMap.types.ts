@@ -14,6 +14,8 @@ export type LiveMapProps = {
   /** Bump this number to animate back to the user (Recenter). */
   recenterToken?: number;
   onMarkerPress?: (id: string) => void;
+  /** Marker drawn as selected (larger, filled) — e.g. the case shown in the preview sheet. */
+  selectedId?: string;
   /** Center the camera on this point (e.g. a case opened from "Open in Maps"). Takes precedence over the user position for the starting view. */
   focusPoint?: { latitude: number; longitude: number };
   /** The report point (a pin, distinct from the user's blue dot). */

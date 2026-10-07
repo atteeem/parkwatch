@@ -9,6 +9,7 @@ import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
+import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";
 import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
@@ -23,18 +24,20 @@ import { filterQueue, QueueFilter, withDistances } from "../../src/presentation/
 const MAP_FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Assigned"];
 
 // OFF-03: real map + officer foreground position + open-case markers.
-// Opened with ?caseId= (En Route "Open in Maps") it focuses that case.
-// Straight-line distance only: no routing, no ETA.
+// Opened with ?caseId= (Report Details / En Route "Live Map") it selects and
+// focuses that case. Tapping a marker selects it (highlighted marker, camera
+// focus, preview sheet); the sheet opens the case. Straight-line distance
+// only: no routing, no ETA ("Open in Maps" hands off to the phone's maps app).
 export default function OfficerLiveMap() {
   const router = useRouter();
   const { caseId } = useLocalSearchParams<{ caseId?: string }>();
   const { getCase } = useApp();
   useCaseDetailLoad(caseId);
   const focused = caseId ? getCase(caseId) : undefined;
-  const focusPoint = focused?.coordinates;
+  const [selectedId, setSelectedId] = useState<string | undefined>(caseId);
   // Foreground only, while this screen is focused. No background tracking.
   const location = useForegroundLocation({ watch: true, autoRequest: true });
-  const [follow, dispatchFollow] = useReducer(followReducer, { following: !focusPoint });
+  const [follow, dispatchFollow] = useReducer(followReducer, { following: !focused?.coordinates });
   const [recenterToken, setRecenterToken] = useState(0);
   const [mapFilter, setMapFilter] = useState<QueueFilter>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -44,10 +47,16 @@ export default function OfficerLiveMap() {
   const mapList = usePagedList({ kind: "queue", filter: mapFilter });
   const visible = withDistances(mapList.items, officerFix);
   const nearestResult = nearestNewCase(visible, officerFix);
-  // The sheet shows the focused case if one was requested, else the nearest new one.
-  const sheet = focused
-    ? { item: focused, distanceMeters: straightLineDistance(officerFix, focused.coordinates), title: "Selected Report" }
+  const selected = selectedId ? (visible.find((x) => x.id === selectedId) ?? (selectedId === caseId ? focused : undefined)) : undefined;
+  const focusPoint = selected?.coordinates;
+  // The sheet previews the selected case, else the nearest new one.
+  const sheet = selected
+    ? { item: selected, distanceMeters: straightLineDistance(officerFix, selected.coordinates), title: "Selected Report" }
     : nearestResult && { ...nearestResult, title: "Nearest Report" };
+  const selectCase = (id: string) => {
+    setSelectedId(id);
+    dispatchFollow({ type: "USER_GESTURE" }); // the camera goes to the case, not back to the officer
+  };
   const nearest = sheet?.item;
   const openCase = (id: string) => router.push({ pathname: "/officer/report-details", params: { id } });
 
@@ -112,7 +121,8 @@ export default function OfficerLiveMap() {
           following={follow.following && !!officerFix}
           onUserGesture={() => dispatchFollow({ type: "USER_GESTURE" })}
           recenterToken={recenterToken}
-          onMarkerPress={openCase}
+          selectedId={selected?.id}
+          onMarkerPress={selectCase}
         />
         <View style={styles.noticeWrap} pointerEvents="box-none">
           <LocationNotice
@@ -148,6 +158,7 @@ export default function OfficerLiveMap() {
         <AnimatedPressable
           style={styles.nearestSheet}
           accessibilityRole="button"
+          accessibilityLabel={`${sheet.title}: ${nearest.violation}, ${nearest.location}. Open case`}
           onPress={() => openCase(nearest.id)}
         >
           <View style={styles.sheetHandle} />
@@ -185,6 +196,7 @@ export default function OfficerLiveMap() {
               </View>
             </View>
           </View>
+          <OpenInMapsButton point={nearest.coordinates} label={`Report #${nearest.reportId}`} style={{ marginTop: 10 }} />
         </AnimatedPressable>
         </FadeIn>
       )}

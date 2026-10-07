@@ -16,6 +16,7 @@ import { validateDraft } from "../../../src/domain";
 import { draftIssueMessages } from "../../../src/presentation/errors";
 import { afterStep, draftObservedAt } from "../../../src/presentation/reportDraft";
 import { LiveMap } from "../../../src/components/map/LiveMap";
+import { MapLegend } from "../../../src/components/map/MapLegend";
 import { useForegroundLocation } from "../../../src/location/useForegroundLocation";
 import { addressNeedsTyping, GeocodeStatus, reportLocationStatus } from "../../../src/map/mapLogic";
 import { reverseGeocodeAddress } from "../../../src/location/geocode";
@@ -219,6 +220,7 @@ export default function AddDetails() {
                 following={false}
                 onMapPress={canPickOnMap ? selectMapPoint : undefined}
               />
+              {coords ? <MapLegend showUser={!!deviceFix} /> : null}
               {canPickOnMap ? (
                 <View style={styles.mapHintRow}>
                   <Text style={styles.mapHint}>Not quite right? Tap the map where the vehicle is.</Text>

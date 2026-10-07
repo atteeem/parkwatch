@@ -27,6 +27,7 @@ import {
   systemChecks,
 } from "../../src/presentation/officerViews";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
+import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";
 
 type DeskDecision = "REPORT_REJECTED" | "DUPLICATE";
 
@@ -233,6 +234,7 @@ export default function ReportDetails() {
                 </Text>
               </Pressable>
             )}
+            <OpenInMapsButton point={c.coordinates} label={`Report #${c.reportId}`} style={{ marginTop: 8 }} />
           </Card>
           <Card style={{ flex: 1 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>

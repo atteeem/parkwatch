@@ -16,6 +16,7 @@ export function LiveMap({
   onUserGesture,
   recenterToken = 0,
   onMarkerPress,
+  selectedId,
   interactive = true,
   focusPoint,
   reportPoint,
@@ -67,16 +68,19 @@ export function LiveMap({
       >
         {markers.map((m) => {
           const look = MARKER_STYLE[m.kind];
+          const selected = m.id === selectedId;
           return (
             <Marker
-              key={m.id}
+              // Re-key on selection so the custom view re-renders (tracksViewChanges stays off).
+              key={`${m.id}-${selected ? "s" : "n"}`}
               coordinate={{ latitude: m.latitude, longitude: m.longitude }}
               onPress={() => onMarkerPress?.(m.id)}
               tracksViewChanges={false}
               anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={selected ? 998 : 1}
             >
-              <View style={[styles.pin, { borderColor: look.color }]}>
-                <Ionicons name={look.icon} size={14} color={look.color} />
+              <View style={[styles.pin, { borderColor: look.color }, selected && [styles.pinSelected, { backgroundColor: look.color }]]}>
+                <Ionicons name={look.icon} size={selected ? 18 : 14} color={selected ? "#fff" : look.color} />
               </View>
             </Marker>
           );
@@ -119,6 +123,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  pinSelected: { width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: "#fff" },
   userDot: {
     width: 18,
     height: 18,

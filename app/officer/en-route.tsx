@@ -20,6 +20,7 @@ import { describeDomainError } from "../../src/presentation/errors";
 import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
+import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";
 
 // OFF-05. Straight-line distance from the officer's foreground GPS only:
 // no routing, no ETA, no traffic (none of which the MVP can know).
@@ -119,19 +120,22 @@ export default function EnRoute() {
         <View style={styles.navCard}>
           <View style={styles.navTopBar}>
             <Text style={styles.navTopLabel}>
-              <Ionicons name="navigate" size={13} color={colors.green} /> Navigating to location
+              <Ionicons name="navigate" size={13} color={colors.green} /> Heading to the report location
             </Text>
             {c.coordinates && (
               <Pressable
                 style={styles.openMapsBtn}
                 onPress={() => router.push({ pathname: "/officer/map", params: { caseId: c.id } })}
+                accessibilityLabel="Show on the ParkWatch live map"
               >
-                <Text style={styles.openMapsLabel}>Open in Maps</Text>
+                <Text style={styles.openMapsLabel}>Live Map</Text>
                 <Ionicons name="map-outline" size={13} color="#fff" />
               </Pressable>
             )}
           </View>
           <Text style={styles.navAddress}>{c.location}</Text>
+          {/* Directions, if wanted, happen in the phone's own maps app; ParkWatch shows straight-line distance only. */}
+          <OpenInMapsButton point={c.coordinates} label={`Report #${c.reportId}`} dark style={{ marginHorizontal: 14, marginBottom: 10 }} />
 
           {c.coordinates ? (
             <LiveMap
