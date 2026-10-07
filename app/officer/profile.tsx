@@ -14,6 +14,8 @@ import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
 import { SignOutRow } from "../../src/components/SignOutRow";
 import { Avatar } from "../../src/components/Avatar";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { unreadBadgeText } from "../../src/presentation/unreadBadge";
 
 export default function OfficerProfile() {
   const router = useRouter();
@@ -129,7 +131,18 @@ export default function OfficerProfile() {
 
         <Text style={styles.sectionLabel}>APP</Text>
         <Card noPadding>
-          <SettingsRow icon="notifications" title="Notifications" subtitle="Case updates and alerts" onPress={() => router.push("/officer/notifications")} />
+          <SettingsRow
+            icon="notifications"
+            title="Notifications"
+            subtitle={o.unread > 0 ? `${unreadBadgeText(o.unread)} unread` : "Case updates and alerts"}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <UnreadBadge count={o.unread} />
+                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+              </View>
+            }
+            onPress={() => router.push("/officer/notifications")}
+          />
           <View style={styles.divider} />
           <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
           <View style={styles.divider} />

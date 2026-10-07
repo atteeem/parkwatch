@@ -28,7 +28,7 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 
 export default function UserNotifications() {
   const router = useRouter();
-  const { markUserNotificationsRead, getCitizenReport } = useApp();
+  const { markUserNotificationsRead, getCitizenReport, dataSource } = useApp();
   const refreshControl = useCoreRefreshControl();
   const list = usePagedList({ kind: "notifications", role: "CITIZEN" });
   const userNotifications = list.items;
@@ -59,8 +59,8 @@ export default function UserNotifications() {
               .filter((n) => n.group === group)
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
-                // Only notifications about one of this citizen's own reports open something.
-                const target = citizenNotificationTarget(n, (id) => getCitizenReport(id) !== null);
+                // Own report -> its details; withdrawal -> Wallet; anything else is plain information.
+                const target = citizenNotificationTarget(n, (id) => getCitizenReport(id) !== null, { serverScoped: dataSource === "BACKEND" });
                 const content = (
                   <>
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
@@ -78,7 +78,7 @@ export default function UserNotifications() {
                   </>
                 );
                 return target ? (
-                  <Pressable key={n.id} style={styles.card} onPress={() => router.push(target)} accessibilityRole="button">
+                  <Pressable key={n.id} style={styles.card} onPress={() => router.push(target as never)} accessibilityRole="button" accessibilityHint="Opens the related screen">
                     {content}
                   </Pressable>
                 ) : (

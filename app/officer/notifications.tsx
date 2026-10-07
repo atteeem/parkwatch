@@ -28,7 +28,7 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 
 export default function OfficerNotifications() {
   const router = useRouter();
-  const { markOfficerNotificationsRead, getCase } = useApp();
+  const { markOfficerNotificationsRead, getCase, dataSource } = useApp();
   const refreshControl = useCoreRefreshControl();
   const list = usePagedList({ kind: "notifications", role: "OFFICER" });
   const officerNotifications = list.items;
@@ -60,13 +60,13 @@ export default function OfficerNotifications() {
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
                 // Tap opens the case only if it still exists; otherwise the card is plain information.
-                const target = officerNotificationTarget(n, (id) => !!getCase(id));
+                const target = officerNotificationTarget(n, (id) => !!getCase(id), { serverScoped: dataSource === "BACKEND" });
                 const Wrapper = target ? Pressable : View;
                 return (
                   <Wrapper
                     key={n.id}
                     style={styles.card}
-                    {...(target ? { onPress: () => router.push(target), accessibilityRole: "button" as const } : {})}
+                    {...(target ? { onPress: () => router.push(target as never), accessibilityRole: "button" as const, accessibilityHint: "Opens the case" } : {})}
                   >
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
                       <Ionicons name={k.icon} size={18} color={k.fg} />

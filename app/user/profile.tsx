@@ -18,6 +18,8 @@ import { citizenStatsFromCounts } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
 import { AvatarEditSheet } from "../../src/components/AvatarEditSheet";
 import { useMyAvatar } from "../../src/auth/AvatarContext";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { unreadBadgeText } from "../../src/presentation/unreadBadge";
 
 export default function UserProfile() {
   const router = useRouter();
@@ -107,6 +109,19 @@ export default function UserProfile() {
 
         <Text style={styles.sectionHeading}>App</Text>
         <Card noPadding>
+          <SettingsRow
+            icon="notifications"
+            title="Notifications"
+            subtitle={citizenSummary.unread > 0 ? `${unreadBadgeText(citizenSummary.unread)} unread` : "Report and wallet updates"}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <UnreadBadge count={citizenSummary.unread} />
+                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+              </View>
+            }
+            onPress={() => router.push("/user/notifications")}
+          />
+          <View style={styles.divider} />
           <SettingsRow icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
           <View style={styles.divider} />
           <SettingsRow icon="help-circle" title="Help Center" subtitle="How reporting and rewards work" onPress={() => router.push("/user/info/help")} />

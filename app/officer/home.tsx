@@ -22,6 +22,8 @@ import { EmptyFromCopy } from "../../src/components/EmptyState";
 import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
 import { OFFICER_HOME_NO_ACTIVE, OFFICER_HOME_NO_NEW } from "../../src/presentation/emptyStates";
 import { sortQueue, withDistances } from "../../src/presentation/officerViews";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function OfficerHome() {
   const router = useRouter();
@@ -59,13 +61,9 @@ export default function OfficerHome() {
               <View style={styles.onDutyDot} />
               <Text style={styles.onDutyLabel}>On Duty</Text>
             </View>
-            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")} accessibilityRole="button" accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}>
+            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")} accessibilityRole="button" accessibilityLabel={notificationsA11yLabel(unread)}>
               <Ionicons name="notifications" size={18} color={colors.textPrimary} />
-              {unread > 0 && (
-                <View style={styles.bellBadge}>
-                  <Text style={styles.bellBadgeLabel}>{unread}</Text>
-                </View>
-              )}
+              <UnreadBadge count={unread} style={styles.bellBadge} />
             </Pressable>
           </View>
         </View>
@@ -195,8 +193,7 @@ const styles = StyleSheet.create({
   onDutyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.greenDark },
   onDutyLabel: { fontSize: 11, fontWeight: "700", color: colors.greenDark },
   bellBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center" },
-  bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: colors.green, borderRadius: 8, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center" },
-  bellBadgeLabel: { fontSize: 9.5, fontWeight: "800", color: "#06210F" },
+  bellBadge: { position: "absolute", top: -3, right: -5 },
   statsRow: { flexDirection: "row", gap: 16, marginTop: 14 },
   statChip: { fontSize: 12.5, fontWeight: "600", color: colors.textSecondary },
   nearestCard: { backgroundColor: colors.amberLight, borderRadius: radius.card, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#F3DFA0" },

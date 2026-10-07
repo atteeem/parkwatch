@@ -8,6 +8,7 @@ import { radius } from "../../src/constants/spacing";
 import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
 import { BackHeader } from "../../src/components/Header";
+import { EmptyState } from "../../src/components/EmptyState";
 import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
 import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
@@ -21,10 +22,12 @@ import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNa
 // only for CHARGE_ISSUED and the photo count is the real one.
 export default function InspectionCompleted() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  // Opened as a record (notification) rather than right after deciding: Back returns there.
+  const leave = () => (from && router.canGoBack() ? router.back() : resetToOfficerHome(router));
   // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
   const caseLoad = useCaseDetailLoad(id);
-  const { getCase, getCaseDetail, getInspection } = useApp();
+  const { getCase, getCaseDetail, getInspection, ensureCase } = useApp();
   const freshQueue = usePagedList({ kind: "queue", filter: "New" });
   const location = useForegroundLocation();
   const c = getCase(id);
@@ -35,8 +38,13 @@ export default function InspectionCompleted() {
   if (!c || !summary) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <BackHeader title="Case Result" onBack={() => resetToOfficerHome(router)} />
-        <Text style={styles.stateText}>{!c ? "This case could not be found." : "This case has not been completed yet."}</Text>
+        <BackHeader title="Case Result" onBack={leave} />
+        <EmptyState
+          icon={!c ? "folder-open-outline" : "time-outline"}
+          title={!c ? "Case not available" : "Not completed yet"}
+          body={!c ? "This case could not be loaded. It may have been removed or is no longer visible to you." : "No outcome has been recorded for this case yet."}
+          cta={!c ? (id ? { label: "Try again", onPress: () => ensureCase(id) } : undefined) : { label: "Open case", onPress: () => router.replace({ pathname: "/officer/report-details", params: { id: c.id } }) }}
+        />
       </SafeAreaView>
     );
   }

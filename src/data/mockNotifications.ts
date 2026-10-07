@@ -6,6 +6,8 @@ export type NotifKind = "success" | "pending" | "info" | "error" | "gift" | "bel
 
 export type Notification = {
   id: string;
+  /** Domain notification type (decides where a tap goes). */
+  type?: import("../domain").NotificationType;
   group: string; // "Today" | "Yesterday" | "Monday" | ...
   title: string;
   body: string;

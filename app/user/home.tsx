@@ -25,6 +25,8 @@ import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { citizenReportMarkers } from "../../src/map/mapLogic";
 import { violationLabel } from "../../src/data/types";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function UserHome() {
   const router = useRouter();
@@ -61,14 +63,10 @@ export default function UserHome() {
             style={styles.bellBtn}
             onPress={() => router.push("/user/notifications")}
             accessibilityRole="button"
-            accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+            accessibilityLabel={notificationsA11yLabel(unread)}
           >
             <Ionicons name="notifications" size={18} color={colors.textPrimary} />
-            {unread > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeLabel}>{unread}</Text>
-              </View>
-            )}
+            <UnreadBadge count={unread} style={styles.bellBadge} />
           </Pressable>
         </View>
 
@@ -213,8 +211,7 @@ const styles = StyleSheet.create({
   unsentBody: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
   unsentAction: { fontWeight: "800", fontSize: 13, color: colors.greenDark },
   bellBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center", marginTop: 4 },
-  bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: colors.green, borderRadius: 8, minWidth: 16, height: 16, paddingHorizontal: 3, alignItems: "center", justifyContent: "center" },
-  bellBadgeLabel: { fontSize: 9.5, fontWeight: "800", color: "#06210F" },
+  bellBadge: { position: "absolute", top: -3, right: -5 },
   safe: { flex: 1, backgroundColor: colors.background },
   headerBlock: { paddingHorizontal: 20, paddingTop: 4 },
   shortcut: {

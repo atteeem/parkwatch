@@ -330,6 +330,7 @@ export function toNotificationView(n: DomainNotification, state: ParkWatchState,
   const kind = n.type === "SYSTEM" ? (hint && NOTIF_KINDS.includes(hint) ? hint : "bell") : KIND_BY_TYPE[n.type];
   return {
     id: n.id,
+    type: n.type,
     group: formatDayGroup(n.createdAt, now),
     time: formatNotificationTime(n.createdAt, now),
     kind,
