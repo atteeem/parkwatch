@@ -18,6 +18,9 @@ import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { formatDistance } from "../../src/geo/distance";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { OFFICER_HOME_NO_ACTIVE, OFFICER_HOME_NO_NEW } from "../../src/presentation/emptyStates";
 import { sortQueue, withDistances } from "../../src/presentation/officerViews";
 
 export default function OfficerHome() {
@@ -76,14 +79,11 @@ export default function OfficerHome() {
           </Text>
         </View>
 
-        {!nearest && (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No new reports right now.</Text>
-          </View>
-        )}
+        {/* Only once the first page has settled: never claim "clear" while loading. */}
+        {!nearest && fresh.loaded && !fresh.loading && <EmptyFromCopy copy={OFFICER_HOME_NO_NEW} variant="compact" style={{ marginTop: 12 }} />}
 
         {nearest && (
-          <Pressable style={styles.nearestCard} onPress={() => openCase(nearest.id)}>
+          <AnimatedPressable style={styles.nearestCard} onPress={() => openCase(nearest.id)} accessibilityRole="button">
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={styles.nearestEyebrow}>{nearest.distanceMeters !== null ? "NEAREST NEW REPORT" : "NEXT NEW REPORT"}</Text>
               {nearest.distanceMeters !== null ? (
@@ -116,7 +116,7 @@ export default function OfficerHome() {
               <Text style={styles.viewReportLabel}>View Report</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
             </View>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         <View style={styles.mapSection}>
@@ -151,10 +151,8 @@ export default function OfficerHome() {
             </Pressable>
           </View>
           <View style={{ marginTop: 10 }}>
-            {active.length === 0 && (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No active cases. Accept a report to start.</Text>
-              </View>
+            {active.length === 0 && assigned.loaded && !assigned.loading && (
+              <EmptyFromCopy copy={OFFICER_HOME_NO_ACTIVE} variant="compact" onAction={() => router.replace("/officer/queue")} />
             )}
             {active.map((c) => (
               <CaseCard key={c.id} item={c} distanceMeters={c.distanceMeters} onPress={() => openCase(c.id)} />

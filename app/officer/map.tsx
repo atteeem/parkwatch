@@ -13,6 +13,11 @@ import { FollowLocationButton, LocationNotice } from "../../src/components/map/M
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { followReducer, nearestNewCase, officerCaseMarkers } from "../../src/map/mapLogic";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { MOTION } from "../../src/constants/motion";
+import { OFFICER_MAP_EMPTY } from "../../src/presentation/emptyStates";
 import { filterQueue, QueueFilter, withDistances } from "../../src/presentation/officerViews";
 
 const MAP_FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Assigned"];
@@ -118,6 +123,12 @@ export default function OfficerLiveMap() {
           />
         </View>
 
+        {mapList.loaded && !mapList.loading && visible.length === 0 && !focused && (
+          // Floating card over the map (the map itself stays visible and usable).
+          <View style={styles.emptyOverlay} pointerEvents="box-none">
+            <EmptyFromCopy copy={OFFICER_MAP_EMPTY} variant="overlay" onAction={() => router.replace("/officer/queue")} />
+          </View>
+        )}
         <View style={styles.mapControls}>
           <FollowLocationButton
             following={follow.following && !!officerFix}
@@ -132,8 +143,11 @@ export default function OfficerLiveMap() {
       </View>
 
       {sheet && nearest && (
-        <Pressable
+        // Slides up ~30 px and fades in with a soft spring; tappable immediately.
+        <FadeIn key={nearest.id} spring offsetY={MOTION.SHEET_Y_OFFSET}>
+        <AnimatedPressable
           style={styles.nearestSheet}
+          accessibilityRole="button"
           onPress={() => openCase(nearest.id)}
         >
           <View style={styles.sheetHandle} />
@@ -171,7 +185,8 @@ export default function OfficerLiveMap() {
               </View>
             </View>
           </View>
-        </Pressable>
+        </AnimatedPressable>
+        </FadeIn>
       )}
       <OfficerBottomNav />
     </SafeAreaView>
@@ -201,6 +216,7 @@ const styles = StyleSheet.create({
   filterChipLabel: { fontWeight: "700", fontSize: 12.5 },
   noticeWrap: { position: "absolute", left: 10, right: 10, top: 52 },
   mapControls: { position: "absolute", right: 14, bottom: 14, gap: 10 },
+  emptyOverlay: { position: "absolute", left: 14, right: 74, bottom: 14 },
   nearestSheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: BOTTOM_NAV_HEIGHT + 10, ...shadow.prominent },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: 12 },
   sheetTitle: { fontSize: 16, fontWeight: "800" },

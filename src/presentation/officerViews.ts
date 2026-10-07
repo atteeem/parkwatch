@@ -61,12 +61,6 @@ export function queueSummary(cases: OfficerCaseView[], officerId: string) {
   };
 }
 
-export function queueEmptyMessage(filter: QueueFilter, totalOpen: number, shown: number): string | null {
-  if (shown > 0) return null;
-  if (totalOpen === 0) return "No nearby reports right now.";
-  return "No reports in this category.";
-}
-
 // ---------------------------------------------------------------------------
 // Home (OFF-01)
 
