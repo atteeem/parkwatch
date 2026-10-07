@@ -9,7 +9,7 @@ import { useEvidenceUrlRefresh } from "../context/EvidenceUrlContext";
 const SLOT_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   LICENSE_PLATE: "pricetag-outline",
   PARKING_SIGN: "flag-outline",
-  VIOLATION_CONTEXT: "map-outline",
+  VEHICLE_REAR: "car-outline",
 };
 
 /**
@@ -21,11 +21,14 @@ export function EvidencePhoto({
   uri,
   style,
   compact,
+  contain,
 }: {
   uri?: string;
   style?: StyleProp<ImageStyle & ViewStyle>;
   /** Small thumbnails: icon only, no caption. */
   compact?: boolean;
+  /** Fit the whole photo (full-screen viewer) instead of cropping to fill. */
+  contain?: boolean;
 }) {
   const [failed, setFailed] = useState<string | null>(null);
   const refreshUrl = useEvidenceUrlRefresh();
@@ -47,7 +50,7 @@ export function EvidencePhoto({
     );
   }
   if (uri && !isDemoPhotoUri(uri) && !isLegacyPlaceholderUri(uri)) {
-    return <Image source={{ uri }} style={style as StyleProp<ImageStyle>} onError={onError} />;
+    return <Image source={{ uri }} style={style as StyleProp<ImageStyle>} resizeMode={contain ? "contain" : "cover"} onError={onError} />;
   }
   const slot = uri ? demoPhotoSlot(uri) : undefined;
   return (

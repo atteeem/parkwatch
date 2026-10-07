@@ -13,6 +13,7 @@ import { UserReport as CitizenReportView, violationLabel, VIOLATION_TYPES } from
 import { ReporterDisplayProfile } from "../store/reporterProfiles";
 import { ParkWatchState } from "../store/state";
 import { draftObservedAt } from "./reportDraft";
+import { citizenGalleryItems, GalleryItem } from "./evidenceGallery";
 import { formatDateTime } from "./time";
 import { formatEuros, toCitizenReportView } from "./viewModels";
 
@@ -69,12 +70,22 @@ export type DraftReviewView = {
   reporterStatsKnown: boolean;
   address: string;
   coordinatesText?: string;
+  /** The report point, for the map preview (undefined = address only). */
+  point?: { latitude: number; longitude: number };
+  /** Where the point came from, said honestly ("GPS location" / "Set on the map"). */
+  pointSourceText?: string;
   vehicle: VehicleLines;
   violationLabel: string;
   violationNote?: string;
   requiredPhotos: string[];
   photosTakenAt?: string;
   attachments: { id: string; uri: string }[];
+  /** Every photo (Front, Side, Rear, attachments) for the full-screen gallery. */
+  gallery: GalleryItem[];
+  /** Additional information typed by the citizen ("" = none). */
+  notes: string;
+  /** "07.10.2026 · 12:34" from the first camera photo. */
+  observedText?: string;
   estimatedRewardText: string;
   canSubmit: boolean;
 };
@@ -91,6 +102,8 @@ export function toDraftReview(draft: ReportDraft, reporter: ReporterDisplayProfi
     reporterStatsKnown: reporter.known,
     address: draft.location.address.trim(),
     coordinatesText: coords ? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}` : undefined,
+    point: coords ? { latitude: coords.latitude, longitude: coords.longitude } : undefined,
+    pointSourceText: coords ? (draft.location.coordinatesSource === "MAP_SELECTED" ? "Set on the map" : "GPS location") : undefined,
     vehicle: vehicleLines(draft.vehicle),
     violationLabel: draft.violationId ? violationLabel(draft.violationId) : "Not selected",
     violationNote: VIOLATION_TYPES.find((v) => v.id === draft.violationId)?.note,
@@ -99,6 +112,14 @@ export function toDraftReview(draft: ReportDraft, reporter: ReporterDisplayProfi
       .map((p) => p.uri),
     photosTakenAt: time ? `${pad(time.getHours())}:${pad(time.getMinutes())}` : undefined,
     attachments: draft.attachments.map((a) => ({ id: a.id, uri: a.uri })),
+    gallery: citizenGalleryItems([
+      ...CITIZEN_EVIDENCE_TYPES.map((s) => draft.photos[s]).filter((p): p is NonNullable<typeof p> => !!p),
+      ...draft.attachments,
+    ]),
+    notes: draft.notes.trim(),
+    observedText: time
+      ? `${pad(time.getDate())}.${pad(time.getMonth() + 1)}.${time.getFullYear()} · ${pad(time.getHours())}:${pad(time.getMinutes())}`
+      : undefined,
     estimatedRewardText: formatEuros(MVP_REWARD_AMOUNT_CENTS),
     canSubmit: isDraftValid(draft, "SUBMIT"),
   };

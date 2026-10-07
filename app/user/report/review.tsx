@@ -13,6 +13,9 @@ import { StatusChip } from "../../../src/components/StatusChip";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { useApp } from "../../../src/context/AppContext";
 import { EvidencePhoto } from "../../../src/components/EvidencePhoto";
+import { EvidenceThumbnails } from "../../../src/components/EvidenceGallery";
+import { LiveMap } from "../../../src/components/map/LiveMap";
+import { REVIEW_EDIT_ROUTE, ReviewEditTarget } from "../../../src/presentation/reportDraft";
 import { validateDraft } from "../../../src/domain";
 import { toDraftReview } from "../../../src/presentation/citizenViews";
 import { describeDomainError, draftIssueMessages } from "../../../src/presentation/errors";
@@ -31,6 +34,11 @@ export default function ReviewSubmit() {
   const submitting = phase === "uploading" || phase === "submitting";
 
   const view = toDraftReview(draft, citizenProfile);
+  // Edit a step, then come straight back here (the step sees from=review).
+  const edit = (target: ReviewEditTarget) => {
+    if (submitting || submittedReportId) return;
+    router.push({ pathname: REVIEW_EDIT_ROUTE[target], params: { from: "review" } });
+  };
 
   const goToSubmitted = (reportId: string) => {
     // Remove the finished wizard from the stack: Home -> Report Submitted.
@@ -85,17 +93,27 @@ export default function ReviewSubmit() {
               {view.reporterStatsKnown && <Text style={styles.smallMuted}>{view.verifiedReports} verified reports</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardLabel}>Location</Text>
-              <Text style={styles.cardValue}>{view.address || "—"}</Text>
-              {view.coordinatesText ? <Text style={styles.smallMuted}>{view.coordinatesText}</Text> : null}
-              <View style={styles.mapThumb}>
-                <View style={styles.mapDot} />
-              </View>
-              <Pressable onPress={() => router.push("/user/map")} style={{ marginTop: 6 }}>
-                <Text style={styles.link}>View on Map</Text>
-              </Pressable>
+              <Text style={styles.cardLabel}>Observed</Text>
+              <Text style={styles.cardValueSmall}>{view.observedText ?? "—"}</Text>
+              <Text style={styles.smallMuted}>From your first photo</Text>
             </View>
           </View>
+        </Card>
+
+        <Card>
+          <SectionHeader title="Location" action="Edit" onPress={() => edit("details")} />
+          <Text style={styles.cardValue}>{view.address || "—"}</Text>
+          {view.pointSourceText ? (
+            <Text style={styles.smallMuted}>
+              {view.pointSourceText}
+              {view.coordinatesText ? ` · ${view.coordinatesText}` : ""}
+            </Text>
+          ) : (
+            <Text style={styles.smallMuted}>Address only (no map point)</Text>
+          )}
+          {view.point ? (
+            <LiveMap style={styles.mapPreview} interactive={false} markers={[]} reportPoint={view.point} focusPoint={view.point} following={false} />
+          ) : null}
         </Card>
 
         <Card>
@@ -111,28 +129,22 @@ export default function ReviewSubmit() {
         </Card>
 
         <Card>
-          <Text style={styles.cardLabel}>Violation</Text>
+          <SectionHeader title="Violation" action="Change" onPress={() => edit("violation")} />
           <Text style={styles.cardValue}>{view.violationLabel}</Text>
           {view.violationNote ? <Text style={styles.smallMuted}>{view.violationNote}</Text> : null}
         </Card>
 
         <Card>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={styles.cardLabel}>Evidence</Text>
-            <Text style={styles.smallMuted}>
-              {view.requiredPhotos.length} photos{view.photosTakenAt ? ` • taken at ${view.photosTakenAt}` : ""}
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-            {view.requiredPhotos.map((uri, i) => (
-              <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
-            ))}
-            {view.attachments.length > 0 && (
-              <View style={[styles.evidenceThumb, styles.moreThumb]}>
-                <Text style={styles.moreLabel}>+{view.attachments.length}</Text>
-              </View>
-            )}
-          </View>
+          <SectionHeader title="Additional information" action="Edit" onPress={() => edit("details")} />
+          <Text style={[styles.notes, !view.notes && styles.smallMuted]}>{view.notes || "None added"}</Text>
+        </Card>
+
+        <Card>
+          <SectionHeader title="Evidence" action="Edit photos" onPress={() => edit("photos")} />
+          <Text style={styles.smallMuted}>
+            {view.requiredPhotos.length} photos{view.photosTakenAt ? ` • taken at ${view.photosTakenAt}` : ""} · tap a photo to view it full screen
+          </Text>
+          <EvidenceThumbnails items={view.gallery} thumbStyle={styles.evidenceThumb} max={4} style={{ marginTop: 10 }} />
           {view.attachments.length > 0 && (
             <Text style={[styles.smallMuted, { marginTop: 8 }]}>
               {view.attachments.length} optional {view.attachments.length === 1 ? "attachment" : "attachments"}
@@ -165,6 +177,18 @@ export default function ReviewSubmit() {
   );
 }
 
+/** Card title with a small edit action on the right. */
+function SectionHeader({ title, action, onPress }: { title: string; action: string; onPress: () => void }) {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+      <Text style={styles.cardLabel}>{title}</Text>
+      <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${action}: ${title}`}>
+        <Text style={styles.link}>{action}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   cardLabel: { fontSize: 12, fontWeight: "700", color: colors.textSecondary },
@@ -172,14 +196,13 @@ const styles = StyleSheet.create({
   smallMuted: { fontSize: 11.5, color: colors.textLight, marginTop: 2 },
   trustedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   trustedText: { fontSize: 11.5, fontWeight: "700", color: colors.greenDark },
-  mapThumb: { height: 54, borderRadius: 10, backgroundColor: "#EAF0EC", marginTop: 8, alignItems: "center", justifyContent: "center" },
-  mapDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.blue },
-  link: { color: colors.greenDark, fontWeight: "700", fontSize: 12 },
+  cardValueSmall: { fontSize: 14, fontWeight: "800", marginTop: 3 },
+  mapPreview: { height: 140, borderRadius: radius.card, marginTop: 10 },
+  notes: { fontSize: 14, color: colors.textPrimary, marginTop: 6, lineHeight: 20 },
+  link: { color: colors.greenDark, fontWeight: "800", fontSize: 12.5 },
   plate: { fontSize: 15, fontWeight: "700" },
   vehicleImg: { width: 70, height: 70, borderRadius: radius.photo, marginLeft: 10 },
-  evidenceThumb: { width: 64, height: 64, borderRadius: 12 },
-  moreThumb: { backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center" },
-  moreLabel: { fontWeight: "800", color: colors.textSecondary },
+  evidenceThumb: { width: "100%", aspectRatio: 1, borderRadius: 12 },
   rewardValue: { fontSize: 24, fontWeight: "800", color: colors.greenDark, marginTop: 4 },
   rewardHint: { fontSize: 12, color: "#0B7A38", marginTop: 10, lineHeight: 16 },
   savedHint: { color: colors.textSecondary, fontSize: 12, marginBottom: 8, textAlign: "center" },

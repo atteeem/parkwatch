@@ -31,9 +31,16 @@ type ReportContextValue = {
   startNewReport: () => void;
   capturePhoto: (slot: CitizenEvidenceType, uri: string, capturedAt: string) => void;
   setViolation: (violationId: string) => void;
+  /** Address typed by the citizen (fallback when GPS or geocoding is unavailable). */
   setLocation: (address: string) => void;
-  /** Store the device GPS fix (machine location) separately from the typed address. */
-  setCoordinates: (coordinates: GeoPoint) => void;
+  /** A real device GPS fix (kept as provenance; the report point unless one was picked on the map). */
+  setDeviceFix: (fix: GeoPoint) => void;
+  /** The citizen corrected the report point on the map. */
+  selectMapPoint: (point: { latitude: number; longitude: number }) => void;
+  /** Use the device GPS fix as the report point again. */
+  resetToDeviceFix: () => void;
+  /** Reverse-geocoded address for a point (ignored if stale or the address was typed). */
+  setGeocodedAddress: (address: string, point: { latitude: number; longitude: number }) => void;
   setNotes: (notes: string) => void;
   addAttachment: (uri: string) => void;
   removeAttachment: (evidenceId: string) => void;
@@ -132,7 +139,13 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
   );
   const setViolation = useCallback((violationId: string) => dispatch({ type: "SET_VIOLATION", violationId }), []);
   const setLocation = useCallback((address: string) => dispatch({ type: "SET_LOCATION", address }), []);
-  const setCoordinates = useCallback((coordinates: GeoPoint) => dispatch({ type: "SET_COORDINATES", coordinates }), []);
+  const setDeviceFix = useCallback((fix: GeoPoint) => dispatch({ type: "SET_DEVICE_FIX", fix }), []);
+  const selectMapPoint = useCallback((p: { latitude: number; longitude: number }) => dispatch({ type: "SELECT_MAP_POINT", latitude: p.latitude, longitude: p.longitude }), []);
+  const resetToDeviceFix = useCallback(() => dispatch({ type: "USE_DEVICE_FIX" }), []);
+  const setGeocodedAddress = useCallback(
+    (address: string, point: { latitude: number; longitude: number }) => dispatch({ type: "SET_GEOCODED_ADDRESS", address, point }),
+    []
+  );
   const setNotes = useCallback((notes: string) => dispatch({ type: "SET_NOTES", notes }), []);
   const addAttachment = useCallback(
     (uri: string) => dispatch({ type: "ADD_ATTACHMENT", uri, pickedAt: new Date().toISOString() }),
@@ -166,7 +179,10 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
       capturePhoto,
       setViolation,
       setLocation,
-      setCoordinates,
+      setDeviceFix,
+      selectMapPoint,
+      resetToDeviceFix,
+      setGeocodedAddress,
       setNotes,
       addAttachment,
       removeAttachment,
@@ -178,7 +194,7 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
       recordUpload,
       resetUploads,
     }),
-    [state, startNewReport, capturePhoto, setViolation, setLocation, setCoordinates, setNotes, addAttachment, removeAttachment, markSubmitted, unsentDraft, resumeDraft, discardDraft, uploaded, recordUpload, resetUploads]
+    [state, startNewReport, capturePhoto, setViolation, setLocation, setDeviceFix, selectMapPoint, resetToDeviceFix, setGeocodedAddress, setNotes, addAttachment, removeAttachment, markSubmitted, unsentDraft, resumeDraft, discardDraft, uploaded, recordUpload, resetUploads]
   );
 
   return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>;

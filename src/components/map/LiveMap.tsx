@@ -7,8 +7,8 @@ import { LiveMapProps, MARKER_STYLE } from "./liveMap.types";
 // WEB DEVELOPMENT FALLBACK ONLY. iOS/Android load LiveMap.native.tsx (real
 // react-native-maps). react-native-maps has no web support, so on Expo Web
 // we draw markers at their relative positions (no map tiles) and say so.
-export function LiveMap({ markers, userFix, onMarkerPress, style }: LiveMapProps) {
-  const points = [...markers, ...(userFix ? [userFix] : [])];
+export function LiveMap({ markers, userFix, onMarkerPress, reportPoint, style }: LiveMapProps) {
+  const points = [...markers, ...(userFix ? [userFix] : []), ...(reportPoint ? [reportPoint] : [])];
   const lats = points.map((p) => p.latitude);
   const lngs = points.map((p) => p.longitude);
   const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
@@ -33,11 +33,17 @@ export function LiveMap({ markers, userFix, onMarkerPress, style }: LiveMapProps
         );
       })}
       {userFix && <View style={[styles.userDot, pos(userFix)]} />}
+      {reportPoint && (
+        <View style={[styles.reportPin, pos(reportPoint)]}>
+          <Ionicons name="location" size={22} color="#D93025" />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  reportPin: { position: "absolute", marginLeft: -11, marginTop: -22 },
   wrap: { overflow: "hidden", backgroundColor: "#EAF0EC" },
   notice: {
     position: "absolute",

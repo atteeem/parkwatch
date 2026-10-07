@@ -23,3 +23,6 @@ export const expoLocationProvider: LocationProvider = {
     return () => sub.remove();
   },
 };
+
+/** Reverse geocoding with the platform geocoder (foreground, on demand). Unsupported on web: callers fall back to typing. */
+export const expoReverseGeocoder = (point: { latitude: number; longitude: number }) => Location.reverseGeocodeAsync(point);

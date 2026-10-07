@@ -32,6 +32,13 @@ export type SubmitReportInput = {
   longitude?: number;
   locationAccuracyM?: number;
   locationCapturedAt?: string;
+  /** GPS = the point is the device fix; MAP_SELECTED = picked on the map (no accuracy/time of its own). */
+  locationSource?: "GPS" | "MAP_SELECTED";
+  /** Raw device GPS fix (provenance), also when the point was moved on the map. */
+  deviceLatitude?: number;
+  deviceLongitude?: number;
+  deviceAccuracyM?: number;
+  deviceCapturedAt?: string;
   plateRaw?: string;
   plateNormalized?: string;
   plateCountry?: string;
@@ -65,6 +72,8 @@ export type CoreOperations = {
   pageMyCases(tab: CasesTabKey, cursor: KeysetCursor | null, limit: number): Promise<Result<PageBundle>>;
   getCaseDetail(caseUuid: string): Promise<Result<Partial<CoreSnapshotRows>>>;
   getMyReport(publicNumber: number): Promise<Result<Partial<CoreSnapshotRows>>>;
+  /** T8.7: outcomes decided by the signed-in officer in [from, to), with per-day counts in `timeZone`. */
+  getOfficerMonthlyStats(from: string, to: string, timeZone: string): Promise<Result<Record<string, unknown>>>;
 };
 
 export type KeysetCursor = { ts: string; id: string };
@@ -153,6 +162,11 @@ export function createCoreOperations(client: SupabaseClient): CoreOperations {
           p_vehicle_model: n(i.vehicleModel),
           p_vehicle_color: n(i.vehicleColor),
           p_vehicle_source: n(i.vehicleSource),
+          p_location_source: n(i.locationSource),
+          p_device_latitude: n(i.deviceLatitude),
+          p_device_longitude: n(i.deviceLongitude),
+          p_device_accuracy_m: n(i.deviceAccuracyM),
+          p_device_captured_at: n(i.deviceCapturedAt),
         }
       );
       if (!r.ok) return r;
@@ -216,5 +230,7 @@ export function createCoreOperations(client: SupabaseClient): CoreOperations {
     },
     getMyReport: (publicNumber) =>
       Number.isSafeInteger(publicNumber) && publicNumber > 0 ? object(rpc<Partial<CoreSnapshotRows>>("get_my_report", { p_public_number: publicNumber })) : Promise.resolve(ok({})),
+    getOfficerMonthlyStats: (from, to, timeZone) =>
+      object(rpc<Record<string, unknown>>("get_officer_monthly_stats", { p_from: from, p_to: to, p_time_zone: timeZone })),
   };
 }

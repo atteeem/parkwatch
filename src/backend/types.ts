@@ -52,6 +52,12 @@ export type BackendReportRow = {
   longitude: number | null;
   location_accuracy_m: number | null;
   location_captured_at: Timestamptz | null;
+  /** T8.7. null with a point = older data (GPS). */
+  location_source?: "GPS" | "MAP_SELECTED" | null;
+  device_latitude?: number | null;
+  device_longitude?: number | null;
+  device_accuracy_m?: number | null;
+  device_captured_at?: Timestamptz | null;
   notes: string;
   observed_at: Timestamptz;
   submitted_at: Timestamptz;

@@ -58,6 +58,14 @@ export function validateDraft(draft: ReportDraft, step: DraftStep): DraftIssue[]
 export const isDraftValid = (draft: ReportDraft, step: DraftStep) => validateDraft(draft, step).length === 0;
 
 /** Earliest citizen photo time; the default "observed at" for a report. */
+/**
+ * When the violation was observed: the earliest required CAMERA photo
+ * (device clock; evidence provenance, never typed by the citizen).
+ */
+export function draftObservedAtOf(draft: ReportDraft): IsoTimestamp | undefined {
+  return draft.observedAt ?? earliestCapture(draft);
+}
+
 function earliestCapture(draft: ReportDraft): IsoTimestamp | undefined {
   return CITIZEN_EVIDENCE_TYPES.map((s) => draft.photos[s]?.capturedAt)
     .filter((t): t is string => !!t)

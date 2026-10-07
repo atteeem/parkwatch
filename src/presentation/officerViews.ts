@@ -121,17 +121,20 @@ export type SystemCheck = { label: string; state: "ok" | "info" | "unavailable" 
  * not happened.
  */
 export function systemChecks(input: {
-  coordinates?: { accuracyMeters?: number };
+  coordinates?: { accuracyMeters?: number; source?: "GPS" | "MAP_SELECTED" };
   plateSource?: string;
 }): SystemCheck[] {
   const c = input.coordinates;
   return [
-    c
-      ? {
-          label: `Location from reporter GPS${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
-          state: "ok",
-        }
-      : { label: "Location: address only", state: "unavailable" },
+    !c
+      ? { label: "Location: address only", state: "unavailable" }
+      : c.source === "MAP_SELECTED"
+        ? // Never described as GPS: the reporter placed this point on the map.
+          { label: "Location set by reporter on the map", state: "info" }
+        : {
+            label: `Location from reporter GPS${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
+            state: "ok",
+          },
     { label: "Time recorded on reporter device", state: "info" },
     input.plateSource === "OCR_DETECTED" || input.plateSource === "CITIZEN_CONFIRMED"
       ? { label: "Plate entered with report", state: "ok" }

@@ -21,6 +21,7 @@ import {
   ChecklistKey,
   CitizenEvidence,
   DomainError,
+  draftObservedAtOf,
   EnforcementOutcomeCode,
   fail,
   MVP_MOCK_DETECTED_VEHICLE,
@@ -30,6 +31,7 @@ import {
   Result,
 } from "../../domain";
 import { ParkWatchState } from "../../store/state";
+import { MonthlyStats, monthlyStatsFromServer } from "../../presentation/officerStats";
 import { parseStorageUri } from "../mappers/common";
 import { snapshotToState, storagePathsOf } from "../mappers/snapshot";
 import {
@@ -404,6 +406,8 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
     opts.onProgress?.("submitting");
     const vehicle = draft.vehicle ?? MVP_MOCK_DETECTED_VEHICLE;
     const coords = draft.location.coordinates;
+    const source = draft.location.coordinatesSource ?? "GPS";
+    const device = draft.location.deviceFix;
     // The submission id is the draft id: the same on every retry, also after a restart.
     // If an earlier attempt committed but its response was lost, this returns that report.
     const r = watch(
@@ -411,14 +415,20 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
         submissionId: draft.draftId,
         violationType: draft.violationId,
         locationAddress: draft.location.address.trim(),
-        observedAt: draft.observedAt ?? photos[0].capturedAt,
+        observedAt: draftObservedAtOf(draft) ?? photos[0].capturedAt,
         submittedAt: now().toISOString(),
         evidence: items.map((it) => ({ slot: it.slot, capture_source: it.ev.captureSource, storage_path: it.path, captured_at: it.ev.capturedAt })),
         notes: draft.notes,
         latitude: coords?.latitude,
         longitude: coords?.longitude,
-        locationAccuracyM: coords?.accuracyMeters,
-        locationCapturedAt: coords?.capturedAt,
+        // A point picked on the map is never sent with GPS accuracy/time.
+        locationAccuracyM: source === "GPS" ? coords?.accuracyMeters : undefined,
+        locationCapturedAt: source === "GPS" ? coords?.capturedAt : undefined,
+        locationSource: coords ? source : undefined,
+        deviceLatitude: device?.latitude,
+        deviceLongitude: device?.longitude,
+        deviceAccuracyM: device?.accuracyMeters,
+        deviceCapturedAt: device?.capturedAt,
         plateRaw: vehicle.plate.raw,
         plateNormalized: vehicle.plate.normalized,
         plateCountry: vehicle.plate.country,
@@ -527,6 +537,13 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
     getVersion: () => version,
     getStatus: () => status,
     getSummary: () => summary,
+    /** Officer Monthly Statistics: always a fresh server query (never derived from loaded pages). */
+    async loadOfficerMonthlyStats(range: { from: Date; to: Date }, timeZone: string): Promise<Result<MonthlyStats>> {
+      const r = watch(await ops.getOfficerMonthlyStats(range.from.toISOString(), range.to.toISOString(), timeZone));
+      if (!r.ok) return r;
+      const stats = monthlyStatsFromServer(r.value);
+      return stats ? ok(stats) : fail("BACKEND_ERROR", "BACKEND_ERROR");
+    },
     getList: (spec: ListSpec) => listSnapshot(listKey(spec)),
     /** Load-state of a case detail: undefined (never asked), "loading", "loaded". */
     getCaseLoad: (caseId: string) => caseLoads.get(caseId),

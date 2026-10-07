@@ -83,6 +83,17 @@ export function reportFromRow(row: BackendReportRow, evidence: BackendCitizenEvi
               ...(row.location_accuracy_m !== null ? { accuracyMeters: row.location_accuracy_m } : {}),
               ...(row.location_captured_at ? { capturedAt: row.location_captured_at } : {}),
             },
+            coordinatesSource: row.location_source ?? "GPS",
+          }
+        : {}),
+      ...(row.device_latitude != null && row.device_longitude != null
+        ? {
+            deviceFix: {
+              latitude: row.device_latitude,
+              longitude: row.device_longitude,
+              ...(row.device_accuracy_m != null ? { accuracyMeters: row.device_accuracy_m } : {}),
+              ...(row.device_captured_at ? { capturedAt: row.device_captured_at } : {}),
+            },
           }
         : {}),
     },
