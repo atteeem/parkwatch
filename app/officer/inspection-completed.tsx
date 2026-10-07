@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -9,36 +9,47 @@ import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
 import { BackHeader } from "../../src/components/Header";
 import { EmptyState } from "../../src/components/EmptyState";
-import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad, usePagedList } from "../../src/context/AppContext";
 import { DetailLoading } from "../../src/components/CoreDataGate";
-import { EvidencePhoto } from "../../src/components/EvidencePhoto";
+import { EvidenceGallery, EvidenceThumbnails } from "../../src/components/EvidenceGallery";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
-import { filterQueue, sortQueue, toCompletionSummary, withDistances } from "../../src/presentation/officerViews";
+import { ChecklistAnswer, sortQueue, toCaseRecord, withDistances } from "../../src/presentation/officerViews";
 import { SuccessMark } from "../../src/components/motion/SuccessMark";
 import { FadeIn } from "../../src/components/motion/FadeIn";
 import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNavigation";
 
-// OFF-09. Rendered entirely from the stored case: the charge line appears
-// only for CHARGE_ISSUED and the photo count is the real one.
+const ANSWER: Record<ChecklistAnswer, { text: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  confirmed: { text: "Confirmed", icon: "checkmark-circle", color: colors.greenDark },
+  "not-confirmed": { text: "Not confirmed", icon: "close-circle", color: "#B3261E" },
+  "not-answered": { text: "Not answered", icon: "ellipse-outline", color: colors.textLight },
+};
+
+// OFF-09 + completed-case record (T8.8). Rendered entirely from the stored
+// case: the charge line appears only for CHARGE_ISSUED, the checklist and
+// officer photos only if an on-site inspection was recorded.
+// * Right after deciding (no `from`): success header + Next Case / Home.
+// * Opened later (`from` = record / notifications): a plain record; Back returns.
 export default function InspectionCompleted() {
   const router = useRouter();
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
-  // Opened as a record (notification) rather than right after deciding: Back returns there.
+  const asRecord = !!from;
+  // Opened as a record (notification / details) rather than right after deciding: Back returns there.
   const leave = () => (from && router.canGoBack() ? router.back() : resetToOfficerHome(router));
   // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
   const caseLoad = useCaseDetailLoad(id);
   const { getCase, getCaseDetail, getInspection, ensureCase } = useApp();
   const freshQueue = usePagedList({ kind: "queue", filter: "New" });
   const location = useForegroundLocation();
+  const [gallery, setGallery] = useState<{ kind: "citizen" | "officer"; index: number } | null>(null);
   const c = getCase(id);
-  const summary = c ? toCompletionSummary(c, getInspection(c.id), getCaseDetail(c.id)?.outcomeNotes) : null;
+  const record = c ? toCaseRecord(c, getInspection(c.id), getCaseDetail(c.id)) : null;
 
-  if (caseLoad.loading && (!c || !summary)) return <DetailLoading />;
+  if (caseLoad.loading && (!c || !record)) return <DetailLoading />;
 
-  if (!c || !summary) {
+  if (!c || !record) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <BackHeader title="Case Result" onBack={leave} />
+        <BackHeader title="Case Record" onBack={leave} />
         <EmptyState
           icon={!c ? "folder-open-outline" : "time-outline"}
           title={!c ? "Case not available" : "Not completed yet"}
@@ -59,60 +70,127 @@ export default function InspectionCompleted() {
     }
   };
 
-  const rows: { label: string; value?: string }[] = [
-    ...(summary.photosText ? [{ label: "On-site inspection" }, { label: "Officer photos", value: summary.photosText }] : []),
-    { label: summary.outcomeLabel, value: summary.chargeText },
-    { label: "Case status", value: "Closed" },
-  ];
+  const body = (
+    <>
+      <Card style={{ width: "100%" }}>
+        <View style={styles.headRow}>
+          <Text style={styles.reportId}>Report #{record.reportId}</Text>
+          <View style={styles.statusChip}>
+            <Text style={styles.statusChipLabel}>{record.statusLabel}</Text>
+          </View>
+        </View>
+        <Text style={styles.fieldLabel}>Location</Text>
+        <Text style={styles.fieldValue}>{record.location}</Text>
+        <Text style={styles.fieldLabel}>Vehicle</Text>
+        <Text style={styles.fieldValue}>
+          {record.plate}
+          {record.vehicleText ? <Text style={styles.muted}> · {record.vehicleText}</Text> : null}
+        </Text>
+        <Text style={styles.fieldLabel}>Reported violation</Text>
+        <Text style={styles.fieldValue}>{record.violation}</Text>
+      </Card>
+
+      <Card style={{ width: "100%" }}>
+        <Text style={styles.sectionTitle}>Enforcement outcome</Text>
+        <Text style={styles.outcome}>{record.outcomeLabel}</Text>
+        {record.completedAtText ? <Text style={styles.muted}>Decided {record.completedAtText}</Text> : null}
+        {record.chargeText ? (
+          <>
+            <Text style={styles.fieldLabel}>Parking charge</Text>
+            <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{record.chargeText}</Text>
+          </>
+        ) : null}
+        {record.notes ? (
+          <>
+            <Text style={styles.fieldLabel}>Officer notes</Text>
+            <Text style={styles.fieldValue}>{record.notes}</Text>
+          </>
+        ) : null}
+      </Card>
+
+      <Card style={{ width: "100%" }}>
+        <Text style={styles.sectionTitle}>Inspection checklist</Text>
+        {record.checklist ? (
+          record.checklist.map((row) => {
+            const a = ANSWER[row.answer];
+            return (
+              <View key={row.key} style={styles.checkRow} accessible accessibilityLabel={`${row.label}: ${a.text}`}>
+                <Ionicons name={a.icon} size={18} color={a.color} />
+                <Text style={styles.checkLabel}>{row.label}</Text>
+                <Text style={[styles.checkAnswer, { color: a.color }]}>{a.text}</Text>
+              </View>
+            );
+          })
+        ) : (
+          <Text style={[styles.muted, { marginTop: 6 }]}>No on-site inspection was recorded for this case.</Text>
+        )}
+      </Card>
+
+      <Card style={{ width: "100%" }}>
+        <View style={styles.headRow}>
+          <Text style={styles.sectionTitle}>Citizen evidence</Text>
+          <Text style={styles.muted}>{record.citizenEvidence.length} photos</Text>
+        </View>
+        {record.citizenEvidence.length > 0 ? (
+          <EvidenceThumbnails
+            items={record.citizenEvidence}
+            thumbStyle={styles.thumb}
+            max={4}
+            style={{ gap: 6, marginTop: 10 }}
+            onOpen={(index) => setGallery({ kind: "citizen", index })}
+          />
+        ) : (
+          <Text style={[styles.muted, { marginTop: 6 }]}>The report photos are not available right now.</Text>
+        )}
+      </Card>
+
+      <Card style={{ width: "100%" }}>
+        <View style={styles.headRow}>
+          <Text style={styles.sectionTitle}>Officer evidence</Text>
+          {record.photosText ? <Text style={styles.muted}>{record.photosText}</Text> : null}
+        </View>
+        {record.officerEvidence.length > 0 ? (
+          <EvidenceThumbnails
+            items={record.officerEvidence}
+            thumbStyle={styles.thumb}
+            style={{ gap: 6, marginTop: 10 }}
+            onOpen={(index) => setGallery({ kind: "officer", index })}
+          />
+        ) : (
+          <Text style={[styles.muted, { marginTop: 6 }]}>No officer photos were recorded for this case.</Text>
+        )}
+      </Card>
+    </>
+  );
+
+  const gal = (
+    <EvidenceGallery
+      items={gallery?.kind === "officer" ? record.officerEvidence : record.citizenEvidence}
+      index={gallery?.index ?? null}
+      onClose={() => setGallery(null)}
+    />
+  );
+
+  if (asRecord) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <BackHeader title="Case Record" subtitle={`Case closed · ${record.outcomeLabel}`} onBack={leave} />
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 14 }}>{body}</ScrollView>
+        {gal}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, alignItems: "center" }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, alignItems: "center" }}>
         <SuccessMark style={styles.successCircle} />
-        <FadeIn delay={180} style={{ width: "100%", alignItems: "center" }}>
-        <Text style={styles.title}>{summary.photosText ? "Inspection Completed" : "Case Closed"}</Text>
-        <Text style={styles.subtitle}>Thank you! The outcome has been recorded.</Text>
-
-        <Card style={{ width: "100%", marginTop: 22 }}>
-          <View style={{ flexDirection: "row" }}>
-            <EvidencePhoto uri={c.images[0]} style={styles.img} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.location}>
-                <Ionicons name="location" size={12} color={colors.greenDark} /> {summary.location}
-              </Text>
-              {summary.completedAtText && <Text style={styles.meta}>{summary.completedAtText}</Text>}
-              <Text style={styles.fieldLabel}>Vehicle</Text>
-              <Text style={styles.fieldValue}>{summary.plate}</Text>
-              <Text style={styles.fieldLabel}>Violation</Text>
-              <Text style={styles.fieldValue}>{summary.violation}</Text>
-              <Text style={styles.fieldLabel}>Report ID</Text>
-              <Text style={styles.fieldValue}>#{summary.reportId}</Text>
-              {summary.chargeText && (
-                <>
-                  <Text style={styles.fieldLabel}>Parking charge</Text>
-                  <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{summary.chargeText}</Text>
-                </>
-              )}
-              {summary.notes && (
-                <>
-                  <Text style={styles.fieldLabel}>Notes</Text>
-                  <Text style={styles.fieldValue}>{summary.notes}</Text>
-                </>
-              )}
-            </View>
+        <FadeIn delay={180} style={{ width: "100%", alignItems: "center", gap: 14 }}>
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.title}>{record.checklist ? "Inspection Completed" : "Case Closed"}</Text>
+            <Text style={styles.subtitle}>The outcome has been recorded.</Text>
           </View>
-        </Card>
-
-        <Text style={styles.summaryHeading}>Case Summary</Text>
-        <View style={{ width: "100%", gap: 8 }}>
-          {rows.map((row) => (
-            <View key={row.label} style={styles.summaryRow}>
-              <Text style={styles.summaryRowLabel}>{row.label}</Text>
-              {row.value && <Text style={styles.summaryRowValue}>{row.value}</Text>}
-              <Ionicons name="checkmark-circle" size={18} color="#06210F" />
-            </View>
-          ))}
-        </View>
+          {body}
         </FadeIn>
 
         <View style={{ width: "100%", marginTop: "auto", paddingTop: 20, gap: 10 }}>
@@ -120,23 +198,27 @@ export default function InspectionCompleted() {
           <GreenButton label="Return to Home" variant="outline" icon="home" onPress={() => resetToOfficerHome(router)} />
         </View>
       </ScrollView>
+      {gal}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  stateText: { padding: 24, color: colors.textSecondary, fontSize: 14, textAlign: "center" },
   safe: { flex: 1, backgroundColor: colors.background },
-  successCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center", marginTop: 20 },
-  title: { fontSize: 22, fontWeight: "800", marginTop: 16 },
-  subtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: "center", marginTop: 6 },
-  img: { width: 84, height: 84, borderRadius: radius.photo },
-  location: { fontWeight: "800", fontSize: 14 },
-  meta: { fontSize: 11.5, color: colors.textSecondary, marginTop: 3 },
-  fieldLabel: { fontSize: 10.5, color: colors.textLight, marginTop: 6 },
-  fieldValue: { fontSize: 13, fontWeight: "700" },
-  summaryHeading: { fontSize: 16, fontWeight: "800", alignSelf: "flex-start", marginTop: 18, marginBottom: 10 },
-  summaryRow: { flexDirection: "row", alignItems: "center", backgroundColor: colors.green, borderRadius: radius.button, paddingHorizontal: 14, paddingVertical: 13 },
-  summaryRowLabel: { flex: 1, fontWeight: "800", fontSize: 13.5, color: "#06210F" },
-  summaryRowValue: { fontWeight: "700", fontSize: 13, color: "#06210F", marginRight: 10 },
+  successCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center", marginTop: 12 },
+  title: { fontSize: 22, fontWeight: "800", marginTop: 14 },
+  subtitle: { fontSize: 13.5, color: colors.textSecondary, textAlign: "center", marginTop: 4 },
+  headRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reportId: { fontSize: 16, fontWeight: "800" },
+  statusChip: { backgroundColor: colors.backgroundSunk, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 4 },
+  statusChipLabel: { fontSize: 12, fontWeight: "800", color: colors.textSecondary },
+  sectionTitle: { fontSize: 15, fontWeight: "800" },
+  outcome: { fontSize: 17, fontWeight: "800", marginTop: 6 },
+  fieldLabel: { fontSize: 11.5, fontWeight: "700", color: colors.textSecondary, marginTop: 10 },
+  fieldValue: { fontSize: 14, fontWeight: "700", marginTop: 2 },
+  muted: { fontSize: 12.5, color: colors.textSecondary, fontWeight: "500" },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  checkLabel: { flex: 1, fontSize: 13.5, fontWeight: "600" },
+  checkAnswer: { fontSize: 12.5, fontWeight: "700" },
+  thumb: { width: "100%", aspectRatio: 1, borderRadius: 10 },
 });

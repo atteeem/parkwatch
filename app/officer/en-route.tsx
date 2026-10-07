@@ -200,7 +200,7 @@ export default function EnRoute() {
         {action === "VIEW_RESULT" ? (
           <GreenButton
             label="View Result"
-            onPress={() => router.push({ pathname: "/officer/inspection-completed", params: { id: c.id } })}
+            onPress={() => router.push({ pathname: "/officer/inspection-completed", params: { id: c.id, from: "record" } })}
           />
         ) : (
           <>

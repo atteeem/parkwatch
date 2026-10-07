@@ -27,7 +27,6 @@ import { Notification as NotificationView, NotifKind } from "../data/mockNotific
 import {
   CaseStatus as LegacyCaseStatus,
   CasePriority,
-  CLOSE_WITHOUT_CHARGE_REASONS,
   OfficerCase as OfficerCaseView,
   UserReport as CitizenReportView,
   UserReportStatus,
@@ -103,10 +102,18 @@ const OUTCOME_TO_REASON_ID: Partial<Record<EnforcementOutcomeCode, string>> = {
   OTHER: "other",
 };
 
+/** How a recorded outcome is named on records and notifications (the Inspection Result choices keep their longer labels). */
+export const OUTCOME_LABEL: Record<EnforcementOutcomeCode, string> = {
+  CHARGE_ISSUED: "Parking charge issued",
+  REPORT_REJECTED: "Report rejected",
+  VEHICLE_MOVED: "Vehicle moved",
+  VALID_PERMIT: "Valid permit",
+  DUPLICATE: "Duplicate report",
+  OTHER: "Closed without charge",
+};
+
 export function outcomeLabel(code: EnforcementOutcomeCode): string {
-  if (code === "CHARGE_ISSUED") return "Parking charge issued";
-  const id = OUTCOME_TO_REASON_ID[code];
-  return CLOSE_WITHOUT_CHARGE_REASONS.find((r) => r.id === id)?.label ?? code;
+  return OUTCOME_LABEL[code] ?? code;
 }
 
 const violationNote = (id: string) => VIOLATION_TYPES.find((v) => v.id === id)?.note;

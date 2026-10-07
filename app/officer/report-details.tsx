@@ -102,7 +102,7 @@ export default function ReportDetails() {
       case "CONTINUE_INSPECTION":
         return go("/officer/inspection");
       case "VIEW_RESULT":
-        return go("/officer/inspection-completed");
+        return router.push({ pathname: "/officer/inspection-completed", params: { id: c.id, from: "record" } });
       case "TAKEN":
         return;
     }

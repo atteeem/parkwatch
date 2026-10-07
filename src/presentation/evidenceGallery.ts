@@ -49,3 +49,20 @@ export const galleryCounter = (index: number, count: number): string => `${clamp
 /** Screen-reader label for the current page. */
 export const galleryPageLabel = (item: GalleryItem | undefined, index: number, count: number): string =>
   item ? `${item.caption} photo, ${clampIndex(index, count) + 1} of ${count}` : "No photos";
+
+/** Officer photo slot order on screen (matches the capture flow). */
+export const OFFICER_GALLERY_ORDER: readonly OfficerEvidenceType[] = ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"];
+
+/**
+ * Officer evidence as gallery pages: only captured photos, in the fixed
+ * slot order, captioned by type. `photos` maps each type to its URI.
+ */
+export function officerGalleryItems(photos: Partial<Record<OfficerEvidenceType, string | undefined>>): GalleryItem[] {
+  return OFFICER_GALLERY_ORDER.filter((t) => !!photos[t]).map((t) => ({ key: `officer-${t}`, uri: photos[t]!, caption: OFFICER_EVIDENCE_CAPTION[t] }));
+}
+
+/** Index of a type in officerGalleryItems(photos), or null if it has no photo. */
+export function officerGalleryIndex(photos: Partial<Record<OfficerEvidenceType, string | undefined>>, type: OfficerEvidenceType): number | null {
+  const i = officerGalleryItems(photos).findIndex((it) => it.key === `officer-${type}`);
+  return i < 0 ? null : i;
+}
