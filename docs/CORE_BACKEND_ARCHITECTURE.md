@@ -213,20 +213,25 @@ not a substitute for verifying a real project.
 
 | Category | Status | What it covers |
 | --- | --- | --- |
-| DB verifier (PGlite, real migrations) | **VERIFIED** | 216 scenarios: RLS, grants, storage policies, workflow functions, outcomes, paged reads, summaries, other org / inactive / anonymous |
+| DB verifier (PGlite, real migrations, Supabase default privileges) | **VERIFIED** | 224 scenarios: RLS, grants, function EXECUTE privileges, storage policies, workflow functions, outcomes, paged reads, summaries, other org / inactive / anonymous |
 | Mock backend (real SQL + real supabase-js, Jest integration) | **VERIFIED** | submit, idempotent retry, lost responses after commit (submit/accept/complete), restart mid-upload, pagination + server filters, revoked membership (lists + detail), session expiry |
-| Unit tests (store, drafts, guards, mapping, source security) | **VERIFIED** | paging, filter switching, refresh reset, cache pruning, reconciliation, upload recovery, signed URL refresh, draft persistence |
+| Unit tests (store, drafts, guards, mapping, source security) — Jest 684/684 | **VERIFIED** | paging, filter switching, refresh reset, cache pruning, reconciliation, upload recovery, signed URL refresh, draft persistence |
 | Browser (web build vs mock) | **VERIFIED** | officer and citizen walkthroughs, draft recovery across reload, offline banner / offline launch, LOCAL_DEMO regression (see REAL_DEVICE_QA.md section A) |
-| Real Supabase project | **NOT VERIFIED** | no project was configured; see REAL_DEVICE_QA.md section B |
-| Physical phone | **NOT VERIFIED** | no device was available; see REAL_DEVICE_QA.md section C |
+| Real Supabase project | **VERIFIED** (T8.5) | real-cloud QA suite **26/26** + cloud smoke 26/26 on the development project: citizen submit, officer charge with photos, consequences, all outcomes, accept race, RLS + private storage, pagination, lost responses, signed URL expiry, invalid token. Not run there: other-org / inactive / metadata-spoof accounts, audit rows (REAL_DEVICE_QA.md section B) |
+| Physical phone | **NOT VERIFIED** | no device was used; camera, GPS, native maps, permissions, backgrounding, Android Back all NOT RUN (REAL_DEVICE_QA.md section C) |
 
 The browser walkthrough used DOM-dispatched clicks (the preview pane did not render)
 and a helper for camera steps; it verifies screen logic and server integration, not
 native rendering, camera, GPS or maps.
 
-## Known limitations (T8.4)
+## Known limitations (T8.5)
 
-- Not verified on a real Supabase project or on a physical phone.
+- Not verified on a physical phone.
+- Supabase access tokens stay valid until they expire, even after sign-out (observed on
+  the real project); the app discards them on sign-out. Shorten the JWT expiry in the
+  project's Auth settings if tighter revocation is needed.
+- No reporter statistics in backend mode ("Not rated").
+- Parking remains local (simulated on the phone; not part of the backend).
 - Jurisdiction is a single configured default (`app_settings.default_jurisdiction_id`,
   development routing); no geographic routing yet (`NO_JURISDICTION` if unset).
 - No withdrawals/payouts on the server; no realtime/push (refresh on focus/foreground).

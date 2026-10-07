@@ -53,7 +53,8 @@ Without Supabase settings the app runs as the **local demo** (no accounts). With
 accounts**: citizens sign up / sign in, and officer access comes only from server-side
 profile + organization membership. In backend mode reports, cases, inspections, rewards,
 notifications and photos come from the server (server functions, private storage);
-withdrawals are disabled and parking stays local. Verified offline only so far. See
+withdrawals are disabled and parking stays local. Verified on a real Supabase development
+project (T8.5 real-cloud QA 26/26); not yet verified on a physical phone. See
 [docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md), [docs/AUTH_ARCHITECTURE.md](docs/AUTH_ARCHITECTURE.md)
 and [docs/CORE_BACKEND_ARCHITECTURE.md](docs/CORE_BACKEND_ARCHITECTURE.md).
 

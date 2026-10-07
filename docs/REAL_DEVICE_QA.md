@@ -1,15 +1,16 @@
-# Real device + real cloud QA (T8.4)
+# Real device + real cloud QA (T8.4, real cloud completed in T8.5)
 
 What has been verified, and the exact checklists that still need a **real development
 Supabase project** and **physical phones**.
 
-> **Status at the end of T8.4**
+> **Status at the end of T8.5**
 >
-> - REAL SUPABASE: **NOT VERIFIED** (no project was configured)
-> - REAL PHONE: **NOT VERIFIED** (no device was available to the developer tooling)
+> - REAL SUPABASE: **VERIFIED** — real-cloud QA suite 26/26 and cloud smoke 26/26 on the
+>   development project (section B; items marked NOT RUN are not claimed)
+> - REAL PHONE: **NOT VERIFIED** — no physical device was used; every item in section C
+>   is NOT RUN
 >
-> Every checkbox in sections B and C is intentionally left unchecked. Do not infer
-> them from the offline/browser results in section A.
+> Do not infer section C from the browser results in section A or the cloud results in B.
 
 ---
 
@@ -35,45 +36,96 @@ Back, real backgrounding, real network loss on a phone, real Supabase Auth/Stora
 
 ---
 
-## B. Requires a real Supabase development project
+## B. Real Supabase development project — VERIFIED (T8.5)
 
-Prepare with [BACKEND_SETUP.md](BACKEND_SETUP.md) → "Development cloud setup checklist".
+Final run: **26/26 passed** (`PARKWATCH_RUN_CLOUD_QA=1 npm run test:cloud-qa`, run id
+`261007072404`, 2026-10-07) against the real development project, plus the cloud smoke
+test **26/26**. The suite drives the app's real backend modules (core store, server
+operations, private storage) with real Supabase Auth, PostgREST, Postgres RLS and
+Storage. Markers: **PASS** = checked on the real project; **NOT RUN** = not covered by
+the real-cloud run (no claim is made).
 
 ### B1. Project + data
-- [ ] All 5 migrations applied in order without error.
-- [ ] Verification SQL: RLS on every public table; both buckets `public = false`;
-      trigger `on_auth_user_created` exists; `default_jurisdiction_id` set; no SECURITY
-      DEFINER function without `search_path`.
-- [ ] Accounts: Citizen A, Citizen B, Officer (org A, active), Officer (org B),
-      inactive Officer, citizen with `role: OFFICER` in user metadata.
-- [ ] Optional: `npm run test:cloud-smoke` (see BACKEND_SETUP.md) → `failed: 0`;
-      note the `manualCleanup` output.
+- **PASS** — migrations 1–6 applied (1–5 + seed via SQL editor, then migration 6; the
+  project's migration history lists only `core_schema`, so objects were verified
+  directly instead of by history).
+- **PASS** — RLS on every public table, both evidence buckets private, seed present,
+  `default_jurisdiction_id = helsinki-demo` (verified by the project owner).
+- **PASS** — after migration 6: anonymous callers get `permission denied` on every helper
+  and app function and every ParkWatch table (probed against the real API).
+- **PASS** — accounts CitizenA, CitizenB (CITIZEN), OfficerA, OfficerB (OFFICER + active
+  membership); server-side roles confirmed by the suite; sign-up trigger created the
+  citizen profiles.
+- **NOT RUN** — second-organization officer, inactive officer and a citizen whose user
+  metadata claims OFFICER (accounts not created on the real project; covered offline only).
+- **PASS** — cloud smoke test 26/26.
 
 ### B2. Security on the real project
-- [ ] Citizen A cannot read Citizen B's reports, photos, wallet or notifications.
-- [ ] Citizen cannot read the officer queue or officer photos.
-- [ ] Citizen cannot call accept / start route / start inspection / checks / complete
-      (FORBIDDEN).
-- [ ] Citizen cannot insert into reports, officer_cases, enforcement_outcomes,
-      reward_ledger, audit_events (permission denied).
-- [ ] Officer of org B does not see org A cases.
-- [ ] Deactivated officer loses access (lists empty, actions refused) after refresh.
-- [ ] Metadata-"officer" gets the citizen app only.
-- [ ] Photo URLs only work as signed URLs; `/storage/v1/object/public/...` fails.
+- **PASS** — Citizen A cannot read Citizen B's report, evidence rows, evidence files
+  (signing refused), rewards or notifications.
+- **PASS** — citizens see no officer queue, cases, inspections, outcomes or officer
+  photos; officer summary is zero for a citizen.
+- **PASS** — citizens cannot accept / start route / start inspection / answer checks /
+  confirm plate / add officer evidence / complete (FORBIDDEN).
+- **PASS** — citizens cannot insert into reports, officer_cases, enforcement_outcomes,
+  reward_ledger, audit_events, notifications; a direct status update has no effect.
+- **PASS** — officers cannot read citizens' rewards, notifications or other profiles.
+- **PASS** — Officer B cannot start inspection / complete on a case assigned to Officer A
+  (CASE_TAKEN); an unassigned officer cannot upload officer evidence for a case.
+- **PASS** — private storage: own and same-organization enforcement access only; no
+  cross-citizen access; citizens cannot upload into another user's folder or into
+  officer evidence; `/storage/v1/object/public/...` fails for both buckets.
+- **NOT RUN** — officer of another organization; deactivated officer; metadata-"officer"
+  (no such accounts on the real project; all three pass in the offline verifier).
 
-### B3. Cloud consequences (check in Dashboard → Table editor)
-- [ ] After a citizen submit: one report owned by the auth user, public number set,
-      one NEW case, REWARD_PENDING 500, audit rows, 3 objects in `report-evidence`.
-- [ ] After CHARGE_ISSUED: case COMPLETED, outcome charge 6000, report VERIFIED,
-      REWARD_RELEASED once, one REPORT_VERIFIED + one PARKING_CHARGE_ISSUED notification.
-- [ ] After REPORT_REJECTED: report REJECTED, REWARD_VOIDED, REPORT_REJECTED notification.
-- [ ] After VEHICLE_MOVED: case COMPLETED, report still UNDER_REVIEW, REWARD_VOIDED,
-      **no** citizen outcome notification.
-- [ ] Optional: VALID_PERMIT, DUPLICATE, OTHER behave like VEHICLE_MOVED for the citizen.
+### B3. Cloud consequences
+- **PASS** — citizen submit through the app store: exactly one report owned by the auth
+  user, server public number, `helsinki-demo`, 3 private evidence objects under
+  `<uid>/<draft id>/`, one NEW case, REWARD_PENDING 500; the report survives a restart
+  (fresh session reads it from the cloud).
+- **NOT RUN** — audit rows (clients cannot read `audit_events` by design; check in the
+  Dashboard if needed).
+- **PASS** — CHARGE_ISSUED by Officer A after accept, inspection (tri-state check
+  changes), plate confirm, 4 private officer photos + a retake (old object removed):
+  case COMPLETED with lifecycle timestamps, outcome CHARGE_ISSUED **6000** (server),
+  report VERIFIED, REWARD_RELEASED exactly once, exactly one REPORT_VERIFIED and one
+  PARKING_CHARGE_ISSUED notification; citizen evidence renders via signed URL.
+- **PASS** — repeating the charge changes nothing; a different outcome → ALREADY_COMPLETED.
+- **PASS** — REPORT_REJECTED: report REJECTED, REWARD_VOIDED, REPORT_REJECTED notification.
+- **PASS** — VEHICLE_MOVED, VALID_PERMIT, DUPLICATE, OTHER: case COMPLETED, report still
+  UNDER_REVIEW, REWARD_VOIDED, **no** citizen outcome notification.
+
+### B4. Other real-cloud behaviour
+- **PASS** — accept race: Officer A and B at once → exactly one winner (OfficerB in the
+  final run), the other CASE_TAKEN, one assignment, one CASE_ACCEPTED notification.
+- **PASS** — pagination with page size 2: citizen 17 reports over 9 pages = server count,
+  no duplicates, Rejected tab = server count, 22 notifications paged; officer queue
+  (5 open / 3 new), My Cases tabs and notifications match server counts; refresh resets
+  to page 1.
+- **PASS** — lost responses after commit: `submit_report` retry with the same id returns
+  the same report (count +1 only, one pending reward); `accept_case` and
+  `complete_case` reconciled from server state (one outcome, one notification).
+- **PASS** — signed URL expiry: a 1-second test-only URL is refused after expiry (HTTP
+  400); the app store re-signs (new URL loads, HTTP 200) and does not loop. App default
+  TTL unchanged (1 hour).
+- **PASS** — invalid access token: refused; the app maps it to UNAUTHENTICATED and asks
+  the auth layer to re-check; nothing is created (after fix `66ba48d`).
+- **PASS** — an invalid refresh token is rejected.
+- **OBSERVED (known limitation)** — after sign-out (local and global) the *old access
+  token* is still accepted (HTTP 200) until it expires: Supabase access tokens are
+  stateless JWTs. The app drops the token on sign-out; shorten the project's JWT expiry
+  if tighter revocation is needed.
+
+### Defects found and fixed during real-cloud QA
+| Commit | Defect | Fix |
+| --- | --- | --- |
+| `b6fc2b7` | anon could execute SECURITY DEFINER helpers (Supabase default privileges) | migration 6 + verifier models Supabase defaults |
+| `400eeac` | the QA transport only spoke HTTP (suite could not reach the HTTPS project) | http/https by protocol, test-only |
+| `66ba48d` | Storage "signature verification failed" (400/403/AccessDenied) was classified as an upload failure, so no session re-check | treated as UNAUTHENTICATED; RLS denials and bare 403 unchanged |
 
 ---
 
-## C. Requires physical phones (with the real project from B)
+## C. Requires physical phones — NOT VERIFIED (all items NOT RUN)
 
 Setup: local `.env` (anon key only) → `npx expo start` → Expo Go (SDK 57). Record
 device model + OS for every run.

@@ -279,6 +279,20 @@ select public_report_number, source_draft_id, created_at
 from public.reports where notes like '[ParkWatch cloud smoke test%';
 ```
 
+### Real-cloud QA suite (T8.5)
+
+`PARKWATCH_RUN_CLOUD_QA=1 npm run test:cloud-qa` runs `src/backend/__cloudqa__/realCloud.cloudqa.ts`
+against the development project with the app's real backend modules (26 checks: citizen
+→ officer → citizen flows, all outcomes, accept race, RLS and private storage,
+pagination, lost responses, signed URL expiry, invalid tokens). It is never part of
+`npm test`. It reads the URL/anon key from `.env` and the four TEST accounts'
+passwords from environment variables or the git-ignored `.env.cloudqa.local`
+(`CLOUDQA_CITIZEN_A_PASSWORD`, `CLOUDQA_CITIZEN_B_PASSWORD`,
+`CLOUDQA_OFFICER_A_PASSWORD`, `CLOUDQA_OFFICER_B_PASSWORD`; emails default to
+CitizenA@ / CitizenB@ / OfficerA@ / OfficerB@gmail.com). Each run creates about ten small
+reports marked `[ParkWatch cloud QA <run id>]` and writes only record ids to the
+git-ignored `cloud-qa-results.local.json`. Result at the end of T8.5: **26/26 passed**.
+
 ### Keeping credentials out of git
 
 - `.env` is git-ignored; `.env.example` holds empty placeholders only.
@@ -290,8 +304,10 @@ from public.reports where notes like '[ParkWatch cloud smoke test%';
 
 ## Current limitations
 
-- **Not yet verified against a real Supabase project or on a physical phone** (only
-  offline: PGlite + local mock + web). See [REAL_DEVICE_QA.md](REAL_DEVICE_QA.md).
+- **Verified on a real Supabase development project (T8.5: QA suite 26/26, smoke 26/26);
+  NOT verified on a physical phone.** See [REAL_DEVICE_QA.md](REAL_DEVICE_QA.md).
+- Supabase access tokens remain valid until expiry after sign-out (stateless JWTs).
+- No reporter statistics in backend mode (shown as "Not rated").
 - Withdrawals are disabled in backend mode ("Withdrawals are not available in the
   backend preview yet."); there is no server payout flow.
 - New reports go to one configured jurisdiction (`app_settings`, development routing),

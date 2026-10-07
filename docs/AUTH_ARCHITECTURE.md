@@ -75,6 +75,14 @@ pages, and the cache is rebuilt from that refresh only, so previously loaded cas
 disappear; a case detail that the server no longer returns is removed instead of shown
 stale; and all actions are refused by the server (FORBIDDEN).
 
+**Token validity (observed on the real project, T8.5).** A corrupted or expired access
+token is refused by the server and the app re-checks the session (Storage reports a bad
+signature as "signature verification failed", which the app now treats as an auth
+failure). After sign-out — local or global — the *old access token* itself is still
+accepted until it expires, because Supabase access tokens are stateless JWTs; the app
+discards it on sign-out, and refresh tokens are revoked. Tighter revocation means a
+shorter JWT expiry in the project's Auth settings.
+
 **Re-auth.** After signing in again the store reloads page 1 of every list and any open
 detail from the server; an officer's inspection continues from the server state, a
 citizen continues the unsent draft. Offline at launch with a stored session: "Account
