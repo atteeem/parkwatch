@@ -22,6 +22,7 @@ import { CasesTab, casesStats, filterCasesTab, filterQueue, myCases, QueueFilter
 import { EarningsPeriod, selectEarnings, selectWalletActivity, WalletActivityItem, EarningsSummary } from "../presentation/walletViews";
 import { ParkingHistoryItem, parkingHistory, VehicleView, vehicleViews } from "../presentation/parkingViews";
 import { ActionResult } from "../presentation/submitGuard";
+import { deviceTimeZone, localMonthlyStats, MonthlyStats } from "../presentation/officerStats";
 import { useAuth } from "../auth/AuthContext";
 import {
   createCoreBackendStore,
@@ -193,6 +194,11 @@ type AppContextValue = {
   /** DEVELOPMENT/MOCK plate confirmation (no OCR). */
   confirmPlateBySimulatedScan: (caseId: string) => ActionResult<void>;
   setOfficerPhoto: (caseId: string, key: OfficerPhotoKey, uri: string, capturedAt?: string) => ActionResult<{ evidenceId: string }>;
+  /**
+   * Officer Monthly Statistics for a period. BACKEND: a server query limited to
+   * the signed-in officer (never the loaded pages). LOCAL_DEMO: the complete local store.
+   */
+  loadOfficerMonthlyStats: (range: { from: Date; to: Date }) => Promise<Result<MonthlyStats>>;
   /** Record the enforcement outcome (charge amount always decided by the store/server, never the screen). */
   completeCase: (caseId: string, code: EnforcementOutcomeCode, notes?: string) => ActionResult<{ changed: boolean }>;
 
@@ -246,6 +252,7 @@ type CoreActions = Pick<
   | "confirmPlateBySimulatedScan"
   | "setOfficerPhoto"
   | "completeCase"
+  | "loadOfficerMonthlyStats"
   | "markUserNotificationsRead"
   | "markOfficerNotificationsRead"
   | "validateWithdrawal"
@@ -431,6 +438,7 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         // Officer slot photos only come from the in-app camera screen.
         setOfficerPhoto: (caseId, key, uri, capturedAt) =>
           appStore.attachOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri, "CAMERA", capturedAt),
+        loadOfficerMonthlyStats: async (range) => ({ ok: true, value: localMonthlyStats(state.cases, DEV_OFFICER_ID, range) }),
         completeCase: (caseId, code, notes) => {
           const r = appStore.completeCase(caseId, code, DEV_OFFICER_ID, notes);
           return r.ok ? { ok: true, value: { changed: r.value.changed } } : r;
@@ -646,6 +654,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
           st.setOfficerPhoto(caseId, OFFICER_PHOTO_KEY_TO_TYPE[key], uri, capturedAt)
         ),
         completeCase: wrap((st, caseId: string, code: EnforcementOutcomeCode, notes?: string) => st.completeCase(caseId, code, notes)),
+        loadOfficerMonthlyStats: wrap((st, range: { from: Date; to: Date }) => st.loadOfficerMonthlyStats(range, deviceTimeZone())),
         markUserNotificationsRead: markRead,
         markOfficerNotificationsRead: markRead,
       },

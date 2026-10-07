@@ -122,7 +122,7 @@ export default function OfficerProfile() {
 
         <Text style={styles.sectionLabel}>PERFORMANCE</Text>
         <Card noPadding>
-          <SettingsRow icon="stats-chart" title="Monthly Statistics" unavailable />
+          <SettingsRow icon="stats-chart" title="Monthly Statistics" subtitle="Decisions you recorded this month" onPress={() => router.push("/officer/statistics")} />
           <View style={styles.divider} />
           <SettingsRow icon="folder" title="Case History" subtitle="View your inspection history" onPress={() => router.replace("/officer/cases")} />
         </Card>
