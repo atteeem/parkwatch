@@ -37,6 +37,7 @@ import { createCoreOperations } from "../backend/operations/coreOperations";
 import { createEvidenceStorage } from "../backend/storage/evidenceStorage";
 import { getSupabaseClient } from "../backend/supabase";
 import { asyncStorageAdapter } from "../store/asyncStorageAdapter";
+import { CitizenReportDetailView, selectCitizenReportDetail } from "../presentation/citizenReportDetail";
 import { getReporterDisplayProfile, ownReporterProfile, ReporterDisplayProfile } from "../store/reporterProfiles";
 import { buildSeedState } from "../store/seed";
 import { DEV_CITIZEN_ID, DEV_OFFICER_ID } from "../store/session";
@@ -155,6 +156,8 @@ type AppContextValue = {
   userReports: UserReport[];
   /** Read-only lookup for detail screens / deep links (null if unknown or not this citizen's). */
   getCitizenReport: (id: string | undefined | null) => UserReport | null;
+  /** Full record for the report detail screen (null if unknown or not this citizen's). */
+  getCitizenReportDetail: (id: string | undefined | null) => CitizenReportDetailView | null;
   /** Display profile of the signed-in citizen. */
   citizenProfile: ReporterDisplayProfile;
   /** Submit the draft. Idempotent per draftId: a repeat returns the same report (created=false). */
@@ -294,6 +297,7 @@ function buildValue(args: {
     ...args.lists,
     userReports: derived.userReports,
     getCitizenReport: (id) => selectCitizenReportById(core, citizenId, id),
+    getCitizenReportDetail: (id) => selectCitizenReportDetail(core, citizenId, id),
     citizenProfile: args.citizenProfile,
     walletAvailable: wallet.available,
     walletPending: wallet.pending,
