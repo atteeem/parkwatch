@@ -1,12 +1,18 @@
 import React from "react";
-import { Redirect, Stack } from "expo-router";
-import { useSession } from "../../src/context/SessionContext";
-import { ROLE_HOME } from "../../src/navigation/roleGuard";
+import { Stack } from "expo-router";
+import { AreaGuard } from "../../src/components/AreaGuard";
+import { CoreDataGate } from "../../src/components/CoreDataGate";
 
-// Route guard: only a citizen session may open /user/* screens; any other
-// session is sent to its own home. (Role source is DEV_ROLE until real auth.)
+// Route guard for /user/*: only a session allowed to use the citizen app gets in
+// (backend mode: server-resolved access; local demo: the dev role). Everyone
+// else is redirected to their own home or to sign-in. CoreDataGate: server
+// data loading/error states and refresh (pass-through in the local demo).
 export default function CitizenLayout() {
-  const { role } = useSession();
-  if (role !== "citizen") return <Redirect href={ROLE_HOME[role]} />;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <AreaGuard area="citizen">
+      <CoreDataGate>
+        <Stack screenOptions={{ headerShown: false }} />
+      </CoreDataGate>
+    </AreaGuard>
+  );
 }

@@ -22,7 +22,7 @@ export function DemoTools() {
   const [message, setMessage] = useState<string | null>(null);
 
   if (!__DEV__ || !devSwitchRole) return null;
-  const other = role === "citizen" ? "officer" : "citizen";
+  const other = role === "officer" ? "citizen" : "officer";
 
   return (
     <View style={styles.card}>

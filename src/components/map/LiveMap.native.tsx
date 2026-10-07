@@ -18,6 +18,8 @@ export function LiveMap({
   onMarkerPress,
   interactive = true,
   focusPoint,
+  reportPoint,
+  onMapPress,
   style,
 }: LiveMapProps) {
   const mapRef = useRef<MapView>(null);
@@ -58,6 +60,7 @@ export function LiveMap({
         showsUserLocation={false}
         showsMyLocationButton={false}
         onPanDrag={interactive ? () => onUserGesture?.() : undefined}
+        onPress={interactive && onMapPress ? (e) => onMapPress(e.nativeEvent.coordinate) : undefined}
         onRegionChangeComplete={(_region, details) => {
           if (interactive && details?.isGesture) onUserGesture?.();
         }}
@@ -78,6 +81,12 @@ export function LiveMap({
             </Marker>
           );
         })}
+
+        {reportPoint && (
+          <Marker coordinate={reportPoint} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false} zIndex={1000}>
+            <Ionicons name="location" size={36} color="#D93025" />
+          </Marker>
+        )}
 
         {userFix && (
           <>

@@ -205,3 +205,30 @@ function must<T>(r: { ok: true; value: T } | { ok: false; error: { message: stri
   if (!r.ok) throw new Error(r.error.message);
   return r.value;
 }
+
+// ---------------------------------------------------------------------------
+// v4 -> v5 (T8.7): officer evidence types now say what the photo shows.
+// VEHICLE_OVERVIEW was always the front photo and VIOLATION_CONTEXT the rear
+// one, so the rename keeps every photo in its slot (same as the server
+// migration 20261010000002).
+
+export const V4_OFFICER_EVIDENCE_RENAME: Readonly<Record<string, OfficerEvidence["type"]>> = {
+  VEHICLE_OVERVIEW: "VEHICLE_FRONT",
+  VIOLATION_CONTEXT: "VEHICLE_REAR",
+};
+
+export function migrateV4toV5(v4: ParkWatchState): ParkWatchState {
+  const rename = (t: string) => V4_OFFICER_EVIDENCE_RENAME[t] ?? (t as OfficerEvidence["type"]);
+  const inspections = Object.fromEntries(
+    Object.entries(v4.inspections).map(([caseId, i]) => [
+      caseId,
+      {
+        ...i,
+        officerEvidence: Object.fromEntries(
+          Object.entries(i.officerEvidence as Record<string, OfficerEvidence | undefined>).map(([type, e]) => [rename(type), e && { ...e, type: rename(e.type) }])
+        ),
+      },
+    ])
+  ) as ParkWatchState["inspections"];
+  return { ...v4, inspections };
+}

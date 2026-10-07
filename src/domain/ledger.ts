@@ -41,6 +41,15 @@ const key = {
   openingBalance: (citizenId: string) => `opening-balance:${citizenId}`,
 };
 
+/**
+ * The domain's idempotency key for a report reward entry. Reward state is
+ * derived from these keys, so entries recorded elsewhere (the server uses its
+ * own keys) are re-keyed with this when they are loaded.
+ */
+export function rewardEntryKey(type: "REWARD_PENDING" | "REWARD_RELEASED" | "REWARD_VOIDED", reportId: string): string {
+  return type === "REWARD_PENDING" ? key.pending(reportId) : type === "REWARD_RELEASED" ? key.released(reportId) : key.voided(reportId);
+}
+
 function hasKey(ledger: Ledger, idempotencyKey: string): boolean {
   return ledger.some((e) => e.idempotencyKey === idempotencyKey);
 }

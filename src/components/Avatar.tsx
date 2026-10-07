@@ -1,9 +1,22 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { colors } from "../constants/colors";
 
-/** Neutral initials avatar (no remote profile pictures in the MVP). */
-export function Avatar({ name, size = 52 }: { name: string; size?: number }) {
+/**
+ * Profile picture when one is set (signed URL / local image), otherwise neutral
+ * initials. `onError` receives the URL that failed (e.g. an expired signed URL).
+ */
+export function Avatar({ name, size = 52, uri, onError }: { name: string; size?: number; uri?: string; onError?: (uri: string) => void }) {
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        onError={onError ? () => onError(uri) : undefined}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.greenLight }}
+        accessibilityLabel={`${name}, profile photo`}
+      />
+    );
+  }
   const initials = name
     .split(/\s+/)
     .filter(Boolean)

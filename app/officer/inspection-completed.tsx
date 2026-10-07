@@ -8,10 +8,13 @@ import { radius } from "../../src/constants/spacing";
 import { GreenButton } from "../../src/components/GreenButton";
 import { Card } from "../../src/components/Card";
 import { BackHeader } from "../../src/components/Header";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad, usePagedList, useQueuePosition } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { filterQueue, sortQueue, toCompletionSummary, withDistances } from "../../src/presentation/officerViews";
+import { SuccessMark } from "../../src/components/motion/SuccessMark";
+import { FadeIn } from "../../src/components/motion/FadeIn";
 import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNavigation";
 
 // OFF-09. Rendered entirely from the stored case: the charge line appears
@@ -19,10 +22,15 @@ import { openNextCase, resetToOfficerHome } from "../../src/navigation/officerNa
 export default function InspectionCompleted() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getCase, getCaseDetail, getInspection, officerCases, officerId } = useApp();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
+  const { getCase, getCaseDetail, getInspection } = useApp();
+  const freshQueue = usePagedList({ kind: "queue", filter: "New" });
   const location = useForegroundLocation();
   const c = getCase(id);
   const summary = c ? toCompletionSummary(c, getInspection(c.id), getCaseDetail(c.id)?.outcomeNotes) : null;
+
+  if (caseLoad.loading && (!c || !summary)) return <DetailLoading />;
 
   if (!c || !summary) {
     return (
@@ -35,7 +43,7 @@ export default function InspectionCompleted() {
 
   const handleNextCase = () => {
     const fix = location.permission === "granted" ? location.fix : undefined;
-    const next = sortQueue(filterQueue(withDistances(officerCases, fix), "New", officerId)).find((x) => x.id !== c.id);
+    const next = sortQueue(withDistances(freshQueue.items, fix)).find((x) => x.id !== c.id);
     if (next) openNextCase(router, next.id);
     else {
       resetToOfficerHome(router);
@@ -52,9 +60,8 @@ export default function InspectionCompleted() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, alignItems: "center" }}>
-        <View style={styles.successCircle}>
-          <Ionicons name="checkmark" size={40} color={colors.greenDark} />
-        </View>
+        <SuccessMark style={styles.successCircle} />
+        <FadeIn delay={180} style={{ width: "100%", alignItems: "center" }}>
         <Text style={styles.title}>{summary.photosText ? "Inspection Completed" : "Case Closed"}</Text>
         <Text style={styles.subtitle}>Thank you! The outcome has been recorded.</Text>
 
@@ -98,6 +105,7 @@ export default function InspectionCompleted() {
             </View>
           ))}
         </View>
+        </FadeIn>
 
         <View style={{ width: "100%", marginTop: "auto", paddingTop: 20, gap: 10 }}>
           <GreenButton label="Next Case" icon="navigate" onPress={handleNextCase} />

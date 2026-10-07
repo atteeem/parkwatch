@@ -7,28 +7,29 @@ import { colors } from "../../src/constants/colors";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { StatusChip } from "../../src/components/StatusChip";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
-import { caseChip, CasesTab, casesStats, filterCasesTab, myCases, sortCases } from "../../src/presentation/officerViews";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { casesEmpty } from "../../src/presentation/emptyStates";
+import { caseChip, CasesTab } from "../../src/presentation/officerViews";
 
 const TABS: readonly CasesTab[] = ["All", "Completed", "Issued", "Rejected"];
 
-const EMPTY_TEXT: Record<CasesTab, string> = {
-  All: "No cases yet. Cases you accept or decide appear here.",
-  Completed: "No completed cases yet.",
-  Issued: "No parking charges issued yet.",
-  Rejected: "No rejected reports.",
-};
 
 // OFF-10: this officer's cases (assigned to or decided by them), newest first.
 export default function MyCases() {
   const router = useRouter();
-  const { officerCases, officerId } = useApp();
+  const { officerSummary } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [tab, setTab] = useState<CasesTab>("All");
 
-  const mine = myCases(officerCases, officerId);
-  const stats = casesStats(mine);
-  const list = sortCases(filterCasesTab(mine, tab), "NEWEST");
+  // Tabs are filtered on the server before paging; the totals are server counts.
+  const paged = usePagedList({ kind: "myCases", tab });
+  const list = paged.items;
+  const stats = { total: officerSummary.mineTotal, completed: officerSummary.mineCompleted, issued: officerSummary.mineIssued, rejected: officerSummary.mineRejected };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -41,10 +42,10 @@ export default function MyCases() {
 
       <View style={styles.tabsRow}>
         {TABS.map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={styles.tab}>
+          <AnimatedPressable key={t} onPress={() => setTab(t)} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{t}</Text>
-            {tab === t && <View style={styles.tabUnderline} />}
-          </Pressable>
+            <ActiveIndicator active={tab === t} style={styles.tabUnderline} fromScale={0.3} />
+          </AnimatedPressable>
         ))}
       </View>
 
@@ -63,15 +64,16 @@ export default function MyCases() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {list.length === 0 && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        {listSettledEmpty(paged) && <EmptyFromCopy key={tab} copy={casesEmpty(tab)} onAction={() => router.replace("/officer/queue")} />}
         {list.map((c) => {
           const chip = caseChip(c);
           const charged = c.outcomeCode === "CHARGE_ISSUED" && c.chargeAmount !== undefined;
           return (
-            <Pressable
+            <AnimatedPressable
               key={c.id}
               style={styles.caseCard}
+              accessibilityRole="button"
               onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
             >
               <EvidencePhoto uri={c.images[0]} style={styles.caseImg} />
@@ -102,9 +104,10 @@ export default function MyCases() {
                   </>
                 ) : null}
               </View>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
+        <ListFooter list={paged} />
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>

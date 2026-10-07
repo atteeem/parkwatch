@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -11,13 +11,15 @@ import { Card } from "../../src/components/Card";
 import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
+import { EvidenceGallery, EvidenceThumbnails } from "../../src/components/EvidenceGallery";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import {
   CASE_ACTION_LABEL,
   canDecideAtDesk,
@@ -47,6 +49,8 @@ export default function ReportDetails() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase } = useApp();
   const detail = getCaseDetail(id);
   const c = detail?.case;
@@ -55,8 +59,12 @@ export default function ReportDetails() {
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<DeskDecision | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  // One shared gallery for the hero photo and the evidence thumbnails.
+  const [galleryAt, setGalleryAt] = useState<number | null>(null);
   // One guard per case stage: a second tap in the same stage is ignored.
-  const guard = useMemo(() => createSubmitGuard(), [c?.status, c?.assignedOfficerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guard = useGuardedAction(`${c?.status}|${c?.assignedOfficerId}`);
+
+  if (caseLoad.loading && !c) return <DetailLoading />;
 
   if (!detail || !c) {
     return (
@@ -144,7 +152,14 @@ export default function ReportDetails() {
 
         <Card>
           <View style={{ flexDirection: "row" }}>
-            <EvidencePhoto uri={c.images[0]} style={styles.vehicleImg} />
+            {detail.evidence.length > 0 ? (
+              // Hero = gallery photo 1 (Front): tap opens the same gallery as the thumbnails.
+              <Pressable onPress={() => setGalleryAt(0)} accessibilityRole="imagebutton" accessibilityLabel={`${detail.evidence[0]!.caption} photo, open full screen`}>
+                <EvidencePhoto uri={detail.evidence[0]!.uri} style={styles.vehicleImg} />
+              </Pressable>
+            ) : (
+              <EvidencePhoto uri={c.images[0]} style={styles.vehicleImg} />
+            )}
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.plate}>{c.plate}</Text>
               <Text style={styles.fieldLabel}>Vehicle</Text>
@@ -154,7 +169,7 @@ export default function ReportDetails() {
               <Text style={styles.fieldLabel}>Reported Violation</Text>
               <Text style={styles.fieldValue}>{c.violation}</Text>
               <Text style={styles.fieldLabel}>Reporter Reliability</Text>
-              <Text style={[styles.fieldValue, { color: colors.greenDark }]}>{c.reporterReliability}</Text>
+              <Text style={[styles.fieldValue, { color: c.reporterStatsKnown ? colors.greenDark : colors.textSecondary }]}>{c.reporterReliability}</Text>
               {c.reporterReliability === "High" && (
                 <View style={styles.trustedBadge}>
                   <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} />
@@ -177,6 +192,7 @@ export default function ReportDetails() {
             </View>
             <Text style={{ fontWeight: "800", fontSize: 14, flex: 1 }}>{c.reporterName}</Text>
           </View>
+          {c.reporterStatsKnown ? (
           <View style={{ flexDirection: "row", marginTop: 10, gap: 20 }}>
             <Text style={styles.reporterStat}>
               <Ionicons name="shield-checkmark" size={12} color={colors.greenDark} /> Acceptance Rate <Text style={{ fontWeight: "800" }}>{c.reporterAcceptanceRate}%</Text>
@@ -185,6 +201,9 @@ export default function ReportDetails() {
               <Ionicons name="checkmark-circle" size={12} color={colors.greenDark} /> Verified Reports <Text style={{ fontWeight: "800" }}>{c.reporterVerifiedReports}</Text>
             </Text>
           </View>
+          ) : (
+            <Text style={[styles.reporterStat, { marginTop: 10 }]}>No reporter statistics yet. Verify the report on site.</Text>
+          )}
         </Card>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
@@ -220,11 +239,8 @@ export default function ReportDetails() {
               <Text style={styles.smallHeading}>Evidence</Text>
               <Text style={styles.smallMuted}>{c.photoCount} photos</Text>
             </View>
-            <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
-              {c.images.slice(0, 4).map((uri, i) => (
-                <EvidencePhoto key={i} uri={uri} style={styles.evidenceThumb} compact />
-              ))}
-            </View>
+            {/* Tap any photo: full screen, swipe through Front / Side / Rear / attachments. */}
+            <EvidenceThumbnails items={detail.evidence} thumbStyle={styles.evidenceThumb} max={4} style={{ gap: 4, marginTop: 8 }} onOpen={setGalleryAt} />
           </Card>
         </View>
 
@@ -260,7 +276,8 @@ export default function ReportDetails() {
           label={CASE_ACTION_LABEL[action]}
           icon={action === "ACCEPT" ? "checkmark-circle" : undefined}
           trailingIcon={action === "ACCEPT" ? null : undefined}
-          disabled={action === "TAKEN"}
+          disabled={action === "TAKEN" || guard.busy}
+          loading={guard.busy && decision === null}
           onPress={handlePrimary}
         />
         {deskAllowed && (
@@ -295,9 +312,11 @@ export default function ReportDetails() {
         confirmLabel={decision ? DESK_CONFIRM[decision].confirm : ""}
         destructive
         error={dialogError}
+        busy={guard.busy}
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />
+      <EvidenceGallery items={detail.evidence} index={galleryAt} onClose={() => setGalleryAt(null)} />
     </SafeAreaView>
   );
 }
@@ -325,7 +344,7 @@ const styles = StyleSheet.create({
   mapThumb: { height: 80, borderRadius: 10, marginTop: 8 },
   mapThumbEmpty: { backgroundColor: "#EAF0EC", alignItems: "center", justifyContent: "center" },
   viewOnMap: { color: colors.greenDark, fontWeight: "700", fontSize: 11.5 },
-  evidenceThumb: { flex: 1, aspectRatio: 0.8, borderRadius: 6 },
+  evidenceThumb: { width: "100%", aspectRatio: 0.8, borderRadius: 6 },
   checkLine: { fontSize: 11.5, color: colors.textSecondary, marginTop: 6 },
   notesText: { fontSize: 12, color: colors.textSecondary, marginTop: 8, lineHeight: 16 },
   bottomBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: colors.background },

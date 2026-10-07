@@ -8,13 +8,16 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp, useQueuePosition } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { queueEmpty } from "../../src/presentation/emptyStates";
 import {
-  filterQueue,
-  queueEmptyMessage,
   QueueFilter,
-  queueSummary,
   sortQueue,
   withDistances,
 } from "../../src/presentation/officerViews";
@@ -23,17 +26,19 @@ const FILTERS: readonly QueueFilter[] = ["All", "New", "High Priority", "Assigne
 
 export default function ReportQueue() {
   const router = useRouter();
-  const { officerCases, officerId } = useApp();
+  const { officerSummary } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const [filter, setFilter] = useState<QueueFilter>("All");
   // Never prompts; distances only when permission was already granted.
   const location = useForegroundLocation();
   const officerFix = location.permission === "granted" ? location.fix : undefined;
 
-  const summary = queueSummary(officerCases, officerId);
-  const withDist = withDistances(officerCases, officerFix);
-  const totalOpen = filterQueue(withDist, "All", officerId).length;
-  const shown = sortQueue(filterQueue(withDist, filter, officerId));
-  const empty = queueEmptyMessage(filter, totalOpen, shown.length);
+  useQueuePosition(officerFix);
+  // Filtered (and nearest-first ordered) on the server before paging; counts from the server.
+  const list = usePagedList({ kind: "queue", filter });
+  const summary = { newCount: officerSummary.newCount, highPriorityCount: officerSummary.highPriorityNew, assignedToMeCount: officerSummary.assignedToMe };
+  const shown = sortQueue(withDistances(list.items, officerFix));
+  const empty = listSettledEmpty(list) ? queueEmpty(filter, officerSummary.open) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -44,9 +49,16 @@ export default function ReportQueue() {
 
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
-          <Pressable key={f} onPress={() => setFilter(f)} style={[styles.filterPill, filter === f && styles.filterPillActive]}>
+          <AnimatedPressable
+            key={f}
+            onPress={() => setFilter(f)}
+            style={[styles.filterPill, filter === f && styles.filterPillSelected]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: filter === f }}
+          >
+            <ActiveIndicator active={filter === f} style={styles.filterPillActive} />
             <Text style={[styles.filterLabel, filter === f && styles.filterLabelActive]}>{f}</Text>
-          </Pressable>
+          </AnimatedPressable>
         ))}
         {/* Single sort (nearest first); not a dropdown. */}
         <View style={styles.sortPill}>
@@ -77,21 +89,21 @@ export default function ReportQueue() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {empty && (
-          <View style={styles.emptyCard}>
-            <Ionicons name="checkmark-done" size={22} color={colors.textLight} />
-            <Text style={styles.emptyText}>{empty}</Text>
-          </View>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        {empty && <EmptyFromCopy key={filter} copy={empty} onAction={() => setFilter("All")} />}
+        {shown.length > 0 && (
+          <FadeIn key={filter}>
+            {shown.map((c) => (
+              <CaseCard
+                key={c.id}
+                item={c}
+                distanceMeters={c.distanceMeters}
+                onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
+              />
+            ))}
+          </FadeIn>
         )}
-        {shown.map((c) => (
-          <CaseCard
-            key={c.id}
-            item={c}
-            distanceMeters={c.distanceMeters}
-            onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
-          />
-        ))}
+        <ListFooter list={list} />
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>
@@ -102,7 +114,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   filterRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20, marginTop: 14, flexWrap: "wrap" },
   filterPill: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.chip, paddingHorizontal: 12, paddingVertical: 8 },
-  filterPillActive: { backgroundColor: colors.green, borderColor: colors.green },
+  filterPillSelected: { borderColor: colors.green },
+  filterPillActive: { position: "absolute", top: -1, left: -1, right: -1, bottom: -1, borderRadius: radius.chip, backgroundColor: colors.green },
   filterLabel: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
   filterLabelActive: { color: "#06210F" },
   sortPill: { flexDirection: "row", alignItems: "center", gap: 4, marginLeft: "auto", paddingHorizontal: 4, paddingVertical: 8 },

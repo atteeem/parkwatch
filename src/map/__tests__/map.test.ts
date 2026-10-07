@@ -125,15 +125,15 @@ describe("report draft GPS", () => {
 
   it("a real fix populates coordinates with accuracy and time", () => {
     const s = draftReducer(withPhotos(), {
-      type: "SET_COORDINATES",
-      coordinates: { latitude: 60.1699, longitude: 24.9384, accuracyMeters: 9, capturedAt: T },
+      type: "SET_DEVICE_FIX",
+      fix: { latitude: 60.1699, longitude: 24.9384, accuracyMeters: 9, capturedAt: T },
     });
     expect(s.draft.location.coordinates).toEqual({ latitude: 60.1699, longitude: 24.9384, accuracyMeters: 9, capturedAt: T });
   });
 
   it("GPS updates never overwrite the typed address (and vice versa)", () => {
     let s = draftReducer(withPhotos(), { type: "SET_LOCATION", address: "Mannerheimintie 45, Helsinki" });
-    s = draftReducer(s, { type: "SET_COORDINATES", coordinates: { latitude: 60.17, longitude: 24.94, capturedAt: T } });
+    s = draftReducer(s, { type: "SET_DEVICE_FIX", fix: { latitude: 60.17, longitude: 24.94, capturedAt: T } });
     expect(s.draft.location.address).toBe("Mannerheimintie 45, Helsinki");
     s = draftReducer(s, { type: "SET_LOCATION", address: "Kaivokatu 12, Helsinki" });
     expect(s.draft.location.coordinates).toMatchObject({ latitude: 60.17 });

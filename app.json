@@ -9,7 +9,7 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "ParkWatch uses the camera so you can capture evidence of a parking violation."
+        "NSCameraUsageDescription": "ParkWatch uses the camera so you can capture evidence of a parking violation, or take a profile photo if you choose to."
       }
     },
     "android": {
@@ -34,7 +34,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation.",
+          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation, or take a profile photo if you choose to.",
           "recordAudioAndroid": false,
           "microphonePermission": false
         }
@@ -43,9 +43,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ParkWatch lets you attach optional extra photos from your library to a report. Required evidence photos are always taken with the camera.",
+          "photosPermission": "ParkWatch lets you attach optional extra photos from your library to a report, or choose a profile photo. Required evidence photos are always taken with the camera.",
           "microphonePermission": false,
-          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation."
+          "cameraPermission": "ParkWatch uses the camera so you can capture evidence of a parking violation, or take a profile photo if you choose to."
         }
       ],
       [

@@ -66,7 +66,7 @@ describe("case flow", () => {
     for (const key of ["vehiclePresent", "plateMatches", "violationConfirmed", "restrictionVerified"] as const) {
       expectOk(store.updateChecklist(caseId, key, true));
     }
-    for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
+    for (const type of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"] as const) {
       expectOk(store.attachOfficerPhoto(caseId, type, `file:///${type}.jpg`, "CAMERA"));
     }
     advance(60_000);

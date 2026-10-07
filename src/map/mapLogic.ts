@@ -106,6 +106,47 @@ export function gpsStatusText(
   return { ok: false, text: "Precise GPS location unavailable. The address you enter will be used." };
 }
 
+export type GeocodeStatus = "idle" | "loading" | "failed";
+
+type LocationInputs = {
+  permission: "undetermined" | "granted" | "denied" | "blocked";
+  /** A GPS reading is in progress. */
+  loading: boolean;
+  coordinates?: { accuracyMeters?: number };
+  coordinatesSource?: "GPS" | "MAP_SELECTED";
+  addressSource?: "GEOCODED" | "TYPED";
+  geocode: GeocodeStatus;
+};
+
+/**
+ * Report location status line (Add Details). Honest about where the point
+ * came from: a point picked on the map is never described as GPS.
+ */
+export function reportLocationStatus(a: LocationInputs): { ok: boolean; text: string } {
+  const lookup = a.geocode === "loading" && a.addressSource !== "TYPED";
+  const noAddress = a.geocode === "failed" && a.addressSource !== "TYPED" ? " The address could not be found; please type it." : "";
+  if (a.coordinates && a.coordinatesSource === "MAP_SELECTED") {
+    return { ok: true, text: lookup ? "Point set on the map. Finding its address…" : `Point set on the map.${noAddress}` };
+  }
+  if (a.coordinates) {
+    const acc = a.coordinates.accuracyMeters !== undefined ? ` (accurate to about ${Math.round(a.coordinates.accuracyMeters)} m)` : "";
+    return { ok: true, text: lookup ? "GPS location found. Finding the address…" : `GPS location attached${acc}.${noAddress}` };
+  }
+  if (a.permission === "granted" && a.loading) return { ok: false, text: "Getting your GPS location…" };
+  return { ok: false, text: "GPS location unavailable. Please type the address." };
+}
+
+/**
+ * The address is shown read-only when it came from the location; the text
+ * field is only the fallback (no permission / no fix / lookup failed), or
+ * when the citizen already typed one.
+ */
+export function addressNeedsTyping(a: LocationInputs): boolean {
+  if (a.addressSource === "TYPED") return true;
+  if (a.coordinates) return a.geocode === "failed";
+  return !(a.permission === "granted" && a.loading);
+}
+
 // ---------------------------------------------------------------------------
 // Officer: nearest new case by straight-line distance
 

@@ -9,10 +9,12 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { FollowLocationButton, LocationNotice } from "../../src/components/map/MapControls";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
 import { UserReportStatus } from "../../src/data/types";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { citizenReportMarkers, followReducer, INITIAL_FOLLOW_STATE } from "../../src/map/mapLogic";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { CITIZEN_MAP_EMPTY } from "../../src/presentation/emptyStates";
 import { reportStatusCounts } from "../../src/presentation/citizenViews";
 
 const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
@@ -26,14 +28,17 @@ const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
 // (the shared watch is released when it loses focus).
 export default function UserMap() {
   const router = useRouter();
-  const { userReports } = useApp();
+  const { citizenSummary } = useApp();
+  // Markers: the citizen's most recent reports (loaded pages); counts: all reports (server).
+  const recent = usePagedList({ kind: "citizenReports", tab: "all" });
+  const userReports = recent.items;
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
   const location = useForegroundLocation({ watch: true, autoRequest: true });
   const [follow, dispatchFollow] = useReducer(followReducer, INITIAL_FOLLOW_STATE);
   const [recenterToken, setRecenterToken] = useState(0);
 
   const markers = citizenReportMarkers(userReports, filter);
-  const counts = reportStatusCounts(userReports);
+  const counts = citizenSummary;
   const onMap = citizenReportMarkers(userReports, "all").length;
   const hasPosition = location.permission === "granted" && !!location.fix;
 
@@ -50,13 +55,13 @@ export default function UserMap() {
           <Text style={typography.screenTitle}>Map</Text>
           <Text style={typography.screenSubtitle}>View your reports on the map</Text>
         </View>
-        <Ionicons name="search" size={22} color={colors.textPrimary} />
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }} style={{ flexGrow: 0, marginVertical: 12 }}>
-        <View style={styles.filterPill}>
-          <Ionicons name="options" size={14} color={colors.textPrimary} />
-          <Text style={styles.filterLabel}>Filters</Text>
+        {/* Section label, not a button: the pills next to it are the filters. */}
+        <View style={styles.filterCaption}>
+          <Ionicons name="options" size={14} color={colors.textSecondary} />
+          <Text style={styles.filterCaptionLabel}>Show</Text>
         </View>
         {FILTERS.map((f) => (
           <Pressable key={f.key} onPress={() => setFilter(f.key)} style={[styles.filterPill, filter === f.key && styles.filterPillActive]}>
@@ -83,6 +88,12 @@ export default function UserMap() {
             onRetry={() => void location.refreshLocation()}
           />
         </View>
+        {recent.loaded && !recent.loading && onMap === 0 && (
+          // Small floating card: the map stays usable underneath.
+          <View style={styles.emptyOverlay} pointerEvents="box-none">
+            <EmptyFromCopy copy={CITIZEN_MAP_EMPTY} variant="overlay" />
+          </View>
+        )}
         <View style={styles.recenterWrap}>
           <FollowLocationButton following={follow.following && hasPosition} disabled={!hasPosition} onPress={recenter} />
         </View>
@@ -109,6 +120,8 @@ export default function UserMap() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 4 },
+  filterCaption: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 2 },
+  filterCaptionLabel: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
   filterPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -132,6 +145,7 @@ const styles = StyleSheet.create({
   },
   noticeWrap: { position: "absolute", left: 10, right: 10, top: 10 },
   recenterWrap: { position: "absolute", right: 14, bottom: 14 },
+  emptyOverlay: { position: "absolute", left: 14, right: 74, bottom: 14 },
   summaryCard: {
     flexDirection: "row",
     alignItems: "center",

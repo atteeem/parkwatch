@@ -1,8 +1,9 @@
 import React from "react";
-import { Pressable, Text, StyleSheet, ViewStyle, ActivityIndicator } from "react-native";
+import { Text, StyleSheet, ViewStyle, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius } from "../constants/spacing";
+import { AnimatedPressable } from "./motion/AnimatedPressable";
 
 type Variant = "solid" | "outline" | "gray" | "destructive";
 
@@ -32,8 +33,11 @@ export function GreenButton({
 }: Props) {
   const isSolidDisabled = disabled && variant === "solid";
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={disabled || loading ? undefined : onPress}
+      disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         styles.base,
         small && styles.small,
@@ -41,7 +45,9 @@ export function GreenButton({
         variant === "outline" && styles.outline,
         variant === "gray" && styles.gray,
         variant === "destructive" && styles.destructive,
-        pressed && !disabled && { opacity: 0.85 },
+        // Every disabled variant must read as disabled (not just the solid one).
+        disabled && variant !== "solid" && styles.dimmed,
+        pressed && !disabled && { opacity: 0.92 },
         style,
       ]}
     >
@@ -53,7 +59,7 @@ export function GreenButton({
             <Ionicons
               name={icon}
               size={18}
-              color={variant === "outline" ? colors.textPrimary : variant === "destructive" ? colors.red : "#06210F"}
+              color={isSolidDisabled ? colors.textLight : variant === "outline" ? colors.textPrimary : variant === "destructive" ? colors.red : "#06210F"}
               style={{ marginRight: 8 }}
             />
           )}
@@ -63,6 +69,7 @@ export function GreenButton({
               variant === "outline" && { color: colors.textPrimary },
               variant === "gray" && { color: colors.white },
               variant === "destructive" && { color: colors.red },
+              isSolidDisabled && { color: colors.textLight },
             ]}
           >
             {label}
@@ -72,7 +79,7 @@ export function GreenButton({
           )}
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -93,6 +100,9 @@ const styles = StyleSheet.create({
   },
   solid: {
     backgroundColor: colors.green,
+  },
+  dimmed: {
+    opacity: 0.45,
   },
   solidDisabled: {
     backgroundColor: colors.backgroundSunk,

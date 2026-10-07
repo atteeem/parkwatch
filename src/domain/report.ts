@@ -58,6 +58,14 @@ export function validateDraft(draft: ReportDraft, step: DraftStep): DraftIssue[]
 export const isDraftValid = (draft: ReportDraft, step: DraftStep) => validateDraft(draft, step).length === 0;
 
 /** Earliest citizen photo time; the default "observed at" for a report. */
+/**
+ * When the violation was observed: the earliest required CAMERA photo
+ * (device clock; evidence provenance, never typed by the citizen).
+ */
+export function draftObservedAtOf(draft: ReportDraft): IsoTimestamp | undefined {
+  return draft.observedAt ?? earliestCapture(draft);
+}
+
 function earliestCapture(draft: ReportDraft): IsoTimestamp | undefined {
   return CITIZEN_EVIDENCE_TYPES.map((s) => draft.photos[s]?.capturedAt)
     .filter((t): t is string => !!t)
@@ -100,7 +108,7 @@ export function createReportFromDraft(
     jurisdictionId: input.jurisdictionId,
     status: "UNDER_REVIEW",
     violationId: draft.violationId!,
-    location: { ...draft.location, address: draft.location.address.trim() },
+    location: submittedLocation(draft),
     observedAt: draft.observedAt ?? earliestCapture(draft) ?? input.submittedAt,
     submittedAt: input.submittedAt,
     notes: draft.notes,
@@ -110,6 +118,12 @@ export function createReportFromDraft(
     caseId: input.caseId,
     events: [{ type: "SUBMITTED", at: input.submittedAt, actor, source: input.source }],
   });
+}
+
+/** The location a report keeps. The raw device fix stays in the draft (data minimization). */
+function submittedLocation(draft: ReportDraft): Report["location"] {
+  const { deviceFix: _deviceFix, ...location } = draft.location;
+  return { ...location, address: location.address.trim() };
 }
 
 /** Submission guard: a draft that was already submitted maps to its existing report. */

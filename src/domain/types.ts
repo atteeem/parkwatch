@@ -52,10 +52,10 @@ export type PlateNumber = { raw: string; normalized: string; country?: string };
 
 export const CITIZEN_EVIDENCE_TYPES = ["FRONT", "SIDE", "REAR"] as const;
 export const OFFICER_EVIDENCE_TYPES = [
-  "VEHICLE_OVERVIEW",
+  "VEHICLE_FRONT",
   "LICENSE_PLATE",
   "PARKING_SIGN",
-  "VIOLATION_CONTEXT",
+  "VEHICLE_REAR",
 ] as const;
 
 /** Required citizen photo angles. */
@@ -119,14 +119,42 @@ export type VehicleInfo = {
 /** The only Citizen-visible statuses in the current MVP designs. */
 export type CitizenReportStatus = "UNDER_REVIEW" | "VERIFIED" | "REJECTED";
 
-export type ReportLocation = { address: string; coordinates?: GeoPoint };
+/**
+ * Where the report's point came from.
+ * GPS          - the point IS the device fix (accuracy/capturedAt describe it)
+ * MAP_SELECTED - the citizen corrected the point on the map; it has no GPS
+ *                accuracy or capture time of its own
+ */
+export type ReportLocationSource = "GPS" | "MAP_SELECTED";
+
+export type ReportLocation = {
+  address: string;
+  /** The report (incident) point: what officers navigate to. */
+  coordinates?: GeoPoint;
+  /** Provenance of `coordinates`. Absent on older data (treated as GPS when it has capturedAt). */
+  coordinatesSource?: ReportLocationSource;
+};
+
+/**
+ * Draft-only location. `deviceFix` is the device GPS fix taken while
+ * reporting, kept unchanged when the point is corrected on the map so the
+ * citizen can go back to it ("Use my GPS"). Data minimization: it never
+ * leaves the phone and is dropped when the draft becomes a report.
+ */
+export type ReportDraftLocation = ReportLocation & { deviceFix?: GeoPoint };
 
 export type ReportDraft = {
   /** Stable per draft; used to make submission idempotent. */
   draftId: string;
   photos: Partial<Record<CitizenEvidenceType, CitizenEvidence>>;
   violationId?: string;
-  location: ReportLocation;
+  location: ReportDraftLocation;
+  /**
+   * Draft-only: whether the address text was filled from the location
+   * (GEOCODED) or typed by the citizen (TYPED). A typed address is never
+   * overwritten by geocoding until the citizen picks a new point on the map.
+   */
+  addressSource?: "GEOCODED" | "TYPED";
   /** When the citizen observed the violation; defaults to capture time. */
   observedAt?: IsoTimestamp;
   notes: string;

@@ -31,7 +31,7 @@ function citizenDraft() {
   }
   s = draftReducer(s, { type: "SET_VIOLATION", violationId: "no-parking" });
   s = draftReducer(s, { type: "SET_LOCATION", address: "Mannerheimintie 45, Helsinki" });
-  s = draftReducer(s, { type: "SET_COORDINATES", coordinates: SPOT });
+  s = draftReducer(s, { type: "SET_DEVICE_FIX", fix: SPOT });
   return s.draft;
 }
 
@@ -86,7 +86,7 @@ describe("investor demo golden path", () => {
       expectOk(store.updateChecklist(caseId, key, true));
     }
     expectOk(store.confirmPlateBySimulatedScan(caseId));
-    for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
+    for (const type of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"] as const) {
       expectOk(store.attachOfficerPhoto(caseId, type, `file:///officer-${type}.jpg`, "CAMERA"));
     }
     expect(toInspectionView(caseId, snapshot(store).inspections[caseId])).toMatchObject({ readyForCharge: true, photosCaptured: 4 });
@@ -123,7 +123,7 @@ describe("investor demo golden path", () => {
       store.acceptCase(caseId, OFFICER);
       store.startInspection(caseId, OFFICER);
       for (const key of ["vehiclePresent", "plateMatches", "violationConfirmed", "restrictionVerified"] as const) store.updateChecklist(caseId, key, true);
-      for (const type of ["VEHICLE_OVERVIEW", "LICENSE_PLATE", "PARKING_SIGN", "VIOLATION_CONTEXT"] as const) {
+      for (const type of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"] as const) {
         store.attachOfficerPhoto(caseId, type, `file:///${type}.jpg`, "CAMERA");
       }
       return store.completeCase(caseId, "CHARGE_ISSUED", OFFICER);
