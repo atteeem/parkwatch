@@ -5,7 +5,8 @@ import { ReportStepper } from "../../../src/components/ReportStepper";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { CitizenEvidenceType, isDraftValid, qualifiesAsRequiredEvidence } from "../../../src/domain";
 import { afterStep, CITIZEN_PHOTO_SLOTS, nextMissingSlot } from "../../../src/presentation/reportDraft";
-import { CITIZEN_CAMERA_GUIDE } from "../../../src/presentation/cameraGuides";
+import { CITIZEN_CAMERA_GUIDE } from "../../../src/presentation/cameraGuides";import { haptics } from "../../../src/feedback/haptics";
+
 
 export default function ReportPhotos() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function ReportPhotos() {
       onSelectSlot={(key) => setSelected(key as CitizenEvidenceType)}
       onCapturePhoto={(slotKey, uri, capturedAt) => {
         capturePhoto(slotKey as CitizenEvidenceType, uri, capturedAt);
+        haptics.success("photoSaved");
         setSelected(undefined); // advance to the next missing angle
       }}
       onContinue={() => {

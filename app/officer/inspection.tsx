@@ -20,7 +20,8 @@ import { MOTION } from "../../src/constants/motion";
 import { InspectionCheckKey, OFFICER_PHOTO_KEY_TO_TYPE, OfficerPhotoKey } from "../../src/presentation/viewModels";
 import { EvidenceGallery } from "../../src/components/EvidenceGallery";
 import { officerGalleryIndex, officerGalleryItems } from "../../src/presentation/evidenceGallery";
-import type { OfficerEvidenceType } from "../../src/domain";
+import type { OfficerEvidenceType } from "../../src/domain";import { EmptyState } from "../../src/components/EmptyState";
+
 
 const CHECK_ROWS: {
   key: InspectionCheckKey;
@@ -50,7 +51,7 @@ export default function OnSiteInspection() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
   const caseLoad = useCaseDetailLoad(id);
-  const { getCase, getCaseDetail, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection } = useApp();
+  const { getCase, getCaseDetail, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection, ensureCase } = useApp();
   const c = getCase(id);
   const [error, setError] = useState<string | null>(null);
   // One checklist change at a time: further taps are ignored until the server (or store) answers.
@@ -66,9 +67,14 @@ export default function OnSiteInspection() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <BackHeader title="On-Site Inspection" onBack={goBack} />
-        <View style={styles.stateBox}>
-          <Text style={styles.stateText}>This case could not be found.</Text>
-          <GreenButton label="Back to Queue" small onPress={() => router.replace("/officer/queue")} style={{ marginTop: 16 }} />
+        <EmptyState
+          icon="document-text-outline"
+          title="Case not available"
+          body="This case could not be loaded. It may have been removed or is no longer visible to you."
+          cta={id ? { label: "Try again", onPress: () => ensureCase(id) } : undefined}
+        />
+        <View style={{ paddingHorizontal: 20 }}>
+          <GreenButton label="Back to Queue" variant="outline" onPress={() => router.replace("/officer/queue")} />
         </View>
       </SafeAreaView>
     );

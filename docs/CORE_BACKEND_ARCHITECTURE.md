@@ -268,3 +268,20 @@ native rendering, camera, GPS or maps.
 - Local photo files of an unsent draft live in the app's cache; if the OS clears it,
   those photos must be retaken (the upload fails clearly; nothing is lost silently).
 - Orphaned objects are possible if cleanup itself fails (private, unreadable to others).
+
+## T8.8 additions (presentation only, no migration)
+
+- **Onboarding preference** is a device setting (AsyncStorage key
+  `parkwatch.onboarding.v1`), never stored in Supabase; same in both modes.
+- **Citizen report detail** (`src/presentation/citizenReportDetail.ts`) reads only
+  existing report fields (`received_at`, `resolved_at`, status, evidence, location
+  provenance) and the reward ledger. The timeline shows citizen statuses only; the
+  four non-citizen outcomes add no step. Report events from `audit_events` are not
+  loaded in BACKEND mode, so the decision time comes from `resolved_at`.
+- **Notification deep links** (`src/navigation/notificationTargets.ts`) use only ids
+  carried by the notification. In BACKEND mode notifications are server-scoped to
+  the user, so a well-formed public report number / case uuid is opened and the
+  detail screen loads it (safe "not available" state if it cannot).
+- **Unread badges** use `citizenSummary.unread` / `officerSummary.unread`
+  (server-side counts in BACKEND), capped at "99+".
+

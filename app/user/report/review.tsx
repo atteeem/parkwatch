@@ -19,7 +19,8 @@ import { REVIEW_EDIT_ROUTE, ReviewEditTarget } from "../../../src/presentation/r
 import { validateDraft } from "../../../src/domain";
 import { toDraftReview } from "../../../src/presentation/citizenViews";
 import { describeDomainError, draftIssueMessages } from "../../../src/presentation/errors";
-import { useGuardedAction } from "../../../src/presentation/useGuardedAction";
+import { useGuardedAction } from "../../../src/presentation/useGuardedAction";import { haptics } from "../../../src/feedback/haptics";
+
 
 // CIT-05 Final Review & Submit: PRE-submission only. The submitted-report
 // overview (CIT-08) is a separate screen.
@@ -64,6 +65,7 @@ export default function ReviewSubmit() {
     guard.run(() => submitReport(draft, { onProgress: setPhase, uploaded: uploadedPaths, onUploaded: recordUpload, onUploadsInvalid: resetUploads }), {
       onSuccess: ({ reportId }) => {
         setPhase("idle");
+        haptics.success("reportSubmitted"); // only after the store/server confirmed it
         markSubmitted(reportId);
         goToSubmitted(reportId);
       },

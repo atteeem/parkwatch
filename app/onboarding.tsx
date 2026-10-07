@@ -22,6 +22,8 @@ export default function Onboarding() {
   const reduceMotion = useReducedMotion();
   const listRef = useRef<FlatList<OnboardingPage>>(null);
   const [page, setPage] = useState(0);
+  // Horizontal list items do not stretch vertically: size each page to the list.
+  const [pageHeight, setPageHeight] = useState(0);
   const last = page === ONBOARDING_PAGES.length - 1;
 
   const goTo = (i: number) => {
@@ -58,12 +60,14 @@ export default function Onboarding() {
         keyExtractor={(p) => p.key}
         horizontal
         pagingEnabled
+        style={{ flex: 1 }}
+        onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
         showsHorizontalScrollIndicator={false}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e) => setPage(indexFromOffset(e.nativeEvent.contentOffset.x, width, ONBOARDING_PAGES.length))}
         renderItem={({ item, index }) => (
           <View
-            style={[styles.page, { width }]}
+            style={[styles.page, { width }, pageHeight > 0 && { height: pageHeight }]}
             accessible
             accessibilityLabel={`Step ${index + 1} of ${ONBOARDING_PAGES.length}. ${item.title}. ${item.points.join(" ")}`}
           >

@@ -30,6 +30,8 @@ a real Supabase project and **not** a phone.
 | Officer UI (web, mock backend): home → queue → details → accept → en route → map → start inspection → tri-state checklist → plate confirm → photo slots (camera steps via helper) → reload mid-inspection → result → charge → completed → cases; desk reject; notifications; profile; role guard; sign out | browser, DOM-dispatched clicks (preview pane hidden) | pass |
 | Citizen UI (web, mock backend): sign in, home counts, reports, notification → report, earnings (withdrawal disabled), unfinished-draft persist → reload → continue → discard, refresh-failure banner, offline launch (no demo data) | browser | pass |
 | LOCAL_DEMO regression (citizen + officer) | browser | pass |
+| T8.8 walkthrough (web, mock backend, fresh DB): first-launch onboarding → Get Started → sign-in, not shown again after reload; citizen badge → notification → Report Details (timeline, receipt time, €5 pending, notes, vehicle, provenance) → gallery 1/3 → swipe; Profile → How ParkWatch Works (review mode); Add Details shows location education before any prompt; unknown report → "Report not available"; officer skip onboarding → accept → "Heading to the report location" → inspection hero → citizen gallery; captured officer photo opens the viewer (camera not opened), Retake separate; Vehicle moved → success + record (no charge line); notification → Case Record; unknown case → "Case not available"; citizen then still Under Review, No reward, no Closed step. 20/20, 0 console errors | browser (Playwright, DOM-dispatched clicks) | pass |
+| T8.8 LOCAL_DEMO smoke (web, no Supabase env): onboarding → Skip → demo home; notification → report details → gallery; withdrawal notification → Wallet | browser | pass |
 
 Not covered by section A: native camera, native maps, GPS, OS permissions, Android
 Back, real backgrounding, real network loss on a phone, real Supabase Auth/Storage.
@@ -223,7 +225,7 @@ Real Supabase is **NOT VERIFIED** for T8.7: migrations 20261010000001–4 are no
 applied to the development project yet. Offline: Jest, typecheck and
 `npm run verify:migrations` (PGlite, real migrations) pass.
 
-- [ ] Add Details: permission prompt → GPS fix → address fills in by itself; no typing needed.
+- [ ] Add Details: permission prompt (since T8.8 after tapping "Use my location" the first time) → GPS fix → address fills in by itself; no typing needed.
 - [ ] Tap the map → red pin moves → address updates; status says "Point set on the map"
       (never "GPS"); "Use my GPS" returns to the device fix.
 - [ ] Permission denied / GPS off / no geocoder → text field appears and works.
@@ -243,6 +245,33 @@ applied to the development project yet. Offline: Jest, typecheck and
 - [ ] Officer Profile → Monthly Statistics: numbers match the officer's completed cases.
 - [ ] Profile photo: library, camera (permission prompt), remove; survives app restart;
       signed in on a second device shows the same photo (BACKEND, after migrations).
+
+### C3d. T8.8 product completion — NOT VERIFIED on a phone
+
+Real Supabase: T8.8 adds no migration and was **not** run against the real project.
+
+- [ ] Fresh install: onboarding appears once before sign-in / citizen home; swipe and
+      Next/Back work; dots follow; Reduce Motion: no animated paging; VoiceOver/TalkBack
+      reads "Step N of 4". No OS permission dialog appears during onboarding.
+- [ ] Officer device: after sign-in, onboarding is not forced again (device preference).
+- [ ] Add Details, first time: the location explanation and "Use my location" show
+      first; the OS prompt appears only after tapping it; later visits fetch GPS
+      automatically. Report pin and blue GPS dot are distinct; legend readable.
+- [ ] Camera first use: explanation shows with "Allow camera" before the OS prompt.
+- [ ] Report Details: map pin, timeline, reward (pending / earned + View in Wallet /
+      none), gallery for all photos incl. attachments, Android Back closes the gallery.
+- [ ] Notification taps: citizen report → its details, withdrawal → Wallet; officer
+      accepted → case, charge/closed → Case Record; Back returns to Notifications.
+- [ ] Badges on Home bell and Profile rows; "99+" cap (needs 100+ unread to see).
+- [ ] Inspection: hero photo → citizen gallery; tap captured officer photo → viewer
+      (no camera); Retake button → camera for that slot.
+- [ ] Officer Live Map: marker tap highlights the marker, moves the camera, updates the
+      sheet; Recenter returns to the officer; sheet opens the case.
+- [ ] Open in Maps: iOS opens Apple Maps at the pin; Android opens the default maps app
+      (geo:) at the pin; no ETA shown inside ParkWatch.
+- [ ] Haptics: light tick on a saved photo, success on submit / accept / fourth officer
+      photo; none on navigation; none when an action fails. Android: works with VIBRATE
+      blocked (view haptics).
 
 ### C4. Results
 

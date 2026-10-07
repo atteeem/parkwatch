@@ -131,12 +131,6 @@ export default function ReportDetails() {
           </View>
           <Text style={[styles.cardLabel, { marginTop: 12 }]}>Observed</Text>
           <Text style={styles.fieldValue}>{detail.observedAtText}</Text>
-          {detail.receivedAtText ? (
-            <>
-              <Text style={[styles.cardLabel, { marginTop: 12 }]}>Received by ParkWatch</Text>
-              <Text style={styles.fieldValue}>{detail.receivedAtText}</Text>
-            </>
-          ) : null}
           {detail.reporterNotes ? (
             <>
               <Text style={[styles.cardLabel, { marginTop: 12 }]}>Your notes</Text>

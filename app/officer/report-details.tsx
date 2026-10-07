@@ -27,7 +27,9 @@ import {
   systemChecks,
 } from "../../src/presentation/officerViews";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
-import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";
+import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";import { haptics } from "../../src/feedback/haptics";import { EmptyState } from "../../src/components/EmptyState";
+
+
 
 type DeskDecision = "REPORT_REJECTED" | "DUPLICATE";
 
@@ -52,7 +54,7 @@ export default function ReportDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
   const caseLoad = useCaseDetailLoad(id);
-  const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase } = useApp();
+  const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase, ensureCase } = useApp();
   const detail = getCaseDetail(id);
   const c = detail?.case;
   const location = useForegroundLocation();
@@ -71,10 +73,14 @@ export default function ReportDetails() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <BackHeader title="Report Details" onBack={() => router.back()} />
-        <View style={styles.notFound}>
-          <Ionicons name="document-text-outline" size={32} color={colors.textLight} />
-          <Text style={styles.notFoundText}>This case could not be found.</Text>
-          <GreenButton label="Back to Queue" small onPress={() => router.replace("/officer/queue")} style={{ marginTop: 16 }} />
+        <EmptyState
+          icon="document-text-outline"
+          title="Case not available"
+          body="This case could not be loaded. It may have been removed or is no longer visible to you."
+          cta={id ? { label: "Try again", onPress: () => ensureCase(id) } : undefined}
+        />
+        <View style={{ paddingHorizontal: 20 }}>
+          <GreenButton label="Back to Queue" variant="outline" onPress={() => router.replace("/officer/queue")} />
         </View>
       </SafeAreaView>
     );
@@ -90,7 +96,13 @@ export default function ReportDetails() {
     const onError = (e: { code: string; message?: string }) => setError(describeDomainError(e).message);
     switch (action) {
       case "ACCEPT":
-        guard.run(() => acceptCase(c.id), { onSuccess: () => go("/officer/en-route"), onError });
+        guard.run(() => acceptCase(c.id), {
+          onSuccess: () => {
+            haptics.success("caseAccepted");
+            go("/officer/en-route");
+          },
+          onError,
+        });
         return;
       case "START_ROUTE":
         guard.run(() => startEnRoute(c.id), { onSuccess: () => go("/officer/en-route"), onError });
@@ -325,8 +337,6 @@ export default function ReportDetails() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  notFound: { alignItems: "center", padding: 32, gap: 8 },
-  notFoundText: { color: colors.textSecondary, fontSize: 14 },
   idText: { marginLeft: "auto", fontWeight: "800", fontSize: 15 },
   metaGrid: { flexDirection: "row", marginTop: 14, borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: 12, gap: 10 },
   metaCell: { flex: 1, gap: 2 },

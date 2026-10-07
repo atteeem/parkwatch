@@ -19,7 +19,8 @@ import {
   officerCaptureComplete,
   selectOfficerSlot,
 } from "../../src/presentation/officerCapture";
-import { OFFICER_CAMERA_GUIDE } from "../../src/presentation/cameraGuides";
+import { OFFICER_CAMERA_GUIDE } from "../../src/presentation/cameraGuides";import { haptics } from "../../src/feedback/haptics";
+
 
 const SLOT_ICON: Record<OfficerPhotoKey, keyof typeof Ionicons.glyphMap> = {
   front: "car-outline",
@@ -87,6 +88,11 @@ export default function OfficerViolationPhoto() {
           setFlow((f) => ({ ...f, error: null }));
           const r = await settle(setOfficerPhoto(c.id, slot, uri, capturedAt));
           setSaving(false);
+          if (r.ok) {
+            // Haptic only once the photo is really saved; a stronger one when this completes all four.
+            const nowComplete = OFFICER_CAPTURE_ORDER.every((k) => k === slot || !!photos[k]);
+            haptics.success(!complete && nowComplete ? "officerEvidenceComplete" : "photoSaved");
+          }
           // Saved -> next missing target (camera stays open). Failed -> same target + error.
           setFlow((f) => afterOfficerSave(f, slot, r.ok ? { ok: true } : { ok: false, message: describeDomainError(r.error).message }));
         }}
