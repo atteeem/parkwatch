@@ -41,6 +41,62 @@ export function clampCustomDuration(minutes: number): number {
   return Math.min(CUSTOM_DURATION_MAX_MINUTES, Math.max(CUSTOM_DURATION_STEP_MINUTES, stepped));
 }
 
+// ---------------------------------------------------------------------------
+// End-time wheel (Start Parking). The citizen picks WHEN parking ends on a
+// 5-minute grid; the domain still receives a duration in minutes, so every
+// existing rule (integer minutes, > 0, <= MAX_PARKING_DURATION_MINUTES) applies.
+
+export const WHEEL_STEP_MINUTES = 5;
+/** Shortest selectable session: the first row is at least this far in the future. */
+export const WHEEL_MIN_MINUTES = 5;
+
+const STEP_MS = WHEEL_STEP_MINUTES * MINUTE;
+
+/** Round a time UP to the next 5-minute mark (a time already on a mark stays). */
+export const ceilToWheelStep = (ms: number): number => Math.ceil(ms / STEP_MS) * STEP_MS;
+
+/**
+ * Selectable end times (epoch ms) for `now`: every 5-minute mark from at least
+ * WHEEL_MIN_MINUTES ahead up to the longest allowed session.
+ */
+export function endTimeOptions(now: Date, maxMinutes = CUSTOM_DURATION_MAX_MINUTES): number[] {
+  const t = now.getTime();
+  const first = ceilToWheelStep(t + WHEEL_MIN_MINUTES * MINUTE);
+  const last = t + maxMinutes * MINUTE;
+  const out: number[] = [];
+  for (let x = first; x <= last; x += STEP_MS) out.push(x);
+  return out;
+}
+
+/**
+ * Whole minutes from now until `endMs`, within the parking rules (1..max).
+ * Rounded UP, so the session never ends before the chosen time (and the
+ * displayed end, which drops seconds, is the chosen row).
+ */
+export function durationUntil(now: Date, endMs: number, maxMinutes = CUSTOM_DURATION_MAX_MINUTES): number {
+  const m = Math.ceil((endMs - now.getTime()) / MINUTE);
+  return Math.min(maxMinutes, Math.max(1, m));
+}
+
+/** Row index for an end time (nearest row; clamped to the list). */
+export function wheelIndexFor(options: readonly number[], endMs: number): number {
+  if (options.length === 0) return 0;
+  const i = Math.round((endMs - options[0]) / STEP_MS);
+  return Math.max(0, Math.min(options.length - 1, i));
+}
+
+/** The selected end time, kept valid as time passes (never in the past, never past the maximum). */
+export function clampEndTime(options: readonly number[], endMs: number): number | undefined {
+  return options.length ? options[wheelIndexFor(options, endMs)] : undefined;
+}
+
+/** End time for a preset duration: the NEAREST row of the 5-minute grid ("1 hour" stays about an hour). */
+export const endTimeForPreset = (now: Date, minutes: number): number => Math.round((now.getTime() + minutes * MINUTE) / STEP_MS) * STEP_MS;
+
+/** Screen-reader value of the wheel: "Ends at 14:35, 1 h 25 min". */
+export const wheelAccessibilityText = (now: Date, endMs: number): string =>
+  `Ends at ${formatClock(new Date(endMs).toISOString())}, ${formatDurationMinutes(durationUntil(now, endMs))}`;
+
 /** "45 min", "1 h", "2 h 15 min". */
 export function formatDurationMinutes(totalMinutes: number): string {
   const m = Math.max(0, Math.round(totalMinutes));

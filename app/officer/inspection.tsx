@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -7,13 +7,21 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
-import { useApp } from "../../src/context/AppContext";
+import { settle, useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { formatDateTime } from "../../src/presentation/time";
-import { InspectionCheckKey, OfficerPhotoKey } from "../../src/presentation/viewModels";
+import { ProgressBar } from "../../src/components/motion/ProgressBar";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { MOTION } from "../../src/constants/motion";
+import { InspectionCheckKey, OFFICER_PHOTO_KEY_TO_TYPE, OfficerPhotoKey } from "../../src/presentation/viewModels";
+import { EvidenceGallery } from "../../src/components/EvidenceGallery";
+import { officerGalleryIndex, officerGalleryItems } from "../../src/presentation/evidenceGallery";
+import type { OfficerEvidenceType } from "../../src/domain";import { EmptyState } from "../../src/components/EmptyState";
+
 
 const CHECK_ROWS: {
   key: InspectionCheckKey;
@@ -29,10 +37,10 @@ const CHECK_ROWS: {
 ];
 
 const PHOTO_TARGETS: readonly { key: OfficerPhotoKey; label: string }[] = [
-  { key: "overview", label: "Vehicle overview" },
+  { key: "front", label: "Vehicle front" },
   { key: "plate", label: "License plate" },
   { key: "sign", label: "Parking sign" },
-  { key: "context", label: "Violation context" },
+  { key: "rear", label: "Vehicle rear" },
 ];
 
 // OFF-06. Everything here reads/writes THIS case's inspection only. Opening
@@ -41,19 +49,32 @@ export default function OnSiteInspection() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getCase, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection } = useApp();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
+  const { getCase, getCaseDetail, officerId, getInspection, setChecklistItem, confirmPlateBySimulatedScan, startInspection, ensureCase } = useApp();
   const c = getCase(id);
   const [error, setError] = useState<string | null>(null);
-  const startGuard = useMemo(() => createSubmitGuard(), [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One checklist change at a time: further taps are ignored until the server (or store) answers.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  // One shared full-screen gallery: the citizen's report photos or this officer's photos.
+  const [gallery, setGallery] = useState<{ kind: "citizen" | "officer"; index: number } | null>(null);
+  const startGuard = useGuardedAction(c?.status);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/officer/home"));
+
+  if (caseLoad.loading && (!c || !getInspection(c.id).exists)) return <DetailLoading />;
 
   if (!c) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <BackHeader title="On-Site Inspection" onBack={goBack} />
-        <View style={styles.stateBox}>
-          <Text style={styles.stateText}>This case could not be found.</Text>
-          <GreenButton label="Back to Queue" small onPress={() => router.replace("/officer/queue")} style={{ marginTop: 16 }} />
+        <EmptyState
+          icon="document-text-outline"
+          title="Case not available"
+          body="This case could not be loaded. It may have been removed or is no longer visible to you."
+          cta={id ? { label: "Try again", onPress: () => ensureCase(id) } : undefined}
+        />
+        <View style={{ paddingHorizontal: 20 }}>
+          <GreenButton label="Back to Queue" variant="outline" onPress={() => router.replace("/officer/queue")} />
         </View>
       </SafeAreaView>
     );
@@ -82,13 +103,15 @@ export default function OnSiteInspection() {
               label="View Result"
               small
               style={{ marginTop: 16 }}
-              onPress={() => router.replace({ pathname: "/officer/inspection-completed", params: { id: c.id } })}
+              onPress={() => router.replace({ pathname: "/officer/inspection-completed", params: { id: c.id, from: "record" } })}
             />
           )}
           {canStart && (
             <GreenButton
               label="Start On-site Inspection"
               small
+              loading={startGuard.busy}
+              disabled={startGuard.busy}
               style={{ marginTop: 16 }}
               onPress={() =>
                 startGuard.run(() => startInspection(c.id), {
@@ -103,8 +126,20 @@ export default function OnSiteInspection() {
     );
   }
 
-  const report = (r: { ok: boolean; error?: { code: string; message?: string } }) =>
-    setError(r.ok || !r.error ? null : describeDomainError(r.error).message);
+  const runCheck = (key: string, action: () => Parameters<typeof settle>[0]) => {
+    if (pendingKey) return;
+    setPendingKey(key);
+    void settle(action()).then((r) => {
+      setPendingKey(null);
+      setError(r.ok ? null : describeDomainError(r.error).message);
+    });
+  };
+
+  const citizenEvidence = getCaseDetail(c.id)?.evidence ?? [];
+  const officerByType: Partial<Record<OfficerEvidenceType, string>> = {};
+  for (const t of PHOTO_TARGETS) officerByType[OFFICER_PHOTO_KEY_TO_TYPE[t.key]] = inspection.officerPhotos[t.key];
+  const officerEvidence = officerGalleryItems(officerByType);
+  const capture = (key?: OfficerPhotoKey) => router.push({ pathname: "/officer/violation-photo", params: key ? { id: c.id, target: key } : { id: c.id } });
 
   const checksCompleted = inspection.checklistConfirmed;
   const photosCompleted = inspection.photosCaptured;
@@ -125,12 +160,27 @@ export default function OnSiteInspection() {
           </View>
         </View>
 
-        <View>
-          <EvidencePhoto uri={c.images[0]} style={styles.mainImage} />
-          <View style={styles.imageCounter}>
-            <Text style={styles.imageCounterLabel}>1 / {c.images.length}</Text>
+        {citizenEvidence.length > 0 ? (
+          // Report photo: tap to view every citizen photo full screen (swipe, counter, caption).
+          <Pressable
+            onPress={() => setGallery({ kind: "citizen", index: 0 })}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={`Report photos, ${citizenEvidence.length} in total. Open full screen`}
+          >
+            <EvidencePhoto uri={citizenEvidence[0].uri} style={styles.mainImage} />
+            <View style={styles.imageCounter}>
+              <Ionicons name="images-outline" size={12} color="#fff" />
+              <Text style={styles.imageCounterLabel}>1 / {citizenEvidence.length}</Text>
+            </View>
+            <View style={styles.expandBadge}>
+              <Ionicons name="expand" size={14} color="#fff" />
+            </View>
+          </Pressable>
+        ) : (
+          <View>
+            <EvidencePhoto uri={c.images[0]} style={styles.mainImage} />
           </View>
-        </View>
+        )}
 
         {error && (
           <View style={styles.errorBanner}>
@@ -146,6 +196,7 @@ export default function OnSiteInspection() {
               <Text style={{ color: colors.greenDark }}>{totalCompleted}</Text> / {CHECK_ROWS.length + 1} completed
             </Text>
           </View>
+          <ProgressBar done={totalCompleted} total={CHECK_ROWS.length + 1} accessibilityLabel="Inspection checklist progress" />
           <Text style={styles.checkHint}>Tap to confirm. Tap again to record "not confirmed".</Text>
           {CHECK_ROWS.map((row) => {
             // Three states, kept distinct for the audit trail: yes / no / unanswered.
@@ -160,13 +211,15 @@ export default function OnSiteInspection() {
                 style={[styles.checkRow, yes && styles.checkRowDone, no && styles.checkRowNo]}
                 accessibilityRole="button"
                 accessibilityLabel={`${row.title}: ${yes ? "confirmed" : no ? "not confirmed" : "not answered"}`}
-                onPress={() => report(setChecklistItem(c.id, row.key, next))}
+                accessibilityState={{ busy: pendingKey === row.key, disabled: pendingKey !== null }}
+                disabled={pendingKey !== null}
+                onPress={() => runCheck(row.key, () => setChecklistItem(c.id, row.key, next))}
               >
                 <Ionicons name={row.icon} size={20} color={yes ? "#06210F" : no ? colors.red : colors.textSecondary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[styles.checkTitle, yes && { color: "#06210F" }]}>{row.title}</Text>
                   <Text style={[styles.checkBody, yes && { color: "#0B3D22" }, no && styles.checkBodyNo]}>
-                    {no ? "Not confirmed" : confirmedPlate ? "Plate confirmed against the report" : row.body}
+                    {pendingKey === row.key ? "Saving…" : no ? "Not confirmed" : confirmedPlate ? "Plate confirmed against the report" : row.body}
                   </Text>
                 </View>
                 {row.scan && value == null ? (
@@ -174,7 +227,8 @@ export default function OnSiteInspection() {
                     style={styles.scanBtn}
                     hitSlop={6}
                     accessibilityLabel="Confirm plate"
-                    onPress={() => report(confirmPlateBySimulatedScan(c.id))}
+                    disabled={pendingKey !== null}
+                    onPress={() => runCheck(row.key, () => confirmPlateBySimulatedScan(c.id))}
                   >
                     <Text style={styles.scanLabel}>Confirm Plate</Text>
                   </Pressable>
@@ -212,21 +266,33 @@ export default function OnSiteInspection() {
               <Text style={{ color: colors.greenDark }}>{photosCompleted}</Text> / 4 completed
             </Text>
           </View>
+          <GreenButton
+            label={photosCompleted === 0 ? "Start evidence capture" : photosCompleted < 4 ? "Continue evidence capture" : "Review / retake photos"}
+            icon="camera"
+            small
+            variant={photosCompleted < 4 ? "solid" : "outline"}
+            trailingIcon={null}
+            onPress={() => capture()}
+            style={{ marginBottom: 12 }}
+          />
           <View style={styles.photoGrid}>
             {PHOTO_TARGETS.map((t) => {
               const uri = inspection.officerPhotos[t.key];
+              const viewAt = uri ? officerGalleryIndex(officerByType, OFFICER_PHOTO_KEY_TO_TYPE[t.key]) : null;
               return (
+                <View key={t.key} style={styles.photoCell}>
                 <Pressable
-                  key={t.key}
-                  style={styles.photoCell}
-                  accessibilityLabel={`${t.label} photo`}
-                  onPress={() =>
-                    router.push({ pathname: "/officer/violation-photo", params: { id: c.id, target: t.key } })
-                  }
+                  style={{ width: "100%", alignItems: "center" }}
+                  accessibilityRole={uri ? "imagebutton" : "button"}
+                  accessibilityLabel={uri ? `${t.label} photo, captured. Open full screen` : `${t.label} photo, required. Take photo`}
+                  // Tap a captured photo = view it. Retake is the separate button below.
+                  onPress={() => (viewAt !== null ? setGallery({ kind: "officer", index: viewAt }) : capture(t.key))}
                 >
                   <View style={[styles.photoSlot, uri && styles.photoSlotDone]}>
                     {uri ? (
-                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
+                      <FadeIn key={uri} offsetY={0} fromScale={0.9} duration={MOTION.NORMAL} style={StyleSheet.absoluteFill}>
+                        <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
+                      </FadeIn>
                     ) : (
                       <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
                     )}
@@ -236,6 +302,19 @@ export default function OnSiteInspection() {
                   </Text>
                   <Text style={[styles.requiredLabel, uri && { color: colors.greenDark }]}>{uri ? "Captured" : "Required"}</Text>
                 </Pressable>
+                {uri ? (
+                  <Pressable
+                    onPress={() => capture(t.key)}
+                    style={styles.retakeBtn}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Retake ${t.label} photo`}
+                  >
+                    <Ionicons name="camera-reverse-outline" size={13} color={colors.greenDark} />
+                    <Text style={styles.retakeLabel}>Retake</Text>
+                  </Pressable>
+                ) : null}
+                </View>
               );
             })}
           </View>
@@ -255,6 +334,11 @@ export default function OnSiteInspection() {
           onPress={() => router.push({ pathname: "/officer/inspection-result", params: { id: c.id } })}
         />
       </View>
+      <EvidenceGallery
+        items={gallery?.kind === "officer" ? officerEvidence : citizenEvidence}
+        index={gallery?.index ?? null}
+        onClose={() => setGallery(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -267,7 +351,10 @@ const styles = StyleSheet.create({
   plateChip: { backgroundColor: colors.green, borderRadius: radius.chip, paddingHorizontal: 12, paddingVertical: 6 },
   plateChipLabel: { fontWeight: "800", color: "#06210F" },
   mainImage: { width: "100%", height: 200, borderRadius: radius.card },
-  imageCounter: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 4 },
+  imageCounter: { position: "absolute", left: 10, bottom: 10, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 4 },
+  expandBadge: { position: "absolute", right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
+  retakeBtn: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4, minHeight: 28, paddingHorizontal: 8, borderRadius: radius.chip, borderWidth: 1, borderColor: colors.green },
+  retakeLabel: { fontSize: 11, fontWeight: "700", color: colors.greenDark },
   imageCounterLabel: { color: "#fff", fontWeight: "700", fontSize: 11.5 },
   sectionTitle: { fontSize: 17, fontWeight: "800" },
   completedLabel: { fontSize: 12.5, color: colors.textSecondary, fontWeight: "600" },

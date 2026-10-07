@@ -13,6 +13,7 @@ import { UserReport as CitizenReportView, violationLabel, VIOLATION_TYPES } from
 import { ReporterDisplayProfile } from "../store/reporterProfiles";
 import { ParkWatchState } from "../store/state";
 import { draftObservedAt } from "./reportDraft";
+import { citizenGalleryItems, GalleryItem } from "./evidenceGallery";
 import { formatDateTime } from "./time";
 import { formatEuros, toCitizenReportView } from "./viewModels";
 
@@ -65,14 +66,26 @@ export type DraftReviewView = {
   reporterName: string;
   trustedReporter: boolean;
   verifiedReports: number;
+  /** false: hide the verified-reports line (no statistics exist). */
+  reporterStatsKnown: boolean;
   address: string;
   coordinatesText?: string;
+  /** The report point, for the map preview (undefined = address only). */
+  point?: { latitude: number; longitude: number };
+  /** Where the point came from, said honestly ("GPS location" / "Set on the map"). */
+  pointSourceText?: string;
   vehicle: VehicleLines;
   violationLabel: string;
   violationNote?: string;
   requiredPhotos: string[];
   photosTakenAt?: string;
   attachments: { id: string; uri: string }[];
+  /** Every photo (Front, Side, Rear, attachments) for the full-screen gallery. */
+  gallery: GalleryItem[];
+  /** Additional information typed by the citizen ("" = none). */
+  notes: string;
+  /** "07.10.2026 · 12:34" from the first camera photo. */
+  observedText?: string;
   estimatedRewardText: string;
   canSubmit: boolean;
 };
@@ -86,8 +99,11 @@ export function toDraftReview(draft: ReportDraft, reporter: ReporterDisplayProfi
     reporterName: reporter.displayName,
     trustedReporter: reporter.reliability === "High",
     verifiedReports: reporter.verifiedReports,
+    reporterStatsKnown: reporter.known,
     address: draft.location.address.trim(),
     coordinatesText: coords ? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}` : undefined,
+    point: coords ? { latitude: coords.latitude, longitude: coords.longitude } : undefined,
+    pointSourceText: coords ? (draft.location.coordinatesSource === "MAP_SELECTED" ? "Set on the map" : "GPS location") : undefined,
     vehicle: vehicleLines(draft.vehicle),
     violationLabel: draft.violationId ? violationLabel(draft.violationId) : "Not selected",
     violationNote: VIOLATION_TYPES.find((v) => v.id === draft.violationId)?.note,
@@ -96,6 +112,14 @@ export function toDraftReview(draft: ReportDraft, reporter: ReporterDisplayProfi
       .map((p) => p.uri),
     photosTakenAt: time ? `${pad(time.getHours())}:${pad(time.getMinutes())}` : undefined,
     attachments: draft.attachments.map((a) => ({ id: a.id, uri: a.uri })),
+    gallery: citizenGalleryItems([
+      ...CITIZEN_EVIDENCE_TYPES.map((s) => draft.photos[s]).filter((p): p is NonNullable<typeof p> => !!p),
+      ...draft.attachments,
+    ]),
+    notes: draft.notes.trim(),
+    observedText: time
+      ? `${pad(time.getDate())}.${pad(time.getMonth() + 1)}.${time.getFullYear()} · ${pad(time.getHours())}:${pad(time.getMinutes())}`
+      : undefined,
     estimatedRewardText: formatEuros(MVP_REWARD_AMOUNT_CENTS),
     canSubmit: isDraftValid(draft, "SUBMIT"),
   };
@@ -132,25 +156,6 @@ export function filterMyReports(reports: CitizenReportView[], tab: MyReportsTab)
   return tab === "all" ? reports : reports.filter((r) => r.status === tab);
 }
 
-const TAB_EMPTY: Record<Exclude<MyReportsTab, "all">, string> = {
-  "under-review": "No reports under review right now.",
-  verified: "No verified reports yet.",
-  rejected: "No rejected reports.",
-};
-
-/** Empty state for My Reports: global "no reports yet" vs. a tab-specific message. */
-export function myReportsEmptyState(
-  tab: MyReportsTab,
-  totalCount: number,
-  shownCount: number
-): { title: string; body: string; showReportCta: boolean } | null {
-  if (shownCount > 0) return null;
-  if (totalCount === 0) {
-    return { title: "No reports yet", body: "Spotted a parking violation? Report it to help keep streets safe.", showReportCta: true };
-  }
-  return { title: "Nothing here", body: TAB_EMPTY[tab as Exclude<MyReportsTab, "all">], showReportCta: false };
-}
-
 /** Status counts for the map summary. */
 export function reportStatusCounts(reports: CitizenReportView[]) {
   return {
@@ -169,6 +174,17 @@ export function reportStatusCounts(reports: CitizenReportView[]) {
 export function startOfWeek(now: Date): Date {
   const day = (now.getDay() + 6) % 7;
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+}
+
+/** The same stats from counts (server-side counts in backend mode). */
+export function citizenStatsFromCounts(c: { total: number; verified: number; rejected: number }): CitizenReportStats {
+  const resolved = c.verified + c.rejected;
+  return {
+    submitted: c.total,
+    verified: c.verified,
+    rejected: c.rejected,
+    acceptanceRateText: resolved > 0 ? `${Math.round((c.verified / resolved) * 100)}%` : "–",
+  };
 }
 
 export type CitizenReportStats = {
@@ -191,3 +207,17 @@ export function citizenReportStats(reports: CitizenReportView[], since?: Date): 
     acceptanceRateText: resolved > 0 ? `${Math.round((verified / resolved) * 100)}%` : "\u2013",
   };
 }
+
+const MY_REPORTS_TABS: readonly MyReportsTab[] = ["all", "under-review", "verified", "rejected"];
+
+/** Initial My Reports tab from a route param (e.g. Home "Active Reports" -> under-review); unknown/absent -> "all". */
+export function initialReportsTab(param: string | string[] | undefined): MyReportsTab {
+  const v = Array.isArray(param) ? param[0] : param;
+  return MY_REPORTS_TABS.includes(v as MyReportsTab) ? (v as MyReportsTab) : "all";
+}
+
+/** Home shortcuts: distinct destinations within My Reports (opened like the Reports tab: replace, not push). */
+export const HOME_REPORT_SHORTCUTS = {
+  activeReports: { pathname: "/user/reports", params: { tab: "under-review" } },
+  reportHistory: { pathname: "/user/reports", params: { tab: "all" } },
+} as const;

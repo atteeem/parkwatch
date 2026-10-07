@@ -27,7 +27,6 @@ import { Notification as NotificationView, NotifKind } from "../data/mockNotific
 import {
   CaseStatus as LegacyCaseStatus,
   CasePriority,
-  CLOSE_WITHOUT_CHARGE_REASONS,
   OfficerCase as OfficerCaseView,
   UserReport as CitizenReportView,
   UserReportStatus,
@@ -37,6 +36,7 @@ import {
 import { getReporterDisplayProfile } from "../store/reporterProfiles";
 import { ParkWatchState } from "../store/state";
 import { formatDayGroup, formatNotificationTime, formatRelativeTime } from "./time";
+import { citizenGalleryItems, GalleryItem } from "./evidenceGallery";
 
 export type { CitizenReportView, OfficerCaseView, NotificationView };
 
@@ -66,10 +66,10 @@ const PRIORITY_TO_VIEW: Record<ReportPriority, CasePriority> = { NORMAL: "normal
 
 /** Officer photo slot keys used by the inspection screens -> domain evidence types. */
 export const OFFICER_PHOTO_KEY_TO_TYPE = {
-  overview: "VEHICLE_OVERVIEW",
+  front: "VEHICLE_FRONT",
   plate: "LICENSE_PLATE",
   sign: "PARKING_SIGN",
-  context: "VIOLATION_CONTEXT",
+  rear: "VEHICLE_REAR",
 } as const satisfies Record<string, OfficerEvidenceType>;
 
 export type OfficerPhotoKey = keyof typeof OFFICER_PHOTO_KEY_TO_TYPE;
@@ -102,10 +102,18 @@ const OUTCOME_TO_REASON_ID: Partial<Record<EnforcementOutcomeCode, string>> = {
   OTHER: "other",
 };
 
+/** How a recorded outcome is named on records and notifications (the Inspection Result choices keep their longer labels). */
+export const OUTCOME_LABEL: Record<EnforcementOutcomeCode, string> = {
+  CHARGE_ISSUED: "Parking charge issued",
+  REPORT_REJECTED: "Report rejected",
+  VEHICLE_MOVED: "Vehicle moved",
+  VALID_PERMIT: "Valid permit",
+  DUPLICATE: "Duplicate report",
+  OTHER: "Closed without charge",
+};
+
 export function outcomeLabel(code: EnforcementOutcomeCode): string {
-  if (code === "CHARGE_ISSUED") return "Parking charge issued";
-  const id = OUTCOME_TO_REASON_ID[code];
-  return CLOSE_WITHOUT_CHARGE_REASONS.find((r) => r.id === id)?.label ?? code;
+  return OUTCOME_LABEL[code] ?? code;
 }
 
 const violationNote = (id: string) => VIOLATION_TYPES.find((v) => v.id === id)?.note;
@@ -179,6 +187,7 @@ export function toOfficerCaseView(c: DomainCase, state: ParkWatchState, now: Dat
     reporterName: reporter.displayName,
     reporterAcceptanceRate: reporter.acceptanceRate,
     reporterVerifiedReports: reporter.verifiedReports,
+    reporterStatsKnown: reporter.known,
     images: report.evidence.map((e) => e.uri),
     reportedAgo: formatRelativeTime(report.submittedAt, now),
     notes: report.notes || undefined,
@@ -304,7 +313,7 @@ function notificationCopy(n: DomainNotification, state: ParkWatchState): { title
     case "CASE_ACCEPTED": {
       const report = state.reports.find((r) => r.id === n.reportId);
       const detail = report
-        ? `\n${violationLabel(report.violationId)} • ${officerCase?.distanceMeters ?? "?"}m away`
+        ? `\n${violationLabel(report.violationId)}` +(officerCase?.distanceMeters !== undefined ? ` • ${officerCase.distanceMeters}m away` : "")
         : "";
       return { title: "Case Accepted", body: `You have accepted case ${ref}${detail}` };
     }
@@ -328,11 +337,13 @@ export function toNotificationView(n: DomainNotification, state: ParkWatchState,
   const kind = n.type === "SYSTEM" ? (hint && NOTIF_KINDS.includes(hint) ? hint : "bell") : KIND_BY_TYPE[n.type];
   return {
     id: n.id,
+    type: n.type,
     group: formatDayGroup(n.createdAt, now),
     time: formatNotificationTime(n.createdAt, now),
     kind,
     unread: n.readAt === undefined,
     ...(n.caseId ? { caseId: n.caseId } : {}),
+    ...(n.reportId ? { reportId: n.reportId } : {}),
     ...notificationCopy(n, state),
   };
 }
@@ -357,8 +368,10 @@ export type CaseDetailView = {
   vehicleColor?: string;
   /** "MOCK_DETECTED" etc. — where the plate came from. */
   plateSource?: string;
-  coordinates?: { latitude: number; longitude: number; accuracyMeters?: number };
+  coordinates?: { latitude: number; longitude: number; accuracyMeters?: number; source: "GPS" | "MAP_SELECTED" };
   submittedAtText: string;
+  /** The citizen's photos (Front, Side, Rear, attachments) for the full-screen gallery. Only what this officer can already load. */
+  evidence: GalleryItem[];
   /** Officer outcome notes (completed cases). */
   outcomeNotes?: string;
 };
@@ -376,9 +389,15 @@ export function selectCaseDetail(state: ParkWatchState, caseId: string, now: Dat
     vehicleColor: report.vehicle?.color,
     plateSource: report.vehicle?.source,
     coordinates: coords
-      ? { latitude: coords.latitude, longitude: coords.longitude, accuracyMeters: coords.accuracyMeters }
+      ? {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          accuracyMeters: coords.accuracyMeters,
+          source: report.location.coordinatesSource ?? "GPS",
+        }
       : undefined,
     submittedAtText: formatRelativeTime(report.submittedAt, now),
+    evidence: citizenGalleryItems(report.evidence),
     outcomeNotes: c.outcome?.notes,
   };
 }

@@ -1,19 +1,27 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { DevSettings } from "react-native";
 import { useRouter } from "expo-router";
+import { useAuth } from "../auth/AuthContext";
+import { AuthMode } from "../auth/authTypes";
 import { DEV_ROLE } from "../constants/devRole";
-import { fromDevRole, ROLE_HOME, SessionRole } from "../navigation/roleGuard";
+import { allowedRoleApp, fromDevRole, ROLE_HOME, SessionRole, SessionView } from "../navigation/roleGuard";
 
-// Temporary session: the role comes from DEV_ROLE (no authentication yet).
-// This is NOT security — it only keeps the two apps' routes apart. Real auth
-// will set `role` from the signed-in account.
+// The session the navigation works with, in one of two separate modes:
+//
+// * LOCAL_DEMO (no backend configured): the role comes from DEV_ROLE and the
+//   dev-only role switch. This is a demo convenience, NOT security.
+// * BACKEND (Supabase configured): the role is whatever the SERVER says
+//   (profile + organization membership, see src/auth). There is no switch and
+//   nothing local can change it.
 
 type SessionValue = {
-  role: SessionRole;
+  mode: AuthMode;
+  view: SessionView;
+  /** The role-app this session may use, or null (signed out, loading, no access). */
+  role: SessionRole | null;
   /**
    * DEVELOPMENT/DEMO ONLY: switch between the citizen and officer apps.
-   * Undefined in production builds, so no screen can offer it there.
-   * Shared app data is untouched; only the session and navigation change.
+   * Defined only in LOCAL_DEMO mode in development builds.
    */
   devSwitchRole?: (next: SessionRole) => void;
 };
@@ -21,15 +29,15 @@ type SessionValue = {
 const SessionContext = createContext<SessionValue | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<SessionRole>(() => fromDevRole(DEV_ROLE));
+  const { state } = useAuth();
+  const [demoRole, setDemoRole] = useState<SessionRole>(() => fromDevRole(DEV_ROLE));
   const router = useRouter();
+  const isDemo = state.mode === "LOCAL_DEMO";
 
   const switchTo = useCallback(
     (next: SessionRole) => {
-      setRole(next);
-      // Leave the other role's screens behind entirely: back to its root, then
-      // replace that root with the new role's home (the route guards would
-      // redirect anyway; this keeps the stack clean).
+      setDemoRole(next);
+      // Leave the other role's screens behind entirely.
       setTimeout(() => {
         if (router.canDismiss()) router.dismissAll();
         router.replace(ROLE_HOME[next]);
@@ -38,20 +46,37 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
-  // DEVELOPMENT ONLY: dev menu item (dev builds) and web console hook.
+  // DEVELOPMENT ONLY, LOCAL_DEMO ONLY: dev menu item and web console hook.
   useEffect(() => {
-    if (!__DEV__) return;
+    if (!__DEV__ || !isDemo) return;
     DevSettings?.addMenuItem?.("ParkWatch: switch citizen/officer (dev)", () =>
-      setRole((r) => {
+      setDemoRole((r) => {
         const next = r === "citizen" ? "officer" : "citizen";
         setTimeout(() => router.replace(ROLE_HOME[next]), 0);
         return next;
       })
     );
     (globalThis as Record<string, unknown>).__parkwatchSwitchRole = switchTo;
-  }, [router, switchTo]);
+    return () => {
+      delete (globalThis as Record<string, unknown>).__parkwatchSwitchRole;
+    };
+  }, [router, switchTo, isDemo]);
 
-  const value = useMemo<SessionValue>(() => ({ role, devSwitchRole: __DEV__ ? switchTo : undefined }), [role, switchTo]);
+  const view = useMemo<SessionView>(() => {
+    if (state.mode === "LOCAL_DEMO") return { mode: "LOCAL_DEMO", role: demoRole };
+    if (state.status === "authenticated") return { mode: "BACKEND", status: "authenticated", access: state.access, accessFailed: !!state.accessError };
+    return { mode: "BACKEND", status: state.status };
+  }, [state, demoRole]);
+
+  const value = useMemo<SessionValue>(
+    () => ({
+      mode: state.mode,
+      view,
+      role: allowedRoleApp(view),
+      devSwitchRole: __DEV__ && isDemo ? switchTo : undefined,
+    }),
+    [state.mode, view, isDemo, switchTo]
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

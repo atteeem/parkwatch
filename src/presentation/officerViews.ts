@@ -1,11 +1,12 @@
 // Officer screen view models (pure). Screens render these; they never
 // re-derive case logic, distances or outcome text themselves.
 
-import { DEFAULT_MOCK_CHARGE_AMOUNT_CENTS, EnforcementOutcomeCode } from "../domain";
+import { DEFAULT_MOCK_CHARGE_AMOUNT_CENTS, EnforcementOutcomeCode, OfficerEvidenceType } from "../domain";
 import { OfficerCase as OfficerCaseView } from "../data/types";
 import { LatLng, straightLineDistance } from "../geo/distance";
 import { formatDateTime } from "./time";
-import { formatEuros, InspectionView, outcomeLabel } from "./viewModels";
+import { formatEuros, InspectionView, OFFICER_PHOTO_KEY_TO_TYPE, outcomeLabel } from "./viewModels";
+import { GalleryItem, officerGalleryItems } from "./evidenceGallery";
 
 export type CaseWithDistance = OfficerCaseView & {
   /** Straight-line metres from the officer, or null when either position is unknown. */
@@ -59,12 +60,6 @@ export function queueSummary(cases: OfficerCaseView[], officerId: string) {
     highPriorityCount: open.filter((c) => c.status === "new" && c.priority === "high").length,
     assignedToMeCount: open.filter((c) => c.assignedOfficerId === officerId).length,
   };
-}
-
-export function queueEmptyMessage(filter: QueueFilter, totalOpen: number, shown: number): string | null {
-  if (shown > 0) return null;
-  if (totalOpen === 0) return "No nearby reports right now.";
-  return "No reports in this category.";
 }
 
 // ---------------------------------------------------------------------------
@@ -127,17 +122,20 @@ export type SystemCheck = { label: string; state: "ok" | "info" | "unavailable" 
  * not happened.
  */
 export function systemChecks(input: {
-  coordinates?: { accuracyMeters?: number };
+  coordinates?: { accuracyMeters?: number; source?: "GPS" | "MAP_SELECTED" };
   plateSource?: string;
 }): SystemCheck[] {
   const c = input.coordinates;
   return [
-    c
-      ? {
-          label: `Location from reporter GPS${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
-          state: "ok",
-        }
-      : { label: "Location: address only", state: "unavailable" },
+    !c
+      ? { label: "Location: address only", state: "unavailable" }
+      : c.source === "MAP_SELECTED"
+        ? // Never described as GPS: the reporter placed this point on the map.
+          { label: "Location set by reporter on the map", state: "info" }
+        : {
+            label: `Location from reporter GPS${c.accuracyMeters !== undefined ? ` (±${Math.round(c.accuracyMeters)} m)` : ""}`,
+            state: "ok",
+          },
     { label: "Time recorded on reporter device", state: "info" },
     input.plateSource === "OCR_DETECTED" || input.plateSource === "CITIZEN_CONFIRMED"
       ? { label: "Plate entered with report", state: "ok" }
@@ -183,6 +181,53 @@ export function toCompletionSummary(
     photosText: inspection?.exists ? `${inspection.photosCaptured} / 4` : undefined,
     notes: outcomeNotes?.trim() || inspection?.notes?.trim() || undefined,
     completedAtText: c.completedAt ? formatDateTime(c.completedAt) : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Completed case record (T8.8): only what was actually recorded.
+
+export type ChecklistAnswer = "confirmed" | "not-confirmed" | "not-answered";
+
+export const CHECKLIST_RECORD_ROWS = [
+  { key: "vehiclePresent", label: "Vehicle still present" },
+  { key: "plateMatched", label: "License plate matches" },
+  { key: "violationConfirmed", label: "Violation confirmed" },
+  { key: "restrictionVerified", label: "Parking restriction verified" },
+] as const;
+
+export type CaseRecordView = CompletionSummary & {
+  statusLabel: "Completed";
+  vehicleText?: string;
+  /** null when no on-site inspection was recorded (desk / en-route decisions). */
+  checklist: { key: string; label: string; answer: ChecklistAnswer }[] | null;
+  citizenEvidence: GalleryItem[];
+  officerEvidence: GalleryItem[];
+};
+
+const answerOf = (v: boolean | null | undefined): ChecklistAnswer => (v === true ? "confirmed" : v === false ? "not-confirmed" : "not-answered");
+
+export function toCaseRecord(
+  c: OfficerCaseView,
+  inspection: InspectionView | undefined,
+  detail: { evidence: GalleryItem[]; vehicleColor?: string; outcomeNotes?: string } | undefined
+): CaseRecordView | null {
+  const summary = toCompletionSummary(c, inspection, detail?.outcomeNotes);
+  if (!summary) return null;
+  const officerByType: Partial<Record<OfficerEvidenceType, string>> = {};
+  if (inspection?.exists) {
+    for (const [key, type] of Object.entries(OFFICER_PHOTO_KEY_TO_TYPE) as [keyof typeof OFFICER_PHOTO_KEY_TO_TYPE, OfficerEvidenceType][]) {
+      officerByType[type] = inspection.officerPhotos[key];
+    }
+  }
+  const vehicleText = [c.vehicle, detail?.vehicleColor].filter(Boolean).join(" · ") || undefined;
+  return {
+    ...summary,
+    statusLabel: "Completed",
+    ...(vehicleText ? { vehicleText } : {}),
+    checklist: inspection?.exists ? CHECKLIST_RECORD_ROWS.map((r) => ({ key: r.key, label: r.label, answer: answerOf(inspection[r.key]) })) : null,
+    citizenEvidence: detail?.evidence ?? [],
+    officerEvidence: officerGalleryItems(officerByType),
   };
 }
 

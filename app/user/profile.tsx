@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,49 +8,27 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
+import { SettingsRow } from "../../src/components/SettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
-import { citizenReportStats } from "../../src/presentation/citizenViews";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
+import { SignOutRow } from "../../src/components/SignOutRow";
+import { citizenStatsFromCounts } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
-
-function Row({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  subtitle,
-  right,
-  onPress,
-  destructive,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  onPress?: () => void;
-  destructive?: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={17} color={iconColor} />
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.red }]}>{title}</Text>
-        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textLight} />}
-    </Pressable>
-  );
-}
+import { AvatarEditSheet } from "../../src/components/AvatarEditSheet";
+import { useMyAvatar } from "../../src/auth/AvatarContext";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { unreadBadgeText } from "../../src/presentation/unreadBadge";
 
 export default function UserProfile() {
   const router = useRouter();
-  const { walletAvailable, userReports, getEarnings } = useApp();
-  const stats = citizenReportStats(userReports);
+  const { walletAvailable, citizenSummary, getEarnings } = useApp();
+  // Server counts in backend mode (every report, not a loaded page).
+  const stats = citizenStatsFromCounts(citizenSummary);
+  const me = displayIdentity(useAuth().state, "citizen");
+  const avatar = useMyAvatar();
+  const [sheet, setSheet] = useState(false);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -61,18 +39,31 @@ export default function UserProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Avatar name={DEMO_CITIZEN_ACCOUNT.fullName} size={64} />
+            <Pressable
+              onPress={() => avatar.canEdit && !avatar.busy && setSheet(true)}
+              disabled={!avatar.canEdit || avatar.busy}
+              accessibilityRole="button"
+              accessibilityLabel={avatar.uri ? "Change profile photo" : "Add profile photo"}
+              hitSlop={6}
+            >
+              <Avatar name={me.fullName} size={64} uri={avatar.uri} onError={avatar.onImageError} />
+              {avatar.canEdit ? (
+                <View style={styles.avatarBadge}>
+                  {avatar.busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={12} color="#fff" />}
+                </View>
+              ) : null}
+            </Pressable>
             <View style={{ marginLeft: 14, flex: 1 }}>
-              <Text style={styles.name}>{DEMO_CITIZEN_ACCOUNT.fullName}</Text>
+              <Text style={styles.name}>{me.fullName}</Text>
               <Text style={styles.locationRow}>
-                <Ionicons name="location" size={12} /> {DEMO_CITIZEN_ACCOUNT.city}
+                {me.demo?.city ? <><Ionicons name="location" size={12} /> {me.demo.city}</> : me.email}
               </Text>
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={13} color={colors.greenDark} />
                 <Text style={styles.verifiedLabel}>Active reporter</Text>
               </View>
               <Text style={styles.memberSince}>
-                <Ionicons name="calendar-outline" size={11} /> Member since {DEMO_CITIZEN_ACCOUNT.memberSince}
+                <Ionicons name="calendar-outline" size={11} /> {me.demo?.memberSince ? `Member since ${me.demo.memberSince}` : "ParkWatch account"}
               </Text>
             </View>
           </View>
@@ -94,37 +85,76 @@ export default function UserProfile() {
           </View>
         </Card>
 
+        {avatar.error ? (
+          <Pressable onPress={avatar.clearError} accessibilityRole="button">
+            <Text style={styles.avatarError}>{avatar.error}</Text>
+          </Pressable>
+        ) : null}
+
         <Text style={styles.sectionHeading}>Account</Text>
         <Card noPadding>
-          <Row icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
+          <SettingsRow icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
           <View style={styles.divider} />
-          <Row icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234"} />
+          {/* Local demo: the example payout account (not editable). Signed in: payment methods don't exist yet. */}
+          {me.source === "DEMO" ? (
+            <SettingsRow icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234 \u00b7 demo payout account, not editable"} />
+          ) : (
+            <SettingsRow icon="business" title="Payment Method" unavailable />
+          )}
           <View style={styles.divider} />
-          <Row icon="shield-checkmark" iconBg={colors.purpleLight} iconColor={colors.purple} title="Identity Verification" subtitle="Not available yet" />
+          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
           <View style={styles.divider} />
-          <Row icon="gift" iconBg={colors.amberLight} iconColor="#B47A00" title="Referral Program" subtitle="Invite friends and earn more" />
+          <SettingsRow icon="gift" title="Referral Program" unavailable />
         </Card>
 
         <Text style={styles.sectionHeading}>App</Text>
         <Card noPadding>
-          <Row icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
+          <SettingsRow
+            icon="notifications"
+            title="Notifications"
+            subtitle={citizenSummary.unread > 0 ? `${unreadBadgeText(citizenSummary.unread)} unread` : "Report and wallet updates"}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <UnreadBadge count={citizenSummary.unread} />
+                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+              </View>
+            }
+            onPress={() => router.push("/user/notifications")}
+          />
           <View style={styles.divider} />
-          <Row icon="help-circle" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Help Center" subtitle="FAQs and support" />
+          <SettingsRow icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
           <View style={styles.divider} />
-          <Row icon="document" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Terms of Service" subtitle="Read our terms and conditions" />
+          <SettingsRow icon="help-circle" title="Help Center" subtitle="How reporting and rewards work" onPress={() => router.push("/user/info/help")} />
           <View style={styles.divider} />
-          <Row icon="lock-closed" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Privacy Policy" subtitle="How we handle your data" />
+          <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About ParkWatch" subtitle="What this version does" onPress={() => router.push("/user/info/about")} />
+          <View style={styles.divider} />
+          <SettingsRow icon="play-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} title="How ParkWatch Works" subtitle="Replay the introduction" onPress={() => router.push({ pathname: "/onboarding", params: { mode: "review" } })} />
+          <View style={styles.divider} />
+          <SettingsRow icon="document" title="Terms of Service" subtitle="Draft · final terms not yet published" onPress={() => router.push("/user/info/terms")} />
+          <View style={styles.divider} />
+          <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle="Draft · final policy not yet published" onPress={() => router.push("/user/info/privacy-policy")} />
         </Card>
 
-        <Card style={{ alignItems: "center", marginTop: 16 }}>
-          <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons name="log-out-outline" size={18} color={colors.red} />
-            <Text style={{ color: colors.red, fontWeight: "800", fontSize: 15 }}>Log Out</Text>
-          </Pressable>
+        {/* Real Sign Out in backend mode; in the local demo it says it isn't available. */}
+        <Card noPadding style={{ marginTop: 16 }}>
+          <SignOutRow />
         </Card>
         <DemoTools />
       </ScrollView>
       <UserBottomNav />
+      <AvatarEditSheet
+        visible={sheet}
+        hasPhoto={!!avatar.uri}
+        onClose={() => setSheet(false)}
+        onChoose={(source) => {
+          setSheet(false);
+          void avatar.choose(source);
+        }}
+        onRemove={() => {
+          setSheet(false);
+          void avatar.remove();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -132,6 +162,8 @@ export default function UserProfile() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   avatar: { width: 64, height: 64, borderRadius: 32 },
+  avatarBadge: { position: "absolute", right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.greenDark, borderWidth: 2, borderColor: colors.white, alignItems: "center", justifyContent: "center" },
+  avatarError: { color: "#B3261E", fontSize: 12.5, fontWeight: "600", marginTop: 10, textAlign: "center" },
   name: { fontSize: 18, fontWeight: "800" },
   locationRow: { fontSize: 12.5, color: colors.textSecondary, marginTop: 3 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.greenLight, alignSelf: "flex-start", borderRadius: radius.chip, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6 },

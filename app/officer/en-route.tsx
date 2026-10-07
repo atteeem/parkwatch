@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -10,15 +10,17 @@ import { GreenButton } from "../../src/components/GreenButton";
 import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
+import { OpenInMapsButton } from "../../src/components/map/OpenInMapsButton";
 
 // OFF-05. Straight-line distance from the officer's foreground GPS only:
 // no routing, no ETA, no traffic (none of which the MVP can know).
@@ -26,6 +28,8 @@ export default function EnRoute() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, officerId, startInspection, completeCase } = useApp();
   const c = getCase(id);
   // Live foreground updates while this screen is open (released on leave).
@@ -34,7 +38,9 @@ export default function EnRoute() {
   const [error, setError] = useState<string | null>(null);
   const [confirmMoved, setConfirmMoved] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const guard = useMemo(() => createSubmitGuard(), [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guard = useGuardedAction(c?.status);
+
+  if (caseLoad.loading && !c) return <DetailLoading />;
 
   if (!c) {
     return (
@@ -114,19 +120,22 @@ export default function EnRoute() {
         <View style={styles.navCard}>
           <View style={styles.navTopBar}>
             <Text style={styles.navTopLabel}>
-              <Ionicons name="navigate" size={13} color={colors.green} /> Navigating to location
+              <Ionicons name="navigate" size={13} color={colors.green} /> Heading to the report location
             </Text>
             {c.coordinates && (
               <Pressable
                 style={styles.openMapsBtn}
                 onPress={() => router.push({ pathname: "/officer/map", params: { caseId: c.id } })}
+                accessibilityLabel="Show on the ParkWatch live map"
               >
-                <Text style={styles.openMapsLabel}>Open in Maps</Text>
+                <Text style={styles.openMapsLabel}>Live Map</Text>
                 <Ionicons name="map-outline" size={13} color="#fff" />
               </Pressable>
             )}
           </View>
           <Text style={styles.navAddress}>{c.location}</Text>
+          {/* Directions, if wanted, happen in the phone's own maps app; ParkWatch shows straight-line distance only. */}
+          <OpenInMapsButton point={c.coordinates} label={`Report #${c.reportId}`} dark style={{ marginHorizontal: 14, marginBottom: 10 }} />
 
           {c.coordinates ? (
             <LiveMap
@@ -195,14 +204,15 @@ export default function EnRoute() {
         {action === "VIEW_RESULT" ? (
           <GreenButton
             label="View Result"
-            onPress={() => router.push({ pathname: "/officer/inspection-completed", params: { id: c.id } })}
+            onPress={() => router.push({ pathname: "/officer/inspection-completed", params: { id: c.id, from: "record" } })}
           />
         ) : (
           <>
             <GreenButton
               label={action === "CONTINUE_INSPECTION" ? "Continue Inspection" : "Start On-site Inspection"}
               icon="clipboard"
-              disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION")}
+              disabled={!(isMineInTransit || action === "CONTINUE_INSPECTION") || guard.busy}
+              loading={guard.busy && !confirmMoved}
               onPress={handleStartInspection}
               trailingIcon={null}
             />
@@ -236,6 +246,7 @@ export default function EnRoute() {
         confirmLabel="Close Case"
         destructive
         error={dialogError}
+        busy={guard.busy}
         onConfirm={handleVehicleMoved}
         onCancel={() => setConfirmMoved(false)}
       />

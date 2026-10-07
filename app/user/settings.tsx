@@ -1,105 +1,75 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, Switch, StyleSheet } from "react-native";
+import React from "react";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
-import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
+import { BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
-
-function SettingRow({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  subtitle,
-  toggle,
-  destructive,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  subtitle: string;
-  toggle?: { value: boolean; onChange: (v: boolean) => void };
-  destructive?: boolean;
-}) {
-  return (
-    <Pressable style={styles.row}>
-      <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={17} color={iconColor} />
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.red }]}>{title}</Text>
-        <Text style={styles.rowSubtitle}>{subtitle}</Text>
-      </View>
-      {toggle && (
-        <Switch
-          value={toggle.value}
-          onValueChange={toggle.onChange}
-          trackColor={{ true: colors.green, false: colors.border }}
-          thumbColor="#fff"
-        />
-      )}
-    </Pressable>
-  );
-}
+import { SettingsRow } from "../../src/components/SettingsRow";
 
 function SectionLabel({ text }: { text: string }) {
   return <Text style={styles.sectionLabel}>{text}</Text>;
 }
 
+// Settings. There is no push/email service, theming or in-app account editing
+// yet, so those rows are shown as unavailable (dimmed, not pressable, no
+// switches) instead of controls that would pretend to change something.
 export default function Settings() {
-  const [push, setPush] = useState(true);
-  const [email, setEmail] = useState(true);
-  const [dark, setDark] = useState(false);
+  const router = useRouter();
+  const version = Constants.expoConfig?.version ?? "1.0.0";
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+      <View style={styles.header}>
+        {router.canGoBack() && (
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} onPress={() => router.back()} accessibilityLabel="Back" style={{ marginBottom: 4 }} />
+        )}
         <Text style={typography.screenTitle}>Settings</Text>
         <Text style={typography.screenSubtitle}>Manage your preferences and account settings</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20, gap: 6 }}>
         <SectionLabel text="ACCOUNT" />
         <Card noPadding>
-          <SettingRow icon="person" iconBg={colors.blueLight} iconColor={colors.blue} title="Personal Information" subtitle="Update your name, email and phone number" />
+          <SettingsRow icon="person" title="Personal Information" unavailable />
           <View style={styles.divider} />
-          <SettingRow icon="lock-closed" iconBg={colors.purpleLight} iconColor={colors.purple} title="Password" subtitle="Change your password" />
+          <SettingsRow icon="lock-closed" title="Password" unavailable />
           <View style={styles.divider} />
-          <SettingRow icon="shield-checkmark" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Identity Verification" subtitle="Manage your verification status" />
+          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
         </Card>
 
         <SectionLabel text="NOTIFICATIONS" />
         <Card noPadding>
-          <SettingRow icon="notifications" iconBg={colors.blueLight} iconColor={colors.blue} title="Push Notifications" subtitle="Receive notifications on your device" toggle={{ value: push, onChange: setPush }} />
+          <SettingsRow icon="notifications" title="Push Notifications" subtitle="Not available yet · updates appear in Notifications" unavailable />
           <View style={styles.divider} />
-          <SettingRow icon="mail" iconBg={colors.purpleLight} iconColor={colors.purple} title="Email Notifications" subtitle="Receive important updates via email" toggle={{ value: email, onChange: setEmail }} />
+          <SettingsRow icon="mail" title="Email Notifications" unavailable />
         </Card>
 
         <SectionLabel text="APPEARANCE" />
         <Card noPadding>
-          <SettingRow icon="moon" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Dark Mode" subtitle="Use dark theme in the app" toggle={{ value: dark, onChange: setDark }} />
+          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
         </Card>
 
         <SectionLabel text="LANGUAGE" />
         <Card noPadding>
-          <SettingRow icon="globe" iconBg={colors.blueLight} iconColor={colors.blue} title="Language" subtitle="Choose your preferred language" />
+          <SettingsRow icon="globe" title="Language" subtitle="English · other languages not available yet" unavailable />
         </Card>
 
         <SectionLabel text="PRIVACY" />
         <Card noPadding>
-          <SettingRow icon="shield" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Privacy & Data" subtitle="Manage how we handle your data" />
+          <SettingsRow icon="shield" title="Privacy & Data" subtitle="What the app stores" onPress={() => router.push("/user/info/privacy-data")} />
           <View style={styles.divider} />
-          <SettingRow icon="trash" iconBg={colors.redLight} iconColor={colors.red} title="Delete Account" subtitle="Permanently delete your account and data" destructive />
+          <SettingsRow icon="trash" title="Delete Account" subtitle="Not available in the app yet" unavailable />
         </Card>
 
         <SectionLabel text="ABOUT" />
         <Card noPadding>
-          <SettingRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About App" subtitle="Version 1.0.0" />
+          <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About App" subtitle={`Version ${version} · pre-launch`} onPress={() => router.push("/user/info/about")} />
           <View style={styles.divider} />
-          <SettingRow icon="help-circle" iconBg={colors.amberLight} iconColor="#B47A00" title="Help Center" subtitle="Get help and contact support" />
+          <SettingsRow icon="help-circle" title="Help Center" subtitle="How reporting and rewards work" onPress={() => router.push("/user/info/help")} />
         </Card>
       </ScrollView>
       <UserBottomNav />
@@ -109,10 +79,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 20, paddingTop: 4 },
   sectionLabel: { fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginTop: 14, marginBottom: 8, marginLeft: 2 },
-  row: { flexDirection: "row", alignItems: "center", padding: 14 },
-  rowIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  rowTitle: { fontWeight: "700", fontSize: 14.5 },
-  rowSubtitle: { fontSize: 11.5, color: colors.textSecondary, marginTop: 2 },
   divider: { height: 1, backgroundColor: colors.borderLight, marginLeft: 60 },
 });

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../src/constants/colors";
 import { radius } from "../../../src/constants/spacing";
@@ -10,6 +10,7 @@ import { ReportStepper } from "../../../src/components/ReportStepper";
 import { GreenButton } from "../../../src/components/GreenButton";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { VIOLATION_TYPES } from "../../../src/data/types";
+import { afterStep } from "../../../src/presentation/reportDraft";
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   "no-parking": "ban",
@@ -26,6 +27,13 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 export default function SelectViolation() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  // Opened from Review ("Change"): Continue returns to Review.
+  const next = () => {
+    const step = afterStep("violation", from);
+    if (step.kind === "backToReview") router.back();
+    else router.push(step.route);
+  };
   const { draft, setViolation } = useReportDraft();
 
   return (
@@ -60,7 +68,7 @@ export default function SelectViolation() {
         </View>
       </ScrollView>
       <View style={styles.bottomBar}>
-        <GreenButton label="Continue" disabled={!draft.violationId} onPress={() => router.push("/user/report/add-details")} />
+        <GreenButton label="Continue" disabled={!draft.violationId} onPress={next} />
       </View>
     </SafeAreaView>
   );

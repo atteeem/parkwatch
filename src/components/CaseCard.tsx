@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { AnimatedPressable } from "./motion/AnimatedPressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { radius, shadow } from "../constants/spacing";
@@ -22,7 +23,7 @@ export function CaseCard({
   onPress?: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+    <AnimatedPressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}>
       <VehicleThumbnail uri={item.images[0]} size={58} radius={14} />
       <View style={{ flex: 1, marginLeft: 12 }}>
         <View style={styles.topRow}>
@@ -50,7 +51,7 @@ export function CaseCard({
           <Ionicons name="chevron-forward" size={12} color="#06210F" />
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

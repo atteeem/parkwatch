@@ -8,39 +8,52 @@ import { typography } from "../../src/constants/typography";
 import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { CaseCard } from "../../src/components/CaseCard";
-import { useApp } from "../../src/context/AppContext";
-import { DEMO_OFFICER_ACCOUNT } from "../../src/store/demoAccounts";
+import { usePagedList, useApp, useQueuePosition } from "../../src/context/AppContext";
+import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
 import { Avatar } from "../../src/components/Avatar";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
 import { formatDistance } from "../../src/geo/distance";
-import { myCases, officerHomeSummary, withDistances } from "../../src/presentation/officerViews";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { OFFICER_HOME_NO_ACTIVE, OFFICER_HOME_NO_NEW } from "../../src/presentation/emptyStates";
+import { sortQueue, withDistances } from "../../src/presentation/officerViews";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function OfficerHome() {
   const router = useRouter();
-  const { officerCases, officerNotifications, officerId } = useApp();
+  const me = displayIdentity(useAuth().state, "officer");
+  const { officerSummary } = useApp();
+  const refreshControl = useCoreRefreshControl();
   // Never prompts here; uses a position only if permission was already granted.
   const location = useForegroundLocation();
   const officerFix = location.permission === "granted" ? location.fix : undefined;
-  const summary = officerHomeSummary(withDistances(officerCases, officerFix), officerId);
-  const nearest = summary.nearest;
-  const active = summary.active.slice(0, 3);
-  const unread = officerNotifications.filter((n) => n.unread).length;
-  const mine = myCases(officerCases, officerId);
-  const completedByMe = mine.filter((c) => c.status === "completed").length;
+  useQueuePosition(officerFix);
+  // Counts from the server; the cards from the first (server-filtered) queue pages.
+  const fresh = usePagedList({ kind: "queue", filter: "New" });
+  const assigned = usePagedList({ kind: "queue", filter: "Assigned" });
+  const visible = usePagedList({ kind: "queue", filter: "All" });
+  const nearest = sortQueue(withDistances(fresh.items, officerFix))[0];
+  const active = withDistances(assigned.items.filter((c) => c.status !== "new"), officerFix).slice(0, 3);
+  const summary = { openCount: officerSummary.open, highPriorityCount: officerSummary.highPriorityNew, activeCount: officerSummary.assignedToMe };
+  const unread = officerSummary.unread;
+  const completedByMe = officerSummary.mineCompleted;
   const openCase = (id: string) => router.push({ pathname: "/officer/report-details", params: { id } });
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <View style={styles.topRow}>
-          <Pressable onPress={() => router.push("/officer/profile")}>
-            <Avatar name={DEMO_OFFICER_ACCOUNT.fullName} size={52} />
+          <Pressable onPress={() => router.replace("/officer/profile")}>
+            <Avatar name={me.fullName} size={52} />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.greeting}>Good morning,{"\n"}Officer {DEMO_OFFICER_ACCOUNT.firstName}</Text>
+            <Text style={styles.greeting}>Good morning,{"\n"}Officer {me.firstName}</Text>
             <Text style={styles.greetingSub}>Here's what's happening on your shift.</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 8 }}>
@@ -48,13 +61,9 @@ export default function OfficerHome() {
               <View style={styles.onDutyDot} />
               <Text style={styles.onDutyLabel}>On Duty</Text>
             </View>
-            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")}>
+            <Pressable style={styles.bellBtn} onPress={() => router.push("/officer/notifications")} accessibilityRole="button" accessibilityLabel={notificationsA11yLabel(unread)}>
               <Ionicons name="notifications" size={18} color={colors.textPrimary} />
-              {unread > 0 && (
-                <View style={styles.bellBadge}>
-                  <Text style={styles.bellBadgeLabel}>{unread}</Text>
-                </View>
-              )}
+              <UnreadBadge count={unread} style={styles.bellBadge} />
             </Pressable>
           </View>
         </View>
@@ -68,14 +77,11 @@ export default function OfficerHome() {
           </Text>
         </View>
 
-        {!nearest && (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No new reports right now.</Text>
-          </View>
-        )}
+        {/* Only once the first page has settled: never claim "clear" while loading. */}
+        {!nearest && fresh.loaded && !fresh.loading && <EmptyFromCopy copy={OFFICER_HOME_NO_NEW} variant="compact" style={{ marginTop: 12 }} />}
 
         {nearest && (
-          <Pressable style={styles.nearestCard} onPress={() => openCase(nearest.id)}>
+          <AnimatedPressable style={styles.nearestCard} onPress={() => openCase(nearest.id)} accessibilityRole="button">
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={styles.nearestEyebrow}>{nearest.distanceMeters !== null ? "NEAREST NEW REPORT" : "NEXT NEW REPORT"}</Text>
               {nearest.distanceMeters !== null ? (
@@ -108,7 +114,7 @@ export default function OfficerHome() {
               <Text style={styles.viewReportLabel}>View Report</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
             </View>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         <View style={styles.mapSection}>
@@ -123,7 +129,7 @@ export default function OfficerHome() {
             <LiveMap
               style={styles.mapPreview}
               interactive={false}
-              markers={officerCaseMarkers(officerCases)}
+              markers={officerCaseMarkers(visible.items)}
               userFix={officerFix}
               following={false}
             />
@@ -143,10 +149,8 @@ export default function OfficerHome() {
             </Pressable>
           </View>
           <View style={{ marginTop: 10 }}>
-            {active.length === 0 && (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No active cases. Accept a report to start.</Text>
-              </View>
+            {active.length === 0 && assigned.loaded && !assigned.loading && (
+              <EmptyFromCopy copy={OFFICER_HOME_NO_ACTIVE} variant="compact" onAction={() => router.replace("/officer/queue")} />
             )}
             {active.map((c) => (
               <CaseCard key={c.id} item={c} distanceMeters={c.distanceMeters} onPress={() => openCase(c.id)} />
@@ -160,7 +164,7 @@ export default function OfficerHome() {
             {/* Real counts only; response-time stats need server timestamps (not in the MVP). */}
             {[
               { icon: "document-text", value: String(summary.openCount), label: "Open reports" },
-              { icon: "navigate", value: String(summary.active.length), label: "My active cases" },
+              { icon: "navigate", value: String(summary.activeCount), label: "My active cases" },
               { icon: "checkmark-done", value: String(completedByMe), label: "Cases completed" },
             ].map((s) => (
               <View key={s.label} style={{ alignItems: "center", flex: 1 }}>
@@ -189,8 +193,7 @@ const styles = StyleSheet.create({
   onDutyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.greenDark },
   onDutyLabel: { fontSize: 11, fontWeight: "700", color: colors.greenDark },
   bellBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center" },
-  bellBadge: { position: "absolute", top: -3, right: -3, backgroundColor: colors.green, borderRadius: 8, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center" },
-  bellBadgeLabel: { fontSize: 9.5, fontWeight: "800", color: "#06210F" },
+  bellBadge: { position: "absolute", top: -3, right: -5 },
   statsRow: { flexDirection: "row", gap: 16, marginTop: 14 },
   statChip: { fontSize: 12.5, fontWeight: "600", color: colors.textSecondary },
   nearestCard: { backgroundColor: colors.amberLight, borderRadius: radius.card, padding: 14, marginTop: 16, borderWidth: 1, borderColor: "#F3DFA0" },

@@ -7,8 +7,12 @@ import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { OFFICER_NOTIFICATIONS_EMPTY } from "../../src/presentation/emptyStates";
 import { NotifKind } from "../../src/data/mockNotifications";
+import { officerNotificationTarget } from "../../src/navigation/notificationTargets";
 
 const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap }> = {
   success: { bg: colors.greenLight, fg: colors.greenDark, icon: "checkmark-circle" },
@@ -24,7 +28,10 @@ const KIND_STYLE: Record<NotifKind, { bg: string; fg: string; icon: keyof typeof
 
 export default function OfficerNotifications() {
   const router = useRouter();
-  const { officerNotifications, markOfficerNotificationsRead, getCase } = useApp();
+  const { markOfficerNotificationsRead, getCase, dataSource } = useApp();
+  const refreshControl = useCoreRefreshControl();
+  const list = usePagedList({ kind: "notifications", role: "OFFICER" });
+  const officerNotifications = list.items;
   useEffect(() => {
     const t = setTimeout(markOfficerNotificationsRead, 800);
     return () => clearTimeout(t);
@@ -35,11 +42,16 @@ export default function OfficerNotifications() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+        {router.canGoBack() && (
+          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back" style={{ marginBottom: 4, alignSelf: "flex-start" }}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+        )}
         <Text style={typography.screenTitle}>Notifications</Text>
         <Text style={typography.screenSubtitle}>Updates about your cases</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {officerNotifications.length === 0 && <Text style={styles.empty}>No notifications yet.</Text>}
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        {listSettledEmpty(list) && <EmptyFromCopy copy={OFFICER_NOTIFICATIONS_EMPTY} />}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>
             <Text style={styles.groupLabel}>{group}</Text>
@@ -47,14 +59,14 @@ export default function OfficerNotifications() {
               .filter((n) => n.group === group)
               .map((n) => {
                 const k = KIND_STYLE[n.kind];
-                // Tap opens the case only if it still exists.
-                const openable = !!n.caseId && !!getCase(n.caseId);
+                // Tap opens the case only if it still exists; otherwise the card is plain information.
+                const target = officerNotificationTarget(n, (id) => !!getCase(id), { serverScoped: dataSource === "BACKEND" });
+                const Wrapper = target ? Pressable : View;
                 return (
-                  <Pressable
+                  <Wrapper
                     key={n.id}
                     style={styles.card}
-                    disabled={!openable}
-                    onPress={() => openable && router.push({ pathname: "/officer/report-details", params: { id: n.caseId! } })}
+                    {...(target ? { onPress: () => router.push(target as never), accessibilityRole: "button" as const, accessibilityHint: "Opens the case" } : {})}
                   >
                     <View style={[styles.iconWrap, { backgroundColor: k.bg }]}>
                       <Ionicons name={k.icon} size={18} color={k.fg} />
@@ -67,11 +79,13 @@ export default function OfficerNotifications() {
                       <Text style={styles.body}>{n.body}</Text>
                     </View>
                     {n.unread && <View style={styles.dot} />}
-                  </Pressable>
+                    {target && <Ionicons name="chevron-forward" size={16} color={colors.textLight} style={{ marginLeft: 6, alignSelf: "center" }} />}
+                  </Wrapper>
                 );
               })}
           </View>
         ))}
+        <ListFooter list={list} />
       </ScrollView>
       <OfficerBottomNav />
     </SafeAreaView>

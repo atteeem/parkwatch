@@ -11,12 +11,14 @@ import { DEV_CITIZEN_ID } from "./session";
  */
 export type ReporterDisplayProfile = {
   displayName: string;
-  reliability: "Low" | "Medium" | "High";
+  reliability: "Low" | "Medium" | "High" | "Not rated";
+  /** false: no statistics exist for this reporter; screens must not show invented numbers. */
+  known: boolean;
   acceptanceRate: number;
   verifiedReports: number;
 };
 
-const PROFILES: Record<string, ReporterDisplayProfile> = {
+const PROFILES: Record<string, Omit<ReporterDisplayProfile, "known">> = {
   [DEV_CITIZEN_ID]: { displayName: "Mika S.", reliability: "High", acceptanceRate: 92, verifiedReports: 79 },
   "citizen-elina": { displayName: "Elina R.", reliability: "High", acceptanceRate: 88, verifiedReports: 41 },
   "citizen-jonas": { displayName: "Jonas L.", reliability: "High", acceptanceRate: 95, verifiedReports: 112 },
@@ -28,12 +30,19 @@ const PROFILES: Record<string, ReporterDisplayProfile> = {
 };
 
 const UNKNOWN: ReporterDisplayProfile = {
-  displayName: "Reporter",
-  reliability: "Medium",
+  displayName: "Citizen reporter",
+  reliability: "Not rated",
+  known: false,
   acceptanceRate: 0,
   verifiedReports: 0,
 };
 
 export function getReporterDisplayProfile(citizenId: string): ReporterDisplayProfile {
-  return PROFILES[citizenId] ?? UNKNOWN;
+  const p = PROFILES[citizenId];
+  return p ? { ...p, known: true } : UNKNOWN;
+}
+
+/** The signed-in citizen in server-backed mode: their own name, no invented statistics. */
+export function ownReporterProfile(displayName: string): ReporterDisplayProfile {
+  return { ...UNKNOWN, displayName: displayName.trim() || "You" };
 }

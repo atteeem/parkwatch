@@ -52,6 +52,27 @@ export function describeDomainError(error: DomainError | { code: string; message
       return { kind: "BANNER", message: "This parking session has already ended." };
     case "INVALID_DURATION":
       return { kind: "INLINE", message: "Choose a parking time between 1 minute and 24 hours." };
+    case "UNAUTHENTICATED":
+      return { kind: "BANNER", message: "Your session has ended. Please sign in again." };
+    case "FORBIDDEN":
+      return { kind: "BANNER", message: "Your account doesn't have access to this." };
+    case "EVIDENCE_NOT_UPLOADED":
+    case "UPLOAD_FAILED":
+      return { kind: "BANNER", message: "A photo couldn't be uploaded. Check your connection and try again." };
+    case "NO_JURISDICTION":
+      // Development setup: the service area is configured on the server; citizens never choose one.
+      return { kind: "BANNER", message: "ParkWatch isn't receiving reports here yet. Your report is saved on this phone." };
+    case "RESULT_UNKNOWN":
+      return {
+        kind: "BANNER",
+        message: "The connection dropped before the server answered. Check your connection and try again. The app will check what was already saved.",
+      };
+    case "NETWORK_ERROR":
+      return { kind: "BANNER", message: "No connection to the ParkWatch server. Check your connection and try again." };
+    case "BACKEND_NOT_CONFIGURED":
+      return { kind: "BANNER", message: "The ParkWatch server is not configured in this build." };
+    case "NOT_AVAILABLE":
+      return { kind: "BANNER", message: "This isn't available yet." };
     default:
       return { kind: "BANNER", message: GENERIC };
   }

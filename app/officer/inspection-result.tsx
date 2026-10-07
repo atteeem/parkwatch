@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -7,11 +7,12 @@ import { colors } from "../../src/constants/colors";
 import { radius } from "../../src/constants/spacing";
 import { BackHeader } from "../../src/components/Header";
 import { GreenButton } from "../../src/components/GreenButton";
-import { useApp } from "../../src/context/AppContext";
+import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { CLOSE_WITHOUT_CHARGE_REASONS } from "../../src/data/types";
 import { describeDomainError } from "../../src/presentation/errors";
-import { createSubmitGuard } from "../../src/presentation/submitGuard";
+import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { RESULT_SELECTION_TO_OUTCOME } from "../../src/presentation/viewModels";
 import { showCompletedCase } from "../../src/navigation/officerNavigation";
@@ -30,14 +31,18 @@ export default function InspectionResult() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
+  const caseLoad = useCaseDetailLoad(id);
   const { getCase, officerId, getInspection, completeCase } = useApp();
   const c = getCase(id);
   const inspection = c ? getInspection(c.id) : undefined;
   const [selection, setSelection] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const guard = useMemo(() => createSubmitGuard(), []);
+  const guard = useGuardedAction();
   const goBack = () => (router.canGoBack() ? router.back() : router.replace({ pathname: "/officer/inspection", params: { id } }));
+
+  if (caseLoad.loading && (!c || !inspection?.exists)) return <DetailLoading />;
 
   if (!c || !inspection) {
     return (
@@ -189,7 +194,13 @@ export default function InspectionResult() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-        <GreenButton label="Submit result" icon="checkmark-circle" disabled={!selection} onPress={handleSubmit} />
+        <GreenButton
+          label={guard.busy ? "Saving result…" : "Submit result"}
+          icon="checkmark-circle"
+          disabled={!selection || guard.busy}
+          loading={guard.busy}
+          onPress={handleSubmit}
+        />
       </View>
     </SafeAreaView>
   );

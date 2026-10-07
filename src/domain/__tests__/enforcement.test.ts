@@ -28,7 +28,7 @@ describe("completeCaseWithOutcome idempotency", () => {
 describe("completeCaseWithOutcome guards", () => {
   it("refuses a charge when the inspection is incomplete, leaving all state untouched", () => {
     const state = enforcementState();
-    const { VIOLATION_CONTEXT: _missing, ...three } = readyInspection().officerEvidence;
+    const { VEHICLE_REAR: _missing, ...three } = readyInspection().officerEvidence;
     const incomplete = { ...state, inspection: { ...state.inspection!, officerEvidence: three } };
     const snapshot = JSON.stringify(incomplete);
 

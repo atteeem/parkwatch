@@ -1,17 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
 import { typography } from "../../src/constants/typography";
 import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { ReportCard } from "../../src/components/ReportCard";
-import { useApp } from "../../src/context/AppContext";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
-import { filterMyReports, myReportsEmptyState } from "../../src/presentation/citizenViews";
+import { initialReportsTab } from "../../src/presentation/citizenViews";
+import { myReportsEmpty } from "../../src/presentation/emptyStates";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { FadeIn } from "../../src/components/motion/FadeIn";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -22,12 +28,18 @@ const TABS: { key: "all" | UserReportStatus; label: string }[] = [
 
 export default function MyReports() {
   const router = useRouter();
-  const { userReports } = useApp();
+  const { citizenSummary } = useApp();
+  const refreshControl = useCoreRefreshControl();
   const { startNewReport } = useReportDraft();
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
+  // Optional ?tab= (Home "Active Reports" opens Under Review); the Reports tab itself opens "All".
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>(() => initialReportsTab(tabParam));
+  useEffect(() => setTab(initialReportsTab(tabParam)), [tabParam]);
 
-  const filtered = filterMyReports(userReports, tab);
-  const empty = myReportsEmptyState(tab, userReports.length, filtered.length);
+  // Filtered on the server before paging (BACKEND), so a tab is never wrongly empty.
+  const list = usePagedList({ kind: "citizenReports", tab });
+  const filtered = list.items;
+  const empty = listSettledEmpty(list) ? myReportsEmpty(tab, citizenSummary.total) : null;
   const startReport = () => {
     startNewReport();
     router.push("/user/report/photos");
@@ -37,38 +49,35 @@ export default function MyReports() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.headerRow}>
         <Text style={typography.screenTitle}>My Reports</Text>
-        <View style={{ flexDirection: "row", gap: 14 }}>
-          <Ionicons name="search" size={20} color={colors.textPrimary} />
-          <Ionicons name="filter" size={20} color={colors.textPrimary} />
-        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 20 }} style={{ flexGrow: 0 }}>
         {TABS.map((t) => (
-          <Pressable key={t.key} onPress={() => setTab(t.key)} style={styles.tab}>
+          <AnimatedPressable
+            key={t.key}
+            onPress={() => setTab(t.key)}
+            style={styles.tab}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t.key }}
+          >
             <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
-            {tab === t.key && <View style={styles.tabUnderline} />}
-          </Pressable>
+            <ActiveIndicator active={tab === t.key} style={styles.tabUnderline} fromScale={0.3} />
+          </AnimatedPressable>
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 90 }}>
-        {filtered.map((r) => (
-          <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
-        ))}
-
-        {empty && (
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={34} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>{empty.title}</Text>
-            <Text style={styles.emptyBody}>{empty.body}</Text>
-            {empty.showReportCta && (
-              <Pressable style={styles.emptyCta} onPress={startReport}>
-                <Text style={styles.emptyCtaLabel}>Report Parking Issue</Text>
-              </Pressable>
-            )}
-          </View>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 90 }}>
+        {filtered.length > 0 && (
+          <FadeIn key={tab}>
+            {filtered.map((r) => (
+              <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
+            ))}
+          </FadeIn>
         )}
+
+        <ListFooter list={list} />
+
+        {empty && <EmptyFromCopy key={tab} copy={empty} onAction={startReport} />}
 
         <View style={styles.thanksBanner}>
           <View style={{ flex: 1 }}>

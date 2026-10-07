@@ -259,7 +259,8 @@ describe("reward display", () => {
 });
 
 describe("My Reports and map helpers", () => {
-  const { filterMyReports, myReportsEmptyState, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
+  const { filterMyReports, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
+  const { myReportsEmpty } = require("../emptyStates") as typeof import("../emptyStates");
   const r = (id: string, status: "under-review" | "verified" | "rejected", coordinates?: { latitude: number; longitude: number }) =>
     ({ id, status, coordinates }) as never;
 
@@ -270,9 +271,10 @@ describe("My Reports and map helpers", () => {
   });
 
   it("empty list vs. filtered-empty states differ", () => {
-    expect(myReportsEmptyState("all", 0, 0)).toMatchObject({ title: "No reports yet", showReportCta: true });
-    expect(myReportsEmptyState("rejected", 4, 0)).toMatchObject({ title: "Nothing here", showReportCta: false, body: "No rejected reports." });
-    expect(myReportsEmptyState("all", 4, 4)).toBeNull();
+    expect(myReportsEmpty("all", 0)).toMatchObject({ title: "Your reports will appear here", action: { kind: "createReport" } });
+    expect(myReportsEmpty("rejected", 0).action?.kind).toBe("createReport"); // no reports at all: invite the first one
+    expect(myReportsEmpty("rejected", 4)).toMatchObject({ title: "No rejected reports" });
+    expect(myReportsEmpty("rejected", 4).action).toBeUndefined();
   });
 
   it("map counts come from the reports", () => {
@@ -282,5 +284,23 @@ describe("My Reports and map helpers", () => {
       underReview: 0,
       rejected: 1,
     });
+  });
+});
+
+describe("evidence identity per capture (T8.4)", () => {
+  it("a retaken photo gets a new evidence id (and storage path); the draft id never changes", () => {
+    let s = newDraftState("draft-retake");
+    s = draftReducer(s, { type: "CAPTURE_PHOTO", slot: "FRONT", uri: "file:///a.jpg", capturedAt: "2026-10-05T10:00:00.000Z" });
+    const first = s.draft.photos.FRONT!.id;
+    s = draftReducer(s, { type: "CAPTURE_PHOTO", slot: "FRONT", uri: "file:///b.jpg", capturedAt: "2026-10-05T10:00:05.000Z" });
+    expect(s.draft.photos.FRONT!.id).not.toBe(first);
+    expect(s.draft.photos.FRONT!.id.startsWith("draft-retake-FRONT-")).toBe(true);
+    expect(s.draft.draftId).toBe("draft-retake");
+  });
+
+  it("RESTORE brings back the exact persisted draft (same id = same server submission)", () => {
+    const restored = draftReducer(newDraftState("draft-new"), { type: "RESTORE", draft: { ...newDraftState("draft-old").draft, notes: "kept" } });
+    expect(restored.draft).toMatchObject({ draftId: "draft-old", notes: "kept" });
+    expect(restored.submittedReportId).toBeUndefined();
   });
 });

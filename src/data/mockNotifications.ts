@@ -6,6 +6,8 @@ export type NotifKind = "success" | "pending" | "info" | "error" | "gift" | "bel
 
 export type Notification = {
   id: string;
+  /** Domain notification type (decides where a tap goes). */
+  type?: import("../domain").NotificationType;
   group: string; // "Today" | "Yesterday" | "Monday" | ...
   title: string;
   body: string;
@@ -14,4 +16,6 @@ export type Notification = {
   unread: boolean;
   /** Case this notification is about (officer notifications), for tap-to-open. */
   caseId?: string;
+  /** Report this notification is about, when it has one (citizen tap-to-open). */
+  reportId?: string;
 };

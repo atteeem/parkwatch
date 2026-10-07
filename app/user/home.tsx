@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -10,45 +10,96 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { StatCard } from "../../src/components/StatCard";
 import { VehicleThumbnail } from "../../src/components/VehicleThumbnail";
-import { useApp } from "../../src/context/AppContext";
-import { DEMO_CITIZEN_ACCOUNT } from "../../src/store/demoAccounts";
-import { citizenReportStats, startOfWeek } from "../../src/presentation/citizenViews";
+import { usePagedList, useApp } from "../../src/context/AppContext";
+import { ConfirmDialog } from "../../src/components/ConfirmDialog";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { HOME_LATEST_EMPTY } from "../../src/presentation/emptyStates";
+import { listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { useAuth } from "../../src/auth/AuthContext";
+import { displayIdentity } from "../../src/auth/identity";
+import { HOME_REPORT_SHORTCUTS } from "../../src/presentation/citizenViews";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { citizenReportMarkers } from "../../src/map/mapLogic";
 import { violationLabel } from "../../src/data/types";
+import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function UserHome() {
   const router = useRouter();
-  const { userReports, getEarnings } = useApp();
-  const { startNewReport } = useReportDraft();
+  const { getEarnings, citizenSummary } = useApp();
+  const refreshControl = useCoreRefreshControl();
+  // Counts come from the server in backend mode (all reports, not one loaded page).
+  const unread = citizenSummary.unread;
+  const me = displayIdentity(useAuth().state, "citizen");
+  const { startNewReport, unsentDraft, resumeDraft, discardDraft } = useReportDraft();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const recent = usePagedList({ kind: "citizenReports", tab: "all" });
   // Reads a position only if permission was already granted; no prompt, no watch.
   const location = useForegroundLocation();
-  const latest = userReports.slice(0, 3);
-  const week = citizenReportStats(userReports, startOfWeek(new Date()));
+  const latest = recent.items.slice(0, 3);
+  const startReport = () => {
+    startNewReport();
+    router.push("/user/report/photos");
+  };
+  const week = { submitted: citizenSummary.weekSubmitted, verified: citizenSummary.weekVerified };
   const weekEarned = getEarnings("THIS_WEEK").totalText.replace(/\.00$/, "");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        <View style={styles.headerBlock}>
-          <Text style={typography.screenTitle}>Hello, {DEMO_CITIZEN_ACCOUNT.firstName}!</Text>
-          <Text style={typography.screenSubtitle}>
-            Together we make traffic flow better and safer.
-          </Text>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        <View style={[styles.headerBlock, { flexDirection: "row", alignItems: "flex-start" }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={typography.screenTitle}>Hello, {me.firstName}!</Text>
+            <Text style={typography.screenSubtitle}>
+              Together we make traffic flow better and safer.
+            </Text>
+          </View>
+          <Pressable
+            style={styles.bellBtn}
+            onPress={() => router.push("/user/notifications")}
+            accessibilityRole="button"
+            accessibilityLabel={notificationsA11yLabel(unread)}
+          >
+            <Ionicons name="notifications" size={18} color={colors.textPrimary} />
+            <UnreadBadge count={unread} style={styles.bellBadge} />
+          </Pressable>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+          <Pressable style={styles.shortcut} onPress={() => router.replace(HOME_REPORT_SHORTCUTS.activeReports)}>
             <Ionicons name="heart-outline" size={16} color={colors.textPrimary} />
             <Text style={styles.shortcutLabel}>Active Reports</Text>
           </Pressable>
-          <Pressable style={styles.shortcut} onPress={() => router.push("/user/reports")}>
+          <Pressable style={styles.shortcut} onPress={() => router.replace(HOME_REPORT_SHORTCUTS.reportHistory)}>
             <Ionicons name="time-outline" size={16} color={colors.textPrimary} />
             <Text style={styles.shortcutLabel}>Report History</Text>
           </Pressable>
         </ScrollView>
+
+        {unsentDraft && (
+          <View style={styles.section}>
+            <View style={styles.unsentCard} accessibilityRole="summary">
+              <Ionicons name="document-text-outline" size={20} color={colors.amber} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.unsentTitle}>Unfinished report</Text>
+                <Text style={styles.unsentBody}>This report has not been sent yet. It is saved on this phone.</Text>
+                <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+                  <Pressable accessibilityRole="button" onPress={() => router.push(resumeDraft())}>
+                    <Text style={styles.unsentAction}>Continue unfinished report</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => setConfirmDiscard(true)}>
+                    <Text style={[styles.unsentAction, { color: colors.red }]}>Discard</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Pressable
@@ -83,7 +134,7 @@ export default function UserHome() {
             <LiveMap
               style={styles.mapPreview}
               interactive={false}
-              markers={citizenReportMarkers(userReports, "all")}
+              markers={citizenReportMarkers(recent.items, "all")}
               userFix={location.permission === "granted" ? location.fix : undefined}
               following={false}
             />
@@ -108,9 +159,13 @@ export default function UserHome() {
 
         <View style={styles.section}>
           <Text style={typography.sectionHeading}>Latest reports</Text>
-          <View style={{ marginTop: 10, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, ...shadow.card }}>
+          {listSettledEmpty(recent) && (
+            <EmptyFromCopy copy={HOME_LATEST_EMPTY} variant="compact" style={{ marginTop: 10 }} onAction={startReport} />
+          )}
+          {latest.length > 0 && (
+          <FadeIn style={{ marginTop: 10, backgroundColor: colors.white, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, ...shadow.card }}>
             {latest.map((r, i) => (
-              <Pressable
+              <AnimatedPressable
                 key={r.id}
                 onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })}
                 style={[styles.reportRow, i < latest.length - 1 && styles.reportRowDivider]}
@@ -123,17 +178,40 @@ export default function UserHome() {
                   </Text>
                   <Text style={styles.reportMetaLight}>{violationLabel(r.violation)}</Text>
                 </View>
-              </Pressable>
+              </AnimatedPressable>
             ))}
-          </View>
+          </FadeIn>
+          )}
         </View>
       </ScrollView>
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard unfinished report?"
+        message="The photos and details of this unsent report will be deleted from this phone. This cannot be undone."
+        confirmLabel="Discard"
+        destructive
+        busy={discarding}
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          setDiscarding(true);
+          void discardDraft().finally(() => {
+            setDiscarding(false);
+            setConfirmDiscard(false);
+          });
+        }}
+      />
       <UserBottomNav />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  unsentCard: { flexDirection: "row", backgroundColor: colors.amberLight, borderRadius: radius.card, padding: 14 },
+  unsentTitle: { fontWeight: "800", fontSize: 14, color: colors.textPrimary },
+  unsentBody: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
+  unsentAction: { fontWeight: "800", fontSize: 13, color: colors.greenDark },
+  bellBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.backgroundSunk, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  bellBadge: { position: "absolute", top: -3, right: -5 },
   safe: { flex: 1, backgroundColor: colors.background },
   headerBlock: { paddingHorizontal: 20, paddingTop: 4 },
   shortcut: {

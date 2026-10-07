@@ -8,7 +8,6 @@ import {
   myCases,
   officerHomeSummary,
   primaryCaseAction,
-  queueEmptyMessage,
   queueSummary,
   sortQueue,
   systemChecks,
@@ -98,9 +97,9 @@ describe("queue (OFF-02)", () => {
 
   it("summary counts and empty-state messages", () => {
     expect(queueSummary(all, ME)).toEqual({ newCount: 3, highPriorityCount: 1, assignedToMeCount: 1 });
-    expect(queueEmptyMessage("All", 0, 0)).toBe("No nearby reports right now.");
-    expect(queueEmptyMessage("High Priority", 5, 0)).toBe("No reports in this category.");
-    expect(queueEmptyMessage("All", 5, 5)).toBeNull();
+    const { queueEmpty } = require("../emptyStates") as typeof import("../emptyStates");
+    expect(queueEmpty("All", 0)).toMatchObject({ title: "No open reports" });
+    expect(queueEmpty("High Priority", 5)).toMatchObject({ title: "No high-priority reports", action: { kind: "showAllQueue" } });
   });
 
   it("home: open/high counts, nearest new case with its real distance, my active cases", () => {

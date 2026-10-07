@@ -36,7 +36,8 @@ export type CaseStatus =
   | "completed"
   | "rejected";
 
-export type ReporterReliability = "Low" | "Medium" | "High";
+/** "Not rated": no reputation data exists (server-backed mode has no reporter statistics yet). */
+export type ReporterReliability = "Low" | "Medium" | "High" | "Not rated";
 
 export type OfficerCase = {
   id: string;
@@ -51,6 +52,8 @@ export type OfficerCase = {
   reporterName: string;
   reporterAcceptanceRate: number;
   reporterVerifiedReports: number;
+  /** false when acceptance rate / verified count are unknown and must not be shown. */
+  reporterStatsKnown: boolean;
   images: string[];
   reportedAgo: string;
   notes?: string;

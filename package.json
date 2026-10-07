@@ -9,15 +9,22 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
-    "test": "jest"
+    "test": "jest",
+    "verify:migrations": "node scripts/verify-migrations.mjs",
+    "mock:backend": "node scripts/mock-supabase-backend.mjs",
+    "test:cloud-smoke": "node scripts/cloud-smoke.mjs",
+    "test:cloud-qa": "jest --runInBand --testTimeout=60000 --testMatch \"**/__cloudqa__/**/*.cloudqa.ts\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.117.2",
     "expo": "~57.0.26",
     "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.20",
     "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-image-manipulator": "~57.0.21",
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
@@ -33,6 +40,7 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/jest": "29.5.14",
     "@types/node": "~26.6",
     "@types/react": "~19.2.4",

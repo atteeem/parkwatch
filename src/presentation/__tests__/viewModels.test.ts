@@ -41,7 +41,7 @@ describe("view models for the existing screens", () => {
 
   it("inspection view maps slots and checklist keys", () => {
     const v = toInspectionView("c-12484", seed.inspections["c-12484"]);
-    expect(Object.keys(v.officerPhotos).sort()).toEqual(["context", "overview", "plate", "sign"]);
+    expect(Object.keys(v.officerPhotos).sort()).toEqual(["front", "plate", "rear", "sign"]);
     expect(v).toMatchObject({ plateMatched: true, result: "charge" });
     expect(toInspectionView("c-none", undefined)).toMatchObject({ vehiclePresent: null, officerPhotos: {} });
   });

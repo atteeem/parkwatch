@@ -7,8 +7,8 @@ import { LiveMapProps, MARKER_STYLE } from "./liveMap.types";
 // WEB DEVELOPMENT FALLBACK ONLY. iOS/Android load LiveMap.native.tsx (real
 // react-native-maps). react-native-maps has no web support, so on Expo Web
 // we draw markers at their relative positions (no map tiles) and say so.
-export function LiveMap({ markers, userFix, onMarkerPress, style }: LiveMapProps) {
-  const points = [...markers, ...(userFix ? [userFix] : [])];
+export function LiveMap({ markers, userFix, onMarkerPress, reportPoint, selectedId, style }: LiveMapProps) {
+  const points = [...markers, ...(userFix ? [userFix] : []), ...(reportPoint ? [reportPoint] : [])];
   const lats = points.map((p) => p.latitude);
   const lngs = points.map((p) => p.longitude);
   const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
@@ -26,18 +26,31 @@ export function LiveMap({ markers, userFix, onMarkerPress, style }: LiveMapProps
       </View>
       {markers.map((m) => {
         const look = MARKER_STYLE[m.kind];
+        const selected = m.id === selectedId;
         return (
-          <Pressable key={m.id} onPress={() => onMarkerPress?.(m.id)} style={[styles.pin, { borderColor: look.color }, pos(m)]}>
-            <Ionicons name={look.icon} size={13} color={look.color} />
+          <Pressable
+            key={m.id}
+            onPress={() => onMarkerPress?.(m.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${m.title ?? "Case"} marker${selected ? ", selected" : ""}`}
+            style={[styles.pin, { borderColor: look.color }, selected && [styles.pinSelected, { backgroundColor: look.color }], pos(m)]}
+          >
+            <Ionicons name={look.icon} size={selected ? 16 : 13} color={selected ? "#fff" : look.color} />
           </Pressable>
         );
       })}
       {userFix && <View style={[styles.userDot, pos(userFix)]} />}
+      {reportPoint && (
+        <View style={[styles.reportPin, pos(reportPoint)]}>
+          <Ionicons name="location" size={22} color="#D93025" />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  reportPin: { position: "absolute", marginLeft: -11, marginTop: -22 },
   wrap: { overflow: "hidden", backgroundColor: "#EAF0EC" },
   notice: {
     position: "absolute",
@@ -65,6 +78,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  pinSelected: { width: 34, height: 34, marginLeft: -17, marginTop: -17, borderRadius: 17, borderWidth: 3, borderColor: "#fff", zIndex: 3 },
   userDot: {
     position: "absolute",
     width: 16,

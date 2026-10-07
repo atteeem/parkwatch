@@ -7,6 +7,8 @@ import { colors } from "../../../src/constants/colors";
 import { radius, shadow } from "../../../src/constants/spacing";
 import { BackHeader } from "../../../src/components/Header";
 import { GreenButton } from "../../../src/components/GreenButton";
+import { EmptyFromCopy } from "../../../src/components/EmptyState";
+import { VEHICLES_EMPTY } from "../../../src/presentation/emptyStates";
 import { useApp } from "../../../src/context/AppContext";
 
 // My Vehicles: the citizen's locally registered vehicles. No ownership
@@ -21,11 +23,7 @@ export default function MyVehicles() {
       <BackHeader title="My Vehicles" subtitle="Vehicles you can park" onBack={() => (router.canGoBack() ? router.back() : router.replace("/user/parking"))} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 + insets.bottom, gap: 12 }}>
         {vehicles.length === 0 && (
-          <View style={styles.empty}>
-            <Ionicons name="car-outline" size={30} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>No vehicles yet</Text>
-            <Text style={styles.emptyText}>Add a vehicle to start parking.</Text>
-          </View>
+          <EmptyFromCopy copy={VEHICLES_EMPTY} />
         )}
         {vehicles.map((v) => (
           <View key={v.id} style={styles.card}>
