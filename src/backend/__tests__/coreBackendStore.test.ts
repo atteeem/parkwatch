@@ -559,3 +559,28 @@ describe("officer cache security review (T8.4)", () => {
     expect(b.store.getState()!.cases).toEqual([]);
   });
 });
+
+describe("session check on storage auth failures (T8.5)", () => {
+  const { StorageApiError } = jest.requireActual("@supabase/storage-js");
+  const { createEvidenceStorage } = jest.requireActual("../storage/evidenceStorage");
+  const storageFailingWith = (error: unknown) =>
+    createEvidenceStorage({ storage: { from: () => ({ upload: async () => ({ data: null, error }), remove: async () => ({}) }) } } as never, async () => new ArrayBuffer(4));
+
+  it("an invalid-signature upload failure refuses the submit AND asks the auth layer to re-check the session", async () => {
+    const invalid = new StorageApiError("signature verification failed", 400, "403", "storage", "AccessDenied");
+    const { store, ops, onUnauthenticated } = setup({}, storageFailingWith(invalid));
+    const r = await store.submitReport(completeDraft("draft-auth-1"));
+    expect(r).toMatchObject({ ok: false, error: { code: "UNAUTHENTICATED" } });
+    expect(onUnauthenticated).toHaveBeenCalled();
+    expect(ops.submitReport).not.toHaveBeenCalled();
+  });
+
+  it("an ordinary RLS storage denial refuses the submit WITHOUT triggering a session check (no sign-out)", async () => {
+    const rls = new StorageApiError("new row violates row-level security policy", 400, "403", "storage", "AccessDenied");
+    const { store, ops, onUnauthenticated } = setup({}, storageFailingWith(rls));
+    const r = await store.submitReport(completeDraft("draft-auth-2"));
+    expect(r).toMatchObject({ ok: false, error: { code: "UPLOAD_FAILED" } });
+    expect(onUnauthenticated).not.toHaveBeenCalled();
+    expect(ops.submitReport).not.toHaveBeenCalled();
+  });
+});

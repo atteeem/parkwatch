@@ -47,8 +47,19 @@ export const reportEvidencePath = (citizenUid: string, submissionId: string, evi
 export const officerEvidencePath = (caseUuid: string, evidenceId: string, ext: string) => `${caseUuid}/${safeSegment(evidenceId)}.${ext}`;
 
 /** Storage answers 401 (or a JWT message) when the session expired: that is a sign-in problem, not a bad photo. */
-const isAuthFailure = (e: RawServerError | null | undefined) =>
-  e?.status === 401 || String(e?.statusCode ?? "") === "401" || /jwt|token.*(expired|invalid)|invalid.*token|unauthori[sz]ed/i.test(String(e?.message ?? "")) && !/row-level security/i.test(String(e?.message ?? ""));
+//
+// Supabase Storage reports a corrupted/forged access token as HTTP 400 with
+// statusCode "403", code "AccessDenied" and message "signature verification
+// failed" (seen on the real project). 403/AccessDenied alone is NOT an auth
+// failure: an ordinary row-level-security denial looks the same apart from its
+// message, and must not sign the user out. Only wording that clearly means the
+// token itself is invalid counts.
+const TOKEN_INVALID = /jwt|\bjws\b|signature verification failed|token.*(expired|invalid)|invalid.*token|unauthori[sz]ed/i;
+const isAuthFailure = (e: RawServerError | null | undefined) => {
+  if (e?.status === 401 || String(e?.statusCode ?? "") === "401") return true;
+  const message = String(e?.message ?? "");
+  return TOKEN_INVALID.test(message) && !/row-level security/i.test(message);
+};
 
 const uploadError = (e: RawServerError | null | undefined): DomainError =>
   isNetworkFailure(e)

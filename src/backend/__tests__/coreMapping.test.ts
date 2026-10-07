@@ -202,3 +202,28 @@ describe("core operations (RPC wrappers)", () => {
     expect(await createCoreOperations(client).completeCase(C1, "OTHER")).toMatchObject({ ok: false, error: { code: "ALREADY_COMPLETED" } });
   });
 });
+
+describe("storage auth-failure classification (T8.5, real Supabase error shapes)", () => {
+  // Built with the real storage-js error class, exactly as the client builds it from the response body.
+  const { StorageApiError } = jest.requireActual("@supabase/storage-js");
+  const clientReturning = (error: unknown) => ({ storage: { from: () => ({ upload: async () => ({ data: null, error }) }) } }) as never;
+  const uploadWith = (error: unknown) => createEvidenceStorage(clientReturning(error), async () => new ArrayBuffer(4)).upload("report-evidence", "p.png", "file:///p.png");
+
+  it("observed on the real project: an invalid JWT signature (400 / 403 / AccessDenied) -> UNAUTHENTICATED", async () => {
+    const real = new StorageApiError("signature verification failed", 400, "403", "storage", "AccessDenied");
+    expect(await uploadWith(real)).toMatchObject({ ok: false, error: { code: "UNAUTHENTICATED" } });
+  });
+
+  it.each(["invalid compact JWS", "JWS signature verification failed", "JWT expired", "invalid token"])("token wording %p -> UNAUTHENTICATED", async (message) => {
+    expect(await uploadWith(new StorageApiError(message, 400, "403", "storage", "AccessDenied"))).toMatchObject({ ok: false, error: { code: "UNAUTHENTICATED" } });
+  });
+
+  it("an ordinary row-level-security denial with the same 400 / 403 / AccessDenied is NOT an auth failure", async () => {
+    const rls = new StorageApiError("new row violates row-level security policy", 400, "403", "storage", "AccessDenied");
+    expect(await uploadWith(rls)).toMatchObject({ ok: false, error: { code: "UPLOAD_FAILED" } });
+  });
+
+  it("403 / AccessDenied alone (no token wording) is NOT an auth failure", async () => {
+    expect(await uploadWith(new StorageApiError("Access denied", 403, "403", "storage", "AccessDenied"))).toMatchObject({ ok: false, error: { code: "UPLOAD_FAILED" } });
+  });
+});
