@@ -6,6 +6,7 @@ import { AuthProvider } from "../src/auth/AuthContext";
 import { AppProvider } from "../src/context/AppContext";
 import { ReportProvider } from "../src/context/ReportContext";
 import { SessionProvider } from "../src/context/SessionContext";
+import { AvatarProvider } from "../src/auth/AvatarContext";
 
 // AuthProvider: identity (Supabase account in backend mode; nothing in local demo).
 // SessionProvider: what navigation may show for that identity.
@@ -17,8 +18,10 @@ export default function RootLayout() {
         <SessionProvider>
           <AppProvider>
             <ReportProvider>
-              <StatusBar style="dark" />
-              <Stack screenOptions={{ headerShown: false }} />
+              <AvatarProvider>
+                <StatusBar style="dark" />
+                <Stack screenOptions={{ headerShown: false }} />
+              </AvatarProvider>
             </ReportProvider>
           </AppProvider>
         </SessionProvider>

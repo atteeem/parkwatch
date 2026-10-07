@@ -10,6 +10,7 @@ import { useApp, WITHDRAWALS_UNAVAILABLE_COPY } from "../../src/context/AppConte
 import { useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useAuth } from "../../src/auth/AuthContext";
 import { displayIdentity } from "../../src/auth/identity";
+import { useMyAvatar } from "../../src/auth/AvatarContext";
 import { Avatar } from "../../src/components/Avatar";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
@@ -22,7 +23,8 @@ import { AnimatedNumber } from "../../src/components/motion/AnimatedNumber";
 import { EARNINGS_EMPTY } from "../../src/presentation/emptyStates";
 import { useReportDraft } from "../../src/context/ReportContext";
 
-export default function Earnings() {
+export default function Wallet() {
+  const avatar = useMyAvatar();
   const router = useRouter();
   // All figures below come from the reward ledger (no hardcoded amounts).
   const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings, capabilities } = useApp();
@@ -40,8 +42,11 @@ export default function Earnings() {
         <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/user/profile"))} hitSlop={10} accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Earnings</Text>
-        <Avatar name={me.fullName} size={40} />
+        {/* Citizen-facing name is Wallet (route stays /user/earnings); Earnings is the chart section below. */}
+        <Text style={styles.headerTitle} accessibilityRole="header">
+          Wallet
+        </Text>
+        <Avatar name={me.fullName} size={40} uri={avatar.uri} />
       </View>
 
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>

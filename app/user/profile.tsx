@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,8 @@ import { displayIdentity } from "../../src/auth/identity";
 import { SignOutRow } from "../../src/components/SignOutRow";
 import { citizenStatsFromCounts } from "../../src/presentation/citizenViews";
 import { Avatar } from "../../src/components/Avatar";
+import { AvatarEditSheet } from "../../src/components/AvatarEditSheet";
+import { useMyAvatar } from "../../src/auth/AvatarContext";
 
 export default function UserProfile() {
   const router = useRouter();
@@ -23,6 +25,8 @@ export default function UserProfile() {
   // Server counts in backend mode (every report, not a loaded page).
   const stats = citizenStatsFromCounts(citizenSummary);
   const me = displayIdentity(useAuth().state, "citizen");
+  const avatar = useMyAvatar();
+  const [sheet, setSheet] = useState(false);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -33,7 +37,20 @@ export default function UserProfile() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Avatar name={me.fullName} size={64} />
+            <Pressable
+              onPress={() => avatar.canEdit && !avatar.busy && setSheet(true)}
+              disabled={!avatar.canEdit || avatar.busy}
+              accessibilityRole="button"
+              accessibilityLabel={avatar.uri ? "Change profile photo" : "Add profile photo"}
+              hitSlop={6}
+            >
+              <Avatar name={me.fullName} size={64} uri={avatar.uri} />
+              {avatar.canEdit ? (
+                <View style={styles.avatarBadge}>
+                  {avatar.busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={12} color="#fff" />}
+                </View>
+              ) : null}
+            </Pressable>
             <View style={{ marginLeft: 14, flex: 1 }}>
               <Text style={styles.name}>{me.fullName}</Text>
               <Text style={styles.locationRow}>
@@ -65,6 +82,12 @@ export default function UserProfile() {
             ))}
           </View>
         </Card>
+
+        {avatar.error ? (
+          <Pressable onPress={avatar.clearError} accessibilityRole="button">
+            <Text style={styles.avatarError}>{avatar.error}</Text>
+          </Pressable>
+        ) : null}
 
         <Text style={styles.sectionHeading}>Account</Text>
         <Card noPadding>
@@ -102,6 +125,19 @@ export default function UserProfile() {
         <DemoTools />
       </ScrollView>
       <UserBottomNav />
+      <AvatarEditSheet
+        visible={sheet}
+        hasPhoto={!!avatar.uri}
+        onClose={() => setSheet(false)}
+        onChoose={(source) => {
+          setSheet(false);
+          void avatar.choose(source);
+        }}
+        onRemove={() => {
+          setSheet(false);
+          void avatar.remove();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -109,6 +145,8 @@ export default function UserProfile() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   avatar: { width: 64, height: 64, borderRadius: 32 },
+  avatarBadge: { position: "absolute", right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.greenDark, borderWidth: 2, borderColor: colors.white, alignItems: "center", justifyContent: "center" },
+  avatarError: { color: "#B3261E", fontSize: 12.5, fontWeight: "600", marginTop: 10, textAlign: "center" },
   name: { fontSize: 18, fontWeight: "800" },
   locationRow: { fontSize: 12.5, color: colors.textSecondary, marginTop: 3 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.greenLight, alignSelf: "flex-start", borderRadius: radius.chip, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6 },
