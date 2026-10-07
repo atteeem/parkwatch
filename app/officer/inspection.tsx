@@ -14,6 +14,9 @@ import { describeDomainError } from "../../src/presentation/errors";
 import { useGuardedAction } from "../../src/presentation/useGuardedAction";
 import { primaryCaseAction } from "../../src/presentation/officerViews";
 import { formatDateTime } from "../../src/presentation/time";
+import { ProgressBar } from "../../src/components/motion/ProgressBar";
+import { FadeIn } from "../../src/components/motion/FadeIn";
+import { MOTION } from "../../src/constants/motion";
 import { InspectionCheckKey, OfficerPhotoKey } from "../../src/presentation/viewModels";
 
 const CHECK_ROWS: {
@@ -161,6 +164,7 @@ export default function OnSiteInspection() {
               <Text style={{ color: colors.greenDark }}>{totalCompleted}</Text> / {CHECK_ROWS.length + 1} completed
             </Text>
           </View>
+          <ProgressBar done={totalCompleted} total={CHECK_ROWS.length + 1} accessibilityLabel="Inspection checklist progress" />
           <Text style={styles.checkHint}>Tap to confirm. Tap again to record "not confirmed".</Text>
           {CHECK_ROWS.map((row) => {
             // Three states, kept distinct for the audit trail: yes / no / unanswered.
@@ -244,7 +248,9 @@ export default function OnSiteInspection() {
                 >
                   <View style={[styles.photoSlot, uri && styles.photoSlotDone]}>
                     {uri ? (
-                      <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
+                      <FadeIn key={uri} offsetY={0} fromScale={0.9} duration={MOTION.NORMAL} style={StyleSheet.absoluteFill}>
+                        <EvidencePhoto uri={uri} style={StyleSheet.absoluteFill} compact />
+                      </FadeIn>
                     ) : (
                       <Ionicons name="camera-outline" size={22} color={colors.greenDark} />
                     )}

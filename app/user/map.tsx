@@ -13,6 +13,8 @@ import { usePagedList, useApp } from "../../src/context/AppContext";
 import { UserReportStatus } from "../../src/data/types";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { citizenReportMarkers, followReducer, INITIAL_FOLLOW_STATE } from "../../src/map/mapLogic";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { CITIZEN_MAP_EMPTY } from "../../src/presentation/emptyStates";
 import { reportStatusCounts } from "../../src/presentation/citizenViews";
 
 const FILTERS: { key: "all" | UserReportStatus; label: string }[] = [
@@ -86,6 +88,12 @@ export default function UserMap() {
             onRetry={() => void location.refreshLocation()}
           />
         </View>
+        {recent.loaded && !recent.loading && onMap === 0 && (
+          // Small floating card: the map stays usable underneath.
+          <View style={styles.emptyOverlay} pointerEvents="box-none">
+            <EmptyFromCopy copy={CITIZEN_MAP_EMPTY} variant="overlay" />
+          </View>
+        )}
         <View style={styles.recenterWrap}>
           <FollowLocationButton following={follow.following && hasPosition} disabled={!hasPosition} onPress={recenter} />
         </View>
@@ -137,6 +145,7 @@ const styles = StyleSheet.create({
   },
   noticeWrap: { position: "absolute", left: 10, right: 10, top: 10 },
   recenterWrap: { position: "absolute", right: 14, bottom: 14 },
+  emptyOverlay: { position: "absolute", left: 14, right: 74, bottom: 14 },
   summaryCard: {
     flexDirection: "row",
     alignItems: "center",

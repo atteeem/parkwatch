@@ -9,6 +9,8 @@ import { radius, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { usePagedList, useApp } from "../../src/context/AppContext";
 import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { OFFICER_NOTIFICATIONS_EMPTY } from "../../src/presentation/emptyStates";
 import { NotifKind } from "../../src/data/mockNotifications";
 import { officerNotificationTarget } from "../../src/navigation/notificationTargets";
 
@@ -49,7 +51,7 @@ export default function OfficerNotifications() {
         <Text style={typography.screenSubtitle}>Updates about your cases</Text>
       </View>
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {listSettledEmpty(list) && <Text style={styles.empty}>No notifications yet.</Text>}
+        {listSettledEmpty(list) && <EmptyFromCopy copy={OFFICER_NOTIFICATIONS_EMPTY} />}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>
             <Text style={styles.groupLabel}>{group}</Text>

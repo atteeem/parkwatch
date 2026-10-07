@@ -259,7 +259,8 @@ describe("reward display", () => {
 });
 
 describe("My Reports and map helpers", () => {
-  const { filterMyReports, myReportsEmptyState, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
+  const { filterMyReports, reportStatusCounts } = require("../citizenViews") as typeof import("../citizenViews");
+  const { myReportsEmpty } = require("../emptyStates") as typeof import("../emptyStates");
   const r = (id: string, status: "under-review" | "verified" | "rejected", coordinates?: { latitude: number; longitude: number }) =>
     ({ id, status, coordinates }) as never;
 
@@ -270,9 +271,10 @@ describe("My Reports and map helpers", () => {
   });
 
   it("empty list vs. filtered-empty states differ", () => {
-    expect(myReportsEmptyState("all", 0, 0)).toMatchObject({ title: "No reports yet", showReportCta: true });
-    expect(myReportsEmptyState("rejected", 4, 0)).toMatchObject({ title: "Nothing here", showReportCta: false, body: "No rejected reports." });
-    expect(myReportsEmptyState("all", 4, 4)).toBeNull();
+    expect(myReportsEmpty("all", 0)).toMatchObject({ title: "Your reports will appear here", action: { kind: "createReport" } });
+    expect(myReportsEmpty("rejected", 0).action?.kind).toBe("createReport"); // no reports at all: invite the first one
+    expect(myReportsEmpty("rejected", 4)).toMatchObject({ title: "No rejected reports" });
+    expect(myReportsEmpty("rejected", 4).action).toBeUndefined();
   });
 
   it("map counts come from the reports", () => {

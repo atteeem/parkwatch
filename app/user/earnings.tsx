@@ -15,12 +15,19 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { formatEuros } from "../../src/presentation/viewModels";
 import { EARNINGS_PERIODS, EarningsPeriod } from "../../src/presentation/walletViews";
 import { WalletActivityRow } from "../../src/components/WalletActivityRow";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { AnimatedNumber } from "../../src/components/motion/AnimatedNumber";
+import { EARNINGS_EMPTY } from "../../src/presentation/emptyStates";
+import { useReportDraft } from "../../src/context/ReportContext";
 
 export default function Earnings() {
   const router = useRouter();
   // All figures below come from the reward ledger (no hardcoded amounts).
   const { walletAvailable, walletPending, walletPaidOut, walletActivity, getEarnings, capabilities } = useApp();
   const refreshControl = useCoreRefreshControl();
+  const { startNewReport } = useReportDraft();
   const [period, setPeriod] = useState<EarningsPeriod>("ALL_TIME");
   const earnings = getEarnings(period);
   const me = displayIdentity(useAuth().state, "citizen");
@@ -40,7 +47,7 @@ export default function Earnings() {
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
         <Card dark>
           <Text style={styles.hbLabel}>Available balance</Text>
-          <Text style={styles.hbAmount}>{eur(walletAvailable)}</Text>
+          <AnimatedNumber value={walletAvailable} format={eur} style={styles.hbAmount} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Ionicons name="checkmark-circle" size={14} color={colors.green} />
             <Text style={styles.readyLabel}>Ready to withdraw</Text>
@@ -48,7 +55,7 @@ export default function Earnings() {
           <Text style={styles.pendingLabel}>{eur(walletPending)} pending verification</Text>
           {!capabilities.withdrawals && <Text style={styles.pendingLabel}>{WITHDRAWALS_UNAVAILABLE_COPY}</Text>}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-            <Pressable
+            <AnimatedPressable
               style={[styles.solidBtn, !capabilities.withdrawals && { opacity: 0.45 }]}
               disabled={!capabilities.withdrawals}
               accessibilityRole="button"
@@ -57,19 +64,26 @@ export default function Earnings() {
             >
               <Text style={styles.solidBtnLabel}>Withdraw</Text>
               <Ionicons name="chevron-forward" size={14} color="#06210F" />
-            </Pressable>
-            <Pressable style={styles.outlineBtn} onPress={() => router.push("/user/earnings/history")} accessibilityRole="button">
+            </AnimatedPressable>
+            <AnimatedPressable style={styles.outlineBtn} onPress={() => router.push("/user/earnings/history")} accessibilityRole="button">
               <Text style={styles.outlineBtnLabel}>Transaction history</Text>
               <Ionicons name="chevron-forward" size={14} color="#fff" />
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </Card>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
           {EARNINGS_PERIODS.map((p) => (
-            <Pressable key={p.key} onPress={() => setPeriod(p.key)} style={[styles.periodPill, period === p.key && styles.periodPillActive]}>
+            <AnimatedPressable
+              key={p.key}
+              onPress={() => setPeriod(p.key)}
+              style={styles.periodPill}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: period === p.key }}
+            >
+              <ActiveIndicator active={period === p.key} style={styles.periodPillActive} />
               <Text style={[styles.periodLabel, period === p.key && styles.periodLabelActive]}>{p.label}</Text>
-            </Pressable>
+            </AnimatedPressable>
           ))}
         </ScrollView>
 
@@ -116,7 +130,14 @@ export default function Earnings() {
           </Pressable>
         </View>
         {walletActivity.length === 0 && (
-          <Text style={{ fontSize: 13, color: colors.textSecondary }}>No wallet activity yet.</Text>
+          <EmptyFromCopy
+            copy={EARNINGS_EMPTY}
+            variant="compact"
+            onAction={() => {
+              startNewReport();
+              router.push("/user/report/photos");
+            }}
+          />
         )}
         {walletActivity.slice(0, 5).map((row) => (
           <WalletActivityRow key={row.id} row={row} />
@@ -141,7 +162,7 @@ const styles = StyleSheet.create({
   outlineBtn: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: radius.chip, paddingVertical: 12 },
   outlineBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 13 },
   periodPill: { borderRadius: radius.chip, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.backgroundSunk },
-  periodPillActive: { backgroundColor: colors.cardBlack },
+  periodPillActive: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.chip, backgroundColor: colors.cardBlack },
   periodLabel: { fontWeight: "700", fontSize: 13, color: colors.textPrimary },
   periodLabelActive: { color: "#fff" },
   chartLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: "600" },

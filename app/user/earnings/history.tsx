@@ -6,6 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../src/constants/colors";
 import { BackHeader } from "../../../src/components/Header";
 import { WalletActivityRow } from "../../../src/components/WalletActivityRow";
+import { EmptyFromCopy } from "../../../src/components/EmptyState";
+import { TRANSACTION_HISTORY_EMPTY } from "../../../src/presentation/emptyStates";
 import { useApp } from "../../../src/context/AppContext";
 
 // Transaction history: EVERY wallet activity derived from the reward ledger
@@ -24,11 +26,7 @@ export default function TransactionHistory() {
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         {walletActivity.length === 0 ? (
-          <View style={styles.empty}>
-            <Ionicons name="receipt-outline" size={30} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>No wallet activity yet</Text>
-            <Text style={styles.emptyText}>Rewards and withdrawals appear here.</Text>
-          </View>
+          <EmptyFromCopy copy={TRANSACTION_HISTORY_EMPTY} />
         ) : (
           walletActivity.map((row) => <WalletActivityRow key={row.id} row={row} />)
         )}

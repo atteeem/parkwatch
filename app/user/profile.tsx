@@ -70,10 +70,14 @@ export default function UserProfile() {
         <Card noPadding>
           <SettingsRow icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
           <View style={styles.divider} />
-          {/* Informational: the demo payout account cannot be edited. */}
-          <SettingsRow icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234 \u00b7 demo payout account, not editable"} />
+          {/* Local demo: the example payout account (not editable). Signed in: payment methods don't exist yet. */}
+          {me.source === "DEMO" ? (
+            <SettingsRow icon="business" iconBg={colors.blueLight} iconColor={colors.blue} title="Payment Method" subtitle={"Bank account \u2022\u2022\u2022\u2022 1234 \u00b7 demo payout account, not editable"} />
+          ) : (
+            <SettingsRow icon="business" title="Payment Method" unavailable />
+          )}
           <View style={styles.divider} />
-          <SettingsRow icon="shield-checkmark" title="Identity Verification" subtitle="Not available yet" unavailable />
+          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
           <View style={styles.divider} />
           <SettingsRow icon="gift" title="Referral Program" unavailable />
         </Card>
@@ -82,11 +86,13 @@ export default function UserProfile() {
         <Card noPadding>
           <SettingsRow icon="settings" iconBg={colors.backgroundSunk} iconColor={colors.textSecondary} title="Settings" subtitle="App preferences and notifications" onPress={() => router.push("/user/settings")} />
           <View style={styles.divider} />
-          <SettingsRow icon="help-circle" title="Help Center" unavailable />
+          <SettingsRow icon="help-circle" title="Help Center" subtitle="How reporting and rewards work" onPress={() => router.push("/user/info/help")} />
           <View style={styles.divider} />
-          <SettingsRow icon="document" title="Terms of Service" subtitle={"Not available in demo \u00b7 final terms pending"} unavailable />
+          <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About ParkWatch" subtitle="What this version does" onPress={() => router.push("/user/info/about")} />
           <View style={styles.divider} />
-          <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle={"Not available in demo \u00b7 final policy pending"} unavailable />
+          <SettingsRow icon="document" title="Terms of Service" subtitle="Draft · final terms not yet published" onPress={() => router.push("/user/info/terms")} />
+          <View style={styles.divider} />
+          <SettingsRow icon="lock-closed" title="Privacy Policy" subtitle="Draft · final policy not yet published" onPress={() => router.push("/user/info/privacy-policy")} />
         </Card>
 
         {/* Real Sign Out in backend mode; in the local demo it says it isn't available. */}

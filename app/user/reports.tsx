@@ -12,7 +12,12 @@ import { usePagedList, useApp } from "../../src/context/AppContext";
 import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { useReportDraft } from "../../src/context/ReportContext";
 import { UserReportStatus } from "../../src/data/types";
-import { initialReportsTab, myReportsEmptyState } from "../../src/presentation/citizenViews";
+import { initialReportsTab } from "../../src/presentation/citizenViews";
+import { myReportsEmpty } from "../../src/presentation/emptyStates";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { FadeIn } from "../../src/components/motion/FadeIn";
 
 const TABS: { key: "all" | UserReportStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -34,7 +39,7 @@ export default function MyReports() {
   // Filtered on the server before paging (BACKEND), so a tab is never wrongly empty.
   const list = usePagedList({ kind: "citizenReports", tab });
   const filtered = list.items;
-  const empty = listSettledEmpty(list) ? myReportsEmptyState(tab, citizenSummary.total, 0) : null;
+  const empty = listSettledEmpty(list) ? myReportsEmpty(tab, citizenSummary.total) : null;
   const startReport = () => {
     startNewReport();
     router.push("/user/report/photos");
@@ -48,32 +53,31 @@ export default function MyReports() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 20 }} style={{ flexGrow: 0 }}>
         {TABS.map((t) => (
-          <Pressable key={t.key} onPress={() => setTab(t.key)} style={styles.tab}>
+          <AnimatedPressable
+            key={t.key}
+            onPress={() => setTab(t.key)}
+            style={styles.tab}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t.key }}
+          >
             <Text style={[styles.tabLabel, tab === t.key && styles.tabLabelActive]}>{t.label}</Text>
-            {tab === t.key && <View style={styles.tabUnderline} />}
-          </Pressable>
+            <ActiveIndicator active={tab === t.key} style={styles.tabUnderline} fromScale={0.3} />
+          </AnimatedPressable>
         ))}
       </ScrollView>
 
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 90 }}>
-        {filtered.map((r) => (
-          <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
-        ))}
+        {filtered.length > 0 && (
+          <FadeIn key={tab}>
+            {filtered.map((r) => (
+              <ReportCard key={r.id} report={r} onPress={() => router.push({ pathname: "/user/report/report-overview", params: { id: r.id } })} />
+            ))}
+          </FadeIn>
+        )}
 
         <ListFooter list={list} />
 
-        {empty && (
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={34} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>{empty.title}</Text>
-            <Text style={styles.emptyBody}>{empty.body}</Text>
-            {empty.showReportCta && (
-              <Pressable style={styles.emptyCta} onPress={startReport}>
-                <Text style={styles.emptyCtaLabel}>Report Parking Issue</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        {empty && <EmptyFromCopy key={tab} copy={empty} onAction={startReport} />}
 
         <View style={styles.thanksBanner}>
           <View style={{ flex: 1 }}>

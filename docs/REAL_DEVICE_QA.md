@@ -195,6 +195,28 @@ device model + OS for every run.
 - [ ] App background / foreground → data refreshes on return (no polling while away).
 - [ ] Cold restart (swipe away, reopen) → signed in, data from the cloud.
 
+### C3b. UI polish (T8.6) — NOT VERIFIED on a phone
+- [ ] Empty states on a fresh account: citizen Home "No reports yet" (Create first report),
+      My Reports per tab, Notifications, Earnings, Transaction History, Parking History,
+      My Vehicles, citizen map overlay; officer Home "Area clear" / "No active assignment",
+      Queue per filter ("Show all reports"), Cases tabs, Notifications, officer map overlay.
+      No empty state flashes while the first page is still loading.
+- [ ] Press feedback (buttons, cards, rows) feels light; scrolling a list never triggers a press.
+- [ ] Bottom nav: labels/order unchanged, active tab animates, tapping the current tab does nothing.
+- [ ] Tabs / filter pills / period pills animate their selection; lists fade in on change.
+- [ ] Officer map: nearest sheet slides up gently; overlay does not block map gestures outside it.
+- [ ] Success screens (report submitted, inspection completed): check mark animates once, ≤ ~0.6 s,
+      buttons usable immediately.
+- [ ] Officer inspection: progress bar advances with the checklist; a new photo scales in slightly.
+- [ ] Earnings balance animates on change (not on first open).
+- [ ] Reduce Motion ON (iOS: Accessibility → Motion; Android: Remove animations) → no scale /
+      slide / count animations anywhere; everything still works.
+- [ ] VoiceOver / TalkBack: nav tabs read as tabs with selected state; empty states read as one
+      summary; unavailable rows say "not available yet".
+- [ ] Help Center, About ParkWatch, Privacy & Data, Terms (Draft), Privacy Policy (Draft),
+      officer Help & Support open, scroll and go back (incl. Android hardware Back).
+- [ ] Small phone (e.g. iPhone SE) and large text: empty-state CTAs and info pages don't clip.
+
 ### C4. Results
 
 | Area | Pass/Fail | Device / OS / notes |

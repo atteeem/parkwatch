@@ -117,7 +117,7 @@ export default function OfficerProfile() {
           <View style={styles.divider} />
           <SettingsRow icon="car" title="Work Vehicle" subtitle={me.source === "DEMO" ? "Service van 1" : "Set by your organization"} />
           <View style={styles.divider} />
-          <SettingsRow icon="hardware-chip" title="Equipment Status" unavailable />
+          <SettingsRow icon="hardware-chip" title="Equipment Status" subtitle="Not available yet · ask your organization" unavailable />
         </Card>
 
         <Text style={styles.sectionLabel}>PERFORMANCE</Text>
@@ -131,9 +131,9 @@ export default function OfficerProfile() {
         <Card noPadding>
           <SettingsRow icon="notifications" title="Notifications" subtitle="Case updates and alerts" onPress={() => router.push("/officer/notifications")} />
           <View style={styles.divider} />
-          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available in demo · light theme only" unavailable />
+          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
           <View style={styles.divider} />
-          <SettingsRow icon="help-circle" title="Help & Support" unavailable />
+          <SettingsRow icon="help-circle" title="Help & Support" subtitle="How the officer app works" onPress={() => router.push("/officer/info/officer-help")} />
           <View style={styles.divider} />
           <SignOutRow />
         </Card>

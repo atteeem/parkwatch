@@ -105,27 +105,47 @@ describe("settings / profile rows are honest", () => {
     }
   };
 
-  it("Citizen Profile: Wallet and Settings work; future features are unavailable; Sign Out via SignOutRow", () => {
+  /** Row opens exactly this informational route and is not marked unavailable. */
+  const opens = (file: string, title: string, route: string) => {
+    const tag = row(file, title);
+    expect([title, tag.includes(`onPress={() => router.push("${route}")}`)]).toEqual([title, true]);
+    expect([title, /\bunavailable\b/.test(tag)]).toEqual([title, false]);
+  };
+
+  it("Citizen Profile: Wallet, Settings and info pages work; future features are unavailable; Sign Out via SignOutRow", () => {
     const f = "app/user/profile.tsx";
     expect(row(f, "Wallet")).toMatch(/onPress=\{\(\) => router\.push\("\/user\/earnings"\)\}/);
     expect(row(f, "Settings")).toMatch(/onPress=\{\(\) => router\.push\("\/user\/settings"\)\}/);
-    expect(row(f, "Payment Method")).not.toMatch(/onPress=/);
-    unavailable(f, ["Identity Verification", "Referral Program", "Help Center", "Terms of Service", "Privacy Policy"]);
+    const payment = openingTags(read(f), "SettingsRow").filter((t) => t.includes('title="Payment Method"'));
+    expect(payment).toHaveLength(2); // local-demo example row + signed-in unavailable row
+    for (const t of payment) expect(t).not.toMatch(/onPress=/);
+    expect(payment.filter((t) => /\bunavailable\b/.test(t))).toHaveLength(1);
+    unavailable(f, ["Identity Verification", "Referral Program"]);
+    opens(f, "Help Center", "/user/info/help");
+    opens(f, "About ParkWatch", "/user/info/about");
+    opens(f, "Terms of Service", "/user/info/terms");
+    opens(f, "Privacy Policy", "/user/info/privacy-policy");
+    // The legal rows say they are drafts.
+    expect(row(f, "Terms of Service")).toMatch(/subtitle="Draft/);
+    expect(row(f, "Privacy Policy")).toMatch(/subtitle="Draft/);
     expect(read(f)).toMatch(/<SignOutRow \/>/);
   });
 
-  it("Citizen Settings: every account/notification/theme row is unavailable, nothing pretends to work", () => {
+  it("Citizen Settings: every account/notification/theme row is unavailable; only info pages open", () => {
     const f = "app/user/settings.tsx";
-    unavailable(f, ["Personal Information", "Password", "Identity Verification", "Push Notifications", "Email Notifications", "Dark Mode", "Language", "Privacy & Data", "Delete Account", "Help Center"]);
-    expect(row(f, "About App")).not.toMatch(/onPress=/);
+    unavailable(f, ["Personal Information", "Password", "Identity Verification", "Push Notifications", "Email Notifications", "Dark Mode", "Language", "Delete Account"]);
+    opens(f, "Privacy & Data", "/user/info/privacy-data");
+    opens(f, "Help Center", "/user/info/help");
+    opens(f, "About App", "/user/info/about");
     expect(read(f)).not.toMatch(/useState/);
   });
 
-  it("Officer Profile: Notifications and Case History work; the rest is informational or unavailable", () => {
+  it("Officer Profile: Notifications, Case History and Help & Support work; the rest is informational or unavailable", () => {
     const f = "app/officer/profile.tsx";
     expect(row(f, "Notifications")).toMatch(/router\.push\("\/officer\/notifications"\)/);
     expect(row(f, "Case History")).toMatch(/router\.replace\("\/officer\/cases"\)/);
-    unavailable(f, ["Personal Information", "Equipment Status", "Monthly Statistics", "Dark Mode", "Help & Support"]);
+    unavailable(f, ["Personal Information", "Equipment Status", "Monthly Statistics", "Dark Mode"]);
+    opens(f, "Help & Support", "/officer/info/officer-help");
     for (const t of ["Assigned District", "Work Vehicle"]) expect(row(f, t)).not.toMatch(/onPress=/);
     expect(read(f)).not.toMatch(/Edit Profile/);
     expect(read(f)).toMatch(/<SignOutRow \/>/);
@@ -166,6 +186,8 @@ describe("route audit", () => {
     "/officer/home", "/officer/queue", "/officer/map", "/officer/cases", "/officer/profile", "/officer/notifications",
     "/officer/report-details", "/officer/en-route", "/officer/inspection", "/officer/inspection-result",
     "/officer/inspection-completed", "/officer/violation-photo",
+    "/user/info/help", "/user/info/about", "/user/info/privacy-data", "/user/info/terms", "/user/info/privacy-policy",
+    "/officer/info/officer-help",
   ];
 
   it.each(REQUIRED)("%s exists", (p) => expect(routeExists(p)).toBe(true));

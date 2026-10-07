@@ -15,9 +15,9 @@ function SectionLabel({ text }: { text: string }) {
   return <Text style={styles.sectionLabel}>{text}</Text>;
 }
 
-// Settings. The MVP has no accounts, push/email service or theming yet, so
-// those rows are shown as unavailable (dimmed, not pressable, no switches)
-// instead of controls that would pretend to change something.
+// Settings. There is no push/email service, theming or in-app account editing
+// yet, so those rows are shown as unavailable (dimmed, not pressable, no
+// switches) instead of controls that would pretend to change something.
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? "1.0.0";
@@ -38,38 +38,38 @@ export default function Settings() {
           <View style={styles.divider} />
           <SettingsRow icon="lock-closed" title="Password" unavailable />
           <View style={styles.divider} />
-          <SettingsRow icon="shield-checkmark" title="Identity Verification" subtitle="Not available yet" unavailable />
+          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
         </Card>
 
         <SectionLabel text="NOTIFICATIONS" />
         <Card noPadding>
-          <SettingsRow icon="notifications" title="Push Notifications" subtitle="Not available in demo · in-app notifications only" unavailable />
+          <SettingsRow icon="notifications" title="Push Notifications" subtitle="Not available yet · updates appear in Notifications" unavailable />
           <View style={styles.divider} />
           <SettingsRow icon="mail" title="Email Notifications" unavailable />
         </Card>
 
         <SectionLabel text="APPEARANCE" />
         <Card noPadding>
-          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available in demo · light theme only" unavailable />
+          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
         </Card>
 
         <SectionLabel text="LANGUAGE" />
         <Card noPadding>
-          <SettingsRow icon="globe" title="Language" subtitle="English · other languages not available in demo" unavailable />
+          <SettingsRow icon="globe" title="Language" subtitle="English · other languages not available yet" unavailable />
         </Card>
 
         <SectionLabel text="PRIVACY" />
         <Card noPadding>
-          <SettingsRow icon="shield" title="Privacy & Data" unavailable />
+          <SettingsRow icon="shield" title="Privacy & Data" subtitle="What the app stores" onPress={() => router.push("/user/info/privacy-data")} />
           <View style={styles.divider} />
-          <SettingsRow icon="trash" title="Delete Account" subtitle="Not available until real accounts exist" unavailable />
+          <SettingsRow icon="trash" title="Delete Account" subtitle="Not available in the app yet" unavailable />
         </Card>
 
         <SectionLabel text="ABOUT" />
         <Card noPadding>
-          <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About App" subtitle={`ParkWatch ${version} · demo build`} />
+          <SettingsRow icon="information-circle" iconBg={colors.blueLight} iconColor={colors.blue} title="About App" subtitle={`Version ${version} · pre-launch`} onPress={() => router.push("/user/info/about")} />
           <View style={styles.divider} />
-          <SettingsRow icon="help-circle" title="Help Center" unavailable />
+          <SettingsRow icon="help-circle" title="Help Center" subtitle="How reporting and rewards work" onPress={() => router.push("/user/info/help")} />
         </Card>
       </ScrollView>
       <UserBottomNav />

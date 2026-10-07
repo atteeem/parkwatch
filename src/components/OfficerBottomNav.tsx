@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { tabNavigation } from "../navigation/roleGuard";
 import { OFFICER_NAV_ITEMS } from "./officerNavItems";
+import { NavTab } from "./NavTab";
 
 export function OfficerBottomNav() {
   const router = useRouter();
@@ -17,17 +17,16 @@ export function OfficerBottomNav() {
       {OFFICER_NAV_ITEMS.map((item) => {
         const active = pathname === item.path;
         return (
-          <Pressable
+          <NavTab
             key={item.key}
-            style={styles.item}
+            icon={item.icon}
+            label={item.label}
+            active={active}
             onPress={() => {
               // Tabs replace each other; tapping the current tab does nothing.
               if (tabNavigation(pathname, item.path) === "replace") router.replace(item.path as any);
             }}
-          >
-            <Ionicons name={item.icon as any} size={22} color={active ? colors.greenDark : colors.black} />
-            <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
-          </Pressable>
+          />
         );
       })}
     </View>

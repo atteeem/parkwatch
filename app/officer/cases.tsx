@@ -10,16 +10,14 @@ import { StatusChip } from "../../src/components/StatusChip";
 import { usePagedList, useApp } from "../../src/context/AppContext";
 import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
+import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable";
+import { ActiveIndicator } from "../../src/components/motion/ActiveIndicator";
+import { casesEmpty } from "../../src/presentation/emptyStates";
 import { caseChip, CasesTab } from "../../src/presentation/officerViews";
 
 const TABS: readonly CasesTab[] = ["All", "Completed", "Issued", "Rejected"];
 
-const EMPTY_TEXT: Record<CasesTab, string> = {
-  All: "No cases yet. Cases you accept or decide appear here.",
-  Completed: "No completed cases yet.",
-  Issued: "No parking charges issued yet.",
-  Rejected: "No rejected reports.",
-};
 
 // OFF-10: this officer's cases (assigned to or decided by them), newest first.
 export default function MyCases() {
@@ -44,10 +42,10 @@ export default function MyCases() {
 
       <View style={styles.tabsRow}>
         {TABS.map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={styles.tab}>
+          <AnimatedPressable key={t} onPress={() => setTab(t)} style={styles.tab} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{t}</Text>
-            {tab === t && <View style={styles.tabUnderline} />}
-          </Pressable>
+            <ActiveIndicator active={tab === t} style={styles.tabUnderline} fromScale={0.3} />
+          </AnimatedPressable>
         ))}
       </View>
 
@@ -67,14 +65,15 @@ export default function MyCases() {
       </View>
 
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
-        {listSettledEmpty(paged) && <Text style={styles.emptyText}>{EMPTY_TEXT[tab]}</Text>}
+        {listSettledEmpty(paged) && <EmptyFromCopy key={tab} copy={casesEmpty(tab)} onAction={() => router.replace("/officer/queue")} />}
         {list.map((c) => {
           const chip = caseChip(c);
           const charged = c.outcomeCode === "CHARGE_ISSUED" && c.chargeAmount !== undefined;
           return (
-            <Pressable
+            <AnimatedPressable
               key={c.id}
               style={styles.caseCard}
+              accessibilityRole="button"
               onPress={() => router.push({ pathname: "/officer/report-details", params: { id: c.id } })}
             >
               <EvidencePhoto uri={c.images[0]} style={styles.caseImg} />
@@ -105,7 +104,7 @@ export default function MyCases() {
                   </>
                 ) : null}
               </View>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
         <ListFooter list={paged} />
