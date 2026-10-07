@@ -1,10 +1,14 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
+import { AnimatedPressable } from "./motion/AnimatedPressable";
 
-/** Subtitle used for every feature that needs a backend/accounts and is not built yet. */
-export const NOT_AVAILABLE_IN_DEMO = "Not available in demo";
+/**
+ * Default subtitle for a feature that is not built yet. Truthful in both the
+ * local demo and the backend build, and promises no release date.
+ */
+export const NOT_AVAILABLE_YET = "Not available yet";
 
 /**
  * How a settings/profile row behaves. Only "action" rows are pressable and
@@ -23,7 +27,7 @@ type Props = {
   iconBg?: string;
   iconColor?: string;
   title: string;
-  /** For unavailable rows this defaults to "Not available in demo". */
+  /** For unavailable rows this defaults to "Not available yet". */
   subtitle?: string;
   /** Present => real action (pressable, chevron). */
   onPress?: () => void;
@@ -36,7 +40,7 @@ type Props = {
 
 export function SettingsRow({ icon, iconBg = colors.greenLight, iconColor = colors.greenDark, title, subtitle, onPress, unavailable, right, destructive }: Props) {
   const kind = rowKind({ onPress, unavailable });
-  const sub = kind === "unavailable" ? subtitle ?? NOT_AVAILABLE_IN_DEMO : subtitle;
+  const sub = kind === "unavailable" ? subtitle ?? NOT_AVAILABLE_YET : subtitle;
   const body = (
     <>
       <View style={[styles.icon, { backgroundColor: kind === "unavailable" ? colors.backgroundSunk : iconBg }]}>
@@ -51,15 +55,15 @@ export function SettingsRow({ icon, iconBg = colors.greenLight, iconColor = colo
 
   if (kind === "action") {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]} accessibilityRole="button" accessibilityLabel={title}>
+      <AnimatedPressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={title}>
         {body}
         {right ?? <Ionicons name="chevron-forward" size={16} color={colors.textLight} />}
-      </Pressable>
+      </AnimatedPressable>
     );
   }
   // Informational / unavailable: a plain View with no press feedback and no chevron.
   return (
-    <View style={styles.row} accessibilityLabel={`${title}${kind === "unavailable" ? ", not available in demo" : ""}`}>
+    <View style={styles.row} accessibilityLabel={`${title}${kind === "unavailable" ? ", not available yet" : ""}`}>
       {body}
       {kind === "info" ? right : null}
     </View>

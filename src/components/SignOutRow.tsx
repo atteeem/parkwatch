@@ -12,7 +12,7 @@ export function SignOutRow() {
   const { mode, signOut } = useAuth();
   const [confirm, setConfirm] = useState(false);
   if (mode !== "BACKEND") {
-    return <SettingsRow icon="log-out-outline" title="Sign Out" subtitle={"Not available in demo · no sign-in yet"} unavailable />;
+    return <SettingsRow icon="log-out-outline" title="Sign Out" subtitle={"Local demo · there is no account to sign out of"} unavailable />;
   }
   return (
     <>
