@@ -28,6 +28,8 @@ export type BackendProfileRow = {
   display_name: string;
   created_at: Timestamptz;
   updated_at: Timestamptz;
+  /** T8.7. Object path in the private profile-avatars bucket (never a URL); set only via set_my_avatar. */
+  avatar_storage_path: string | null;
 };
 
 export type BackendReportRow = {
