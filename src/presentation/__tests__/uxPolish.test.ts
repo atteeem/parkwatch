@@ -274,6 +274,17 @@ describe("informational pages", () => {
     }
   });
 
+  it("T8.7: privacy copy covers the private profile photo and minimized location provenance", () => {
+    const t = text(INFO_PAGES["privacy-data"]);
+    expect(t).toMatch(/profile photo is optional/i);
+    expect(t).toMatch(/stored privately with your account and is not public/);
+    expect(t).toMatch(/replace or remove it/);
+    expect(t).toMatch(/came from your phone's GPS or was set by you on the map/);
+    expect(t).toMatch(/does not separately keep your original GPS position on the server/);
+    expect(t).toMatch(/does not track your location in the background/);
+    expect(t).not.toMatch(/public profile|publicly visible/i);
+  });
+
   it("outcomes are described as human decisions", () => {
     expect(text(INFO_PAGES.help)).toMatch(/does not make enforcement decisions automatically/);
     expect(text(INFO_PAGES["officer-help"])).toMatch(/The app never decides for you/);

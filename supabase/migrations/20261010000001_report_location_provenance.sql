@@ -7,8 +7,9 @@
 --   latitude/longitude      the report (incident) point officers navigate to
 --   location_source         GPS (the point is the device fix) or MAP_SELECTED
 --                           (picked on the map; accuracy/captured_at are null)
---   device_*                the raw device GPS fix taken while reporting,
---                           kept as provenance even when the point was moved
+--
+-- Data minimization: after a map correction the citizen's original GPS fix is
+-- NOT stored separately; it stays only in the unsent draft on the phone.
 --
 -- Existing rows: a point already stored came from GPS (the map was not
 -- interactive before T8.7), so it is backfilled as GPS; readers treat a point
@@ -16,16 +17,11 @@
 -- ============================================================================
 
 alter table public.reports
-  add column location_source text check (location_source in ('GPS', 'MAP_SELECTED')),
-  add column device_latitude double precision check (device_latitude between -90 and 90),
-  add column device_longitude double precision check (device_longitude between -180 and 180),
-  add column device_accuracy_m double precision check (device_accuracy_m >= 0),
-  add column device_captured_at timestamptz;
+  add column location_source text check (location_source in ('GPS', 'MAP_SELECTED'));
 
 update public.reports set location_source = 'GPS' where latitude is not null and location_source is null;
 
 alter table public.reports
-  add constraint reports_device_fix_pair check ((device_latitude is null) = (device_longitude is null)),
   -- No point, no source. (A point with a null source is older data: GPS.)
   add constraint reports_location_source_needs_point check (location_source is null or latitude is not null),
   -- A point picked on the map has no GPS accuracy or capture time of its own.
@@ -33,7 +29,7 @@ alter table public.reports
     location_source is distinct from 'MAP_SELECTED' or (location_accuracy_m is null and location_captured_at is null)
   );
 
--- submit_report gains five optional trailing parameters. The old signature is
+-- submit_report gains one optional trailing parameter. The old signature is
 -- dropped (an overload with defaults would make named-argument calls ambiguous).
 drop function public.submit_report(text, text, text, timestamptz, timestamptz, jsonb, text, double precision, double precision, double precision, timestamptz, text, text, text, text, text, text, public.vehicle_info_source);
 
@@ -56,11 +52,7 @@ create function public.submit_report(
   p_vehicle_model text default null,
   p_vehicle_color text default null,
   p_vehicle_source public.vehicle_info_source default null,
-  p_location_source text default null,
-  p_device_latitude double precision default null,
-  p_device_longitude double precision default null,
-  p_device_accuracy_m double precision default null,
-  p_device_captured_at timestamptz default null
+  p_location_source text default null
 ) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -117,14 +109,13 @@ begin
     citizen_id, source_draft_id, jurisdiction_id, violation_type,
     plate_raw, plate_normalized, plate_country, vehicle_make, vehicle_model, vehicle_color, vehicle_source,
     location_address, latitude, longitude, location_accuracy_m, location_captured_at, notes, observed_at, submitted_at,
-    location_source, device_latitude, device_longitude, device_accuracy_m, device_captured_at
+    location_source
   ) values (
     me, p_submission_id, v_jurisdiction, p_violation_type,
     p_plate_raw, p_plate_normalized, p_plate_country, p_vehicle_make, p_vehicle_model, p_vehicle_color, p_vehicle_source,
     p_location_address, p_latitude, p_longitude, p_location_accuracy_m, p_location_captured_at, coalesce(p_notes, ''), p_observed_at, p_submitted_at,
     -- No point -> no source. A point without a stated source is legacy GPS.
-    case when p_latitude is null then null else coalesce(p_location_source, 'GPS') end,
-    p_device_latitude, p_device_longitude, p_device_accuracy_m, p_device_captured_at
+    case when p_latitude is null then null else coalesce(p_location_source, 'GPS') end
   )
   on conflict (citizen_id, source_draft_id) do nothing
   returning * into v_report;
@@ -161,5 +152,5 @@ begin
     'case_id', v_case_id, 'received_at', v_report.received_at, 'created', true);
 end $$;
 
-revoke all on function public.submit_report(text, text, text, timestamptz, timestamptz, jsonb, text, double precision, double precision, double precision, timestamptz, text, text, text, text, text, text, public.vehicle_info_source, text, double precision, double precision, double precision, timestamptz) from public, anon;
-grant execute on function public.submit_report(text, text, text, timestamptz, timestamptz, jsonb, text, double precision, double precision, double precision, timestamptz, text, text, text, text, text, text, public.vehicle_info_source, text, double precision, double precision, double precision, timestamptz) to authenticated;
+revoke all on function public.submit_report(text, text, text, timestamptz, timestamptz, jsonb, text, double precision, double precision, double precision, timestamptz, text, text, text, text, text, text, public.vehicle_info_source, text) from public, anon;
+grant execute on function public.submit_report(text, text, text, timestamptz, timestamptz, jsonb, text, double precision, double precision, double precision, timestamptz, text, text, text, text, text, text, public.vehicle_info_source, text) to authenticated;

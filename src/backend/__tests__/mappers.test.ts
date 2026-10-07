@@ -81,32 +81,41 @@ describe("reports", () => {
     }
   });
 
-  it("T8.7: location provenance from the row: map-picked point + device fix; a point without a source is GPS", () => {
+  it("T8.7: GPS report -> insert keeps source GPS with its accuracy and capture time", () => {
+    const gps: Report = { ...report, location: { ...report.location, coordinatesSource: "GPS" } };
+    const insert = unwrap(reportToInsert(gps, { citizenUuid: CITIZEN }));
+    expect(insert).toMatchObject({ latitude: 60.1699, longitude: 24.9384, location_source: "GPS", location_accuracy_m: 6, location_captured_at: T });
+    // A point without a stated source is GPS (older data); no point -> no source.
+    expect(unwrap(reportToInsert(report, { citizenUuid: CITIZEN })).location_source).toBe("GPS");
+    const addressOnly = unwrap(reportToInsert({ ...report, location: { address: "Kaivokatu 1" } }, { citizenUuid: CITIZEN }));
+    expect(addressOnly).toMatchObject({ latitude: null, location_source: null, location_accuracy_m: null, location_captured_at: null });
+  });
+
+  it("T8.7: MAP_SELECTED report -> insert has no accuracy/capture time and no raw device fix", () => {
+    const picked: Report = {
+      ...report,
+      // Even if stale GPS metadata reached the point, a map-picked point never carries it.
+      location: { address: "Kaivokatu 1", coordinates: { latitude: 60.1712, longitude: 24.9411, accuracyMeters: 25, capturedAt: T }, coordinatesSource: "MAP_SELECTED" },
+    };
+    const insert = unwrap(reportToInsert(picked, { citizenUuid: CITIZEN }));
+    expect(insert).toMatchObject({ latitude: 60.1712, longitude: 24.9411, location_source: "MAP_SELECTED", location_accuracy_m: null, location_captured_at: null });
+    expect(Object.keys(insert).filter((k) => k.startsWith("device"))).toEqual([]);
+  });
+
+  it("T8.7: location provenance from the row: map-picked point has no GPS metadata; a point without a source is GPS", () => {
     const insert = unwrap(reportToInsert(report, { citizenUuid: CITIZEN }));
     const picked = reportFromRow(
-      {
-        ...asStoredReport(insert, 100024),
-        latitude: 60.1712,
-        longitude: 24.9411,
-        location_accuracy_m: null,
-        location_captured_at: null,
-        location_source: "MAP_SELECTED",
-        device_latitude: 60.17,
-        device_longitude: 24.94,
-        device_accuracy_m: 25,
-        device_captured_at: T,
-      },
+      { ...asStoredReport(insert, 100024), latitude: 60.1712, longitude: 24.9411, location_accuracy_m: null, location_captured_at: null, location_source: "MAP_SELECTED" },
       []
     );
     expect(picked.report.location).toEqual({
       address: "Mannerheimintie 45, Helsinki",
       coordinates: { latitude: 60.1712, longitude: 24.9411 },
       coordinatesSource: "MAP_SELECTED",
-      deviceFix: { latitude: 60.17, longitude: 24.94, accuracyMeters: 25, capturedAt: T },
     });
-    const legacy = reportFromRow(asStoredReport(insert, 100025), []);
+    const legacy = reportFromRow({ ...asStoredReport(insert, 100025), location_source: null }, []);
     expect(legacy.report.location.coordinatesSource).toBe("GPS");
-    expect(legacy.report.location.deviceFix).toBeUndefined();
+    expect(legacy.report.location).toEqual({ ...report.location, coordinatesSource: "GPS" });
   });
 
   it("round trip: same report data; public number and uuid stay separate", () => {

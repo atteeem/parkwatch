@@ -21,6 +21,10 @@ export function reportToInsert(report: Report, refs: { citizenUuid: Uuid }): Bac
   if (!isUuid(refs.citizenUuid)) return backendFail("INVALID_DATA", "Report owner must be a signed-in user.");
   const v = report.vehicle;
   const c = report.location.coordinates;
+  // Same rules as submit_report: no point -> no source; a point without a
+  // stated source is GPS; a map-picked point has no GPS accuracy/time.
+  const source = c ? (report.location.coordinatesSource ?? "GPS") : null;
+  const gps = source === "GPS";
   return backendOk({
     citizen_id: refs.citizenUuid,
     source_draft_id: report.sourceDraftId,
@@ -36,8 +40,9 @@ export function reportToInsert(report: Report, refs: { citizenUuid: Uuid }): Bac
     location_address: report.location.address,
     latitude: c?.latitude ?? null,
     longitude: c?.longitude ?? null,
-    location_accuracy_m: c?.accuracyMeters ?? null,
-    location_captured_at: c?.capturedAt ?? null,
+    location_accuracy_m: gps ? (c?.accuracyMeters ?? null) : null,
+    location_captured_at: gps ? (c?.capturedAt ?? null) : null,
+    location_source: source,
     notes: report.notes,
     observed_at: report.observedAt,
     submitted_at: report.submittedAt,
@@ -84,16 +89,6 @@ export function reportFromRow(row: BackendReportRow, evidence: BackendCitizenEvi
               ...(row.location_captured_at ? { capturedAt: row.location_captured_at } : {}),
             },
             coordinatesSource: row.location_source ?? "GPS",
-          }
-        : {}),
-      ...(row.device_latitude != null && row.device_longitude != null
-        ? {
-            deviceFix: {
-              latitude: row.device_latitude,
-              longitude: row.device_longitude,
-              ...(row.device_accuracy_m != null ? { accuracyMeters: row.device_accuracy_m } : {}),
-              ...(row.device_captured_at ? { capturedAt: row.device_captured_at } : {}),
-            },
           }
         : {}),
     },

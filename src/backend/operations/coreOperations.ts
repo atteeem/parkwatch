@@ -34,11 +34,6 @@ export type SubmitReportInput = {
   locationCapturedAt?: string;
   /** GPS = the point is the device fix; MAP_SELECTED = picked on the map (no accuracy/time of its own). */
   locationSource?: "GPS" | "MAP_SELECTED";
-  /** Raw device GPS fix (provenance), also when the point was moved on the map. */
-  deviceLatitude?: number;
-  deviceLongitude?: number;
-  deviceAccuracyM?: number;
-  deviceCapturedAt?: string;
   plateRaw?: string;
   plateNormalized?: string;
   plateCountry?: string;
@@ -163,10 +158,6 @@ export function createCoreOperations(client: SupabaseClient): CoreOperations {
           p_vehicle_color: n(i.vehicleColor),
           p_vehicle_source: n(i.vehicleSource),
           p_location_source: n(i.locationSource),
-          p_device_latitude: n(i.deviceLatitude),
-          p_device_longitude: n(i.deviceLongitude),
-          p_device_accuracy_m: n(i.deviceAccuracyM),
-          p_device_captured_at: n(i.deviceCapturedAt),
         }
       );
       if (!r.ok) return r;

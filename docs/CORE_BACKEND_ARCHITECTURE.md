@@ -60,9 +60,10 @@ assignment as a parameter. Rule failures are raised as `CODE: message`.
   navigate to. `location_source` says where it came from: `GPS` (the device fix;
   `location_accuracy_m` / `location_captured_at` describe it) or `MAP_SELECTED` (the
   citizen corrected it on the map; accuracy/time must be null, enforced by
-  `reports_map_point_not_gps`). The raw device fix taken while reporting is kept in
-  `device_*` even when the point was moved. A point with a null source is older data
-  (GPS). The address is reverse-geocoded on the phone (expo-location); typing is the
+  `reports_map_point_not_gps`). Data minimization: after a map correction the
+  citizen's original GPS fix is NOT stored on the server; it lives only in the unsent
+  local draft (for "Use my GPS") and is dropped when the report is created. A point
+  with a null source is older data (GPS). The address is reverse-geocoded on the phone (expo-location); typing is the
   fallback. `observed_at` = earliest required camera photo (device clock, read-only for
   the citizen); `received_at` stays the trusted server time.
 - **Officer evidence types** are `VEHICLE_FRONT`, `LICENSE_PLATE`, `PARKING_SIGN`,

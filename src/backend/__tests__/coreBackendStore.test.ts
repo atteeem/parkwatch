@@ -281,16 +281,19 @@ describe("submit + upload recovery", () => {
     expect(input.submissionId).toBe("draft-8");
   });
 
-  it("T8.7: a map-picked point is sent as MAP_SELECTED without GPS accuracy/time, with the raw device fix separately", async () => {
+  it("T8.7: a map-picked point is sent as MAP_SELECTED without GPS accuracy/time and without the raw device fix", async () => {
     const { store, ops } = setup();
     const fix = { latitude: 60.17, longitude: 24.94, accuracyMeters: 25, capturedAt: "2026-10-07T09:40:00.000Z" };
     const d = completeDraft("draft-map");
     d.location = { address: "Kaivokatu 1", coordinates: { latitude: 60.1712, longitude: 24.9411 }, coordinatesSource: "MAP_SELECTED", deviceFix: fix };
     await store.submitReport(d);
     const input = (ops.submitReport as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
-    expect(input).toMatchObject({ latitude: 60.1712, longitude: 24.9411, locationSource: "MAP_SELECTED", deviceLatitude: 60.17, deviceAccuracyM: 25, deviceCapturedAt: fix.capturedAt });
+    expect(input).toMatchObject({ latitude: 60.1712, longitude: 24.9411, locationSource: "MAP_SELECTED" });
     expect(input.locationAccuracyM).toBeUndefined();
     expect(input.locationCapturedAt).toBeUndefined();
+    // Data minimization: the original GPS fix stays in the local draft only.
+    expect(Object.keys(input).filter((k) => /^device/i.test(k))).toEqual([]);
+    for (const v of [fix.latitude, fix.longitude, fix.accuracyMeters, fix.capturedAt]) expect(Object.values(input)).not.toContain(v);
   });
 
   it("T8.7: a GPS point is sent with its accuracy/time and source GPS; observedAt is the earliest photo", async () => {
@@ -301,6 +304,7 @@ describe("submit + upload recovery", () => {
     await store.submitReport(d);
     const input = (ops.submitReport as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(input).toMatchObject({ locationSource: "GPS", locationAccuracyM: 7, locationCapturedAt: fix.capturedAt });
+    expect(Object.keys(input).filter((k) => /^device/i.test(k))).toEqual([]);
     const earliest = Object.values(d.photos).map((p) => p!.capturedAt).sort()[0];
     expect(input.observedAt).toBe(earliest);
   });

@@ -42,7 +42,10 @@ describe("migrations on a real Postgres", () => {
     "officers cannot change cases directly (server functions only)",
     "no policy is unconditionally true",
     // T8.7
-    "T8.7: a point picked on the map keeps the raw device fix separately",
+    "T8.7: a GPS point is stored with its accuracy, time and source GPS",
+    "T8.7: a point picked on the map is stored as MAP_SELECTED without accuracy/time",
+    "T8.7: data minimization - no column or submit_report parameter stores the raw reporter GPS",
+    "T8.7: submit_report rejects a raw device fix argument",
     "T8.7: a map-picked point cannot carry GPS accuracy/time (it would pose as a GPS fix)",
     "T8.7: renaming VEHICLE_OVERVIEW/VIOLATION_CONTEXT keeps existing officer photos (old rows read back as FRONT/REAR)",
     "T8.7: monthly stats = exactly the outcomes this officer decided (server-side)",

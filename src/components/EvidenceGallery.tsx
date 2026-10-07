@@ -108,20 +108,27 @@ export function EvidenceGallery({
   );
 }
 
-/** Tappable evidence thumbnails that open the shared gallery at the tapped photo. */
+/**
+ * Tappable evidence thumbnails that open the shared gallery at the tapped photo.
+ * With `onOpen`, the screen owns the (single) gallery instead, e.g. when another
+ * photo on the same screen opens it too.
+ */
 export function EvidenceThumbnails({
   items,
   thumbStyle,
   max,
   style,
+  onOpen,
 }: {
   items: GalleryItem[];
   thumbStyle: React.ComponentProps<typeof EvidencePhoto>["style"];
   /** Show at most this many; the last visible thumb says "+N". All photos stay swipeable. */
   max?: number;
   style?: StyleProp<ViewStyle>;
+  onOpen?: (index: number) => void;
 }) {
   const [openAt, setOpenAt] = useState<number | null>(null);
+  const open = onOpen ?? setOpenAt;
   const shown = max !== undefined && items.length > max ? items.slice(0, max) : items;
   const hidden = items.length - shown.length;
   return (
@@ -131,7 +138,7 @@ export function EvidenceThumbnails({
           <Pressable
             key={it.key}
             style={{ flex: 1 }}
-            onPress={() => setOpenAt(i)}
+            onPress={() => open(i)}
             accessibilityRole="imagebutton"
             accessibilityLabel={`${it.caption} photo, open full screen`}
           >
@@ -144,7 +151,7 @@ export function EvidenceThumbnails({
           </Pressable>
         ))}
       </View>
-      <EvidenceGallery items={items} index={openAt} onClose={() => setOpenAt(null)} />
+      {onOpen ? null : <EvidenceGallery items={items} index={openAt} onClose={() => setOpenAt(null)} />}
     </>
   );
 }

@@ -44,7 +44,7 @@ export default function UserProfile() {
               accessibilityLabel={avatar.uri ? "Change profile photo" : "Add profile photo"}
               hitSlop={6}
             >
-              <Avatar name={me.fullName} size={64} uri={avatar.uri} />
+              <Avatar name={me.fullName} size={64} uri={avatar.uri} onError={avatar.onImageError} />
               {avatar.canEdit ? (
                 <View style={styles.avatarBadge}>
                   {avatar.busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={12} color="#fff" />}

@@ -123,7 +123,7 @@ export type CitizenReportStatus = "UNDER_REVIEW" | "VERIFIED" | "REJECTED";
  * Where the report's point came from.
  * GPS          - the point IS the device fix (accuracy/capturedAt describe it)
  * MAP_SELECTED - the citizen corrected the point on the map; it has no GPS
- *                accuracy or capture time of its own (see deviceFix)
+ *                accuracy or capture time of its own
  */
 export type ReportLocationSource = "GPS" | "MAP_SELECTED";
 
@@ -133,16 +133,22 @@ export type ReportLocation = {
   coordinates?: GeoPoint;
   /** Provenance of `coordinates`. Absent on older data (treated as GPS when it has capturedAt). */
   coordinatesSource?: ReportLocationSource;
-  /** The raw device GPS fix taken while reporting, kept unchanged when the point is corrected on the map. */
-  deviceFix?: GeoPoint;
 };
+
+/**
+ * Draft-only location. `deviceFix` is the device GPS fix taken while
+ * reporting, kept unchanged when the point is corrected on the map so the
+ * citizen can go back to it ("Use my GPS"). Data minimization: it never
+ * leaves the phone and is dropped when the draft becomes a report.
+ */
+export type ReportDraftLocation = ReportLocation & { deviceFix?: GeoPoint };
 
 export type ReportDraft = {
   /** Stable per draft; used to make submission idempotent. */
   draftId: string;
   photos: Partial<Record<CitizenEvidenceType, CitizenEvidence>>;
   violationId?: string;
-  location: ReportLocation;
+  location: ReportDraftLocation;
   /**
    * Draft-only: whether the address text was filled from the location
    * (GEOCODED) or typed by the citizen (TYPED). A typed address is never

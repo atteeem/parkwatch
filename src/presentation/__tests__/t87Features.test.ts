@@ -73,6 +73,19 @@ describe("evidence gallery", () => {
     expect(fs.readdirSync(path.join(ROOT, "src/components")).filter((f) => /Gallery/i.test(f))).toEqual(["EvidenceGallery.tsx"]);
   });
 
+  it("officer hero photo opens the SAME gallery at photo 1; one gallery instance on Report Details", () => {
+    const src = read("app/officer/report-details.tsx");
+    // Hero shows gallery item 1 and opens the gallery there.
+    expect(src).toMatch(/<Pressable onPress=\{\(\) => setGalleryAt\(0\)\}[^>]*accessibilityRole="imagebutton"/);
+    expect(src).toMatch(/<EvidencePhoto uri=\{detail\.evidence\[0\]!\.uri\} style=\{styles\.vehicleImg\}/);
+    // Thumbnails open the same screen-owned gallery; it is rendered exactly once with all citizen evidence.
+    expect(src).toMatch(/<EvidenceThumbnails items=\{detail\.evidence\}[^>]*onOpen=\{setGalleryAt\}/);
+    expect(src.match(/<EvidenceGallery\b/g)).toHaveLength(1);
+    expect(src).toMatch(/<EvidenceGallery items=\{detail\.evidence\} index=\{galleryAt\} onClose=\{\(\) => setGalleryAt\(null\)\}/);
+    // A screen-owned gallery means the thumbnails do not render a second one.
+    expect(read("src/components/EvidenceGallery.tsx")).toMatch(/\{onOpen \? null : <EvidenceGallery /);
+  });
+
   it("officer gallery permissions are unchanged: photos render through EvidencePhoto (signed URLs), no new evidence storage policy", () => {
     const gallery = read("src/components/EvidenceGallery.tsx");
     expect(gallery).toMatch(/<EvidencePhoto uri=\{item\.uri\}/);
@@ -406,6 +419,15 @@ describe("profile pictures", () => {
     expect(calls).toEqual(["set null", "remove u1/old.jpg"]);
   });
 
+  it("a failed avatar image re-signs the stored path (private bucket, signed URLs only)", () => {
+    for (const f of ["app/user/profile.tsx", "app/user/earnings.tsx"]) expect(read(f)).toMatch(/<Avatar [^>]*onError=\{avatar\.onImageError\}/);
+    expect(read("src/components/Avatar.tsx")).toMatch(/onError=\{onError \? \(\) => onError\(uri\)/);
+    const ctx = read("src/auth/AvatarContext.tsx");
+    expect(ctx).toMatch(/new SignedAvatarUrl\(/);
+    expect(ctx).toMatch(/signed\?\.set\(r\.value\.path, r\.value\.url\)/);
+    expect(read("src/backend/storage/avatarStorage.ts")).not.toMatch(/getPublicUrl/);
+  });
+
   it("upload bytes are decoded from the shrunken JPEG's base64", () => {
     const bytes = new Uint8Array(base64ToArrayBuffer(Buffer.from("ParkWatch!").toString("base64")));
     expect(Buffer.from(bytes).toString()).toBe("ParkWatch!");
@@ -426,7 +448,8 @@ describe("profile pictures", () => {
   it("LOCAL_DEMO keeps the picture on the phone; BACKEND loads it through a signed URL", () => {
     const ctx = read("src/auth/AvatarContext.tsx");
     expect(ctx).toMatch(/storage\.setItem\(localAvatarKey\(DEV_CITIZEN_ID\)/);
-    expect(ctx).toMatch(/repo\.signedUrl\(p\.value\)/);
+    expect(ctx).toMatch(/sign: \(p\) => repo\.signedUrl\(p\)/);
+    expect(ctx).toMatch(/await signed\.set\(p\.value\)/);
     expect(read("app/user/profile.tsx")).toMatch(/<AvatarEditSheet/);
     const sheet = read("src/components/AvatarEditSheet.tsx");
     for (const label of ["Choose from library", "Take photo", "Remove photo"]) expect(sheet).toContain(label);

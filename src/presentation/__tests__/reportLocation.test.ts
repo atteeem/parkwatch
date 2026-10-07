@@ -134,7 +134,7 @@ describe("map correction keeps provenance honest", () => {
     expect(s.draft.location).toMatchObject({ coordinates: FIX, coordinatesSource: "GPS" });
   });
 
-  it("the submitted report carries the picked point + source + device fix (local store path)", () => {
+  it("the submitted report carries the picked point + source, never the raw device fix (local store path)", () => {
     let s = draftReducer(withPhotos(), { type: "SET_DEVICE_FIX", fix: FIX });
     s = draftReducer(s, { type: "SELECT_MAP_POINT", latitude: 60.1712, longitude: 24.9411 });
     s = draftReducer(s, { type: "SET_GEOCODED_ADDRESS", address: "Picked street 3", point: { latitude: 60.1712, longitude: 24.9411 } });
@@ -144,8 +144,10 @@ describe("map correction keeps provenance honest", () => {
       address: "Picked street 3",
       coordinates: { latitude: 60.1712, longitude: 24.9411 },
       coordinatesSource: "MAP_SELECTED",
-      deviceFix: FIX,
     });
+    // The original GPS fix stays in the draft ("Use my GPS") but is not part of the report.
+    expect(s.draft.location.deviceFix).toEqual(FIX);
+    expect(r.value.location).not.toHaveProperty("deviceFix");
     // Draft-only bookkeeping is not part of the report.
     expect(r.value).not.toHaveProperty("addressSource");
   });

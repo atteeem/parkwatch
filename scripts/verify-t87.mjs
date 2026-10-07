@@ -1,6 +1,6 @@
 // T8.7 scenarios for scripts/verify-migrations.mjs, executed against the REAL
 // migrations under real database roles:
-//   * report location provenance (GPS vs point picked on the map + device fix)
+//   * report location provenance (GPS vs point picked on the map; no raw reporter GPS stored)
 //   * officer evidence types VEHICLE_FRONT / VEHICLE_REAR (rename keeps rows)
 //   * officer monthly statistics (server-side, own outcomes only)
 //   * profile pictures (private bucket, own folder only, path-only column)
@@ -35,22 +35,31 @@ export async function runT87(ctx) {
   await ok("T8.7: a GPS point is stored with its accuracy, time and source GPS", async () => {
     await prepare(U.citizenA, "t87-gps");
     const r = (await as(U.citizenA, () =>
-      submitNamed("t87-gps", `p_latitude => 60.17, p_longitude => 24.94, p_location_accuracy_m => 7, p_location_captured_at => now(), p_location_source => 'GPS',
-        p_device_latitude => 60.17, p_device_longitude => 24.94, p_device_accuracy_m => 7, p_device_captured_at => now()`)
+      submitNamed("t87-gps", `p_latitude => 60.17, p_longitude => 24.94, p_location_accuracy_m => 7, p_location_captured_at => now(), p_location_source => 'GPS'`)
     )).rows[0].r;
     const x = await row(r.report_id);
-    if (x.location_source !== "GPS" || x.location_accuracy_m !== 7 || !x.location_captured_at || x.device_latitude !== 60.17) throw new Error(JSON.stringify(x));
+    if (x.location_source !== "GPS" || x.location_accuracy_m !== 7 || !x.location_captured_at) throw new Error(JSON.stringify(x));
   });
-  await ok("T8.7: a point picked on the map keeps the raw device fix separately", async () => {
+  await ok("T8.7: a point picked on the map is stored as MAP_SELECTED without accuracy/time", async () => {
     await prepare(U.citizenA, "t87-map");
-    const r = (await as(U.citizenA, () =>
-      submitNamed("t87-map", `p_latitude => 60.1712, p_longitude => 24.9411, p_location_source => 'MAP_SELECTED',
-        p_device_latitude => 60.17, p_device_longitude => 24.94, p_device_accuracy_m => 25, p_device_captured_at => now()`)
-    )).rows[0].r;
+    const r = (await as(U.citizenA, () => submitNamed("t87-map", `p_latitude => 60.1712, p_longitude => 24.9411, p_location_source => 'MAP_SELECTED'`))).rows[0].r;
     const x = await row(r.report_id);
     if (x.location_source !== "MAP_SELECTED" || x.latitude !== 60.1712 || x.location_accuracy_m !== null || x.location_captured_at !== null) throw new Error(JSON.stringify(x));
-    if (x.device_latitude !== 60.17 || x.device_accuracy_m !== 25 || !x.device_captured_at) throw new Error(JSON.stringify(x));
   });
+  await ok("T8.7: data minimization - no column or submit_report parameter stores the raw reporter GPS", async () => {
+    const cols = (await q(`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'reports' and column_name like 'device%'`)).rows;
+    if (cols.length) throw new Error(JSON.stringify(cols));
+    const args = (await q(`select pg_get_function_arguments(p.oid) a from pg_proc p where p.proname = 'submit_report'`)).rows.map((x) => x.a).join(" ");
+    if (/device/.test(args)) throw new Error(args);
+  });
+  await fails(
+    "T8.7: submit_report rejects a raw device fix argument",
+    async () => {
+      await prepare(U.citizenA, "t87-dev");
+      await as(U.citizenA, () => submitNamed("t87-dev", `p_latitude => 60.17, p_longitude => 24.94, p_location_source => 'MAP_SELECTED', p_device_latitude => 60.17`));
+    },
+    /does not exist/
+  );
   await fails(
     "T8.7: a map-picked point cannot carry GPS accuracy/time (it would pose as a GPS fix)",
     async () => {

@@ -54,10 +54,6 @@ export type BackendReportRow = {
   location_captured_at: Timestamptz | null;
   /** T8.7. null with a point = older data (GPS). */
   location_source?: "GPS" | "MAP_SELECTED" | null;
-  device_latitude?: number | null;
-  device_longitude?: number | null;
-  device_accuracy_m?: number | null;
-  device_captured_at?: Timestamptz | null;
   notes: string;
   observed_at: Timestamptz;
   submitted_at: Timestamptz;
@@ -69,7 +65,12 @@ export type BackendReportRow = {
   updated_at: Timestamptz;
 };
 
-/** Columns a citizen may insert (matches the column-level GRANT). */
+/**
+ * The citizen-supplied columns of a report row: what `submit_report` stores
+ * (citizens cannot insert into `reports` directly since T8.4). Used by the
+ * mapper round-trip tests; the location columns follow the T8.7 contract
+ * (MAP_SELECTED -> no accuracy/capture time; no raw device fix).
+ */
 export type BackendReportInsert = Pick<
   BackendReportRow,
   | "citizen_id" | "source_draft_id" | "jurisdiction_id" | "violation_type"
@@ -77,7 +78,7 @@ export type BackendReportInsert = Pick<
   | "vehicle_make" | "vehicle_model" | "vehicle_color" | "vehicle_source"
   | "location_address" | "latitude" | "longitude" | "location_accuracy_m" | "location_captured_at"
   | "notes" | "observed_at" | "submitted_at"
->;
+> & { location_source: "GPS" | "MAP_SELECTED" | null };
 
 export type CitizenEvidenceSlot = "FRONT" | "SIDE" | "REAR" | "ATTACHMENT";
 

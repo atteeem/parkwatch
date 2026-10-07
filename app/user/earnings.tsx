@@ -46,7 +46,7 @@ export default function Wallet() {
         <Text style={styles.headerTitle} accessibilityRole="header">
           Wallet
         </Text>
-        <Avatar name={me.fullName} size={40} uri={avatar.uri} />
+        <Avatar name={me.fullName} size={40} uri={avatar.uri} onError={avatar.onImageError} />
       </View>
 
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>

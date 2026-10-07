@@ -104,10 +104,18 @@ const PRIVACY_DATA: InfoPage = {
       paragraphs: ["When you sign in, your email address identifies your account. Your reports, rewards and notifications are linked to it."],
     },
     {
+      heading: "Profile photo",
+      paragraphs: [
+        "A profile photo is optional. If you add one while signed in, it is stored privately with your account and is not public. You can replace or remove it at any time from your profile.",
+        "In the local demo without an account, the photo is kept on this phone only.",
+      ],
+    },
+    {
       heading: "Location",
       paragraphs: [
         "ParkWatch may use your location while relevant report or map screens are open and permission has been granted. The app does not track your location in the background.",
-        "When you submit a report, its location (and map coordinates, if available) is saved as part of the report.",
+        "When you submit a report, its final location is saved as part of the report: the address and, if available, the map point. The report also records whether that point came from your phone's GPS or was set by you on the map.",
+        "If you move the report point on the map, ParkWatch does not separately keep your original GPS position on the server. It stays on your phone only while the report is still a draft.",
       ],
     },
     {

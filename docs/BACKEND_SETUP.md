@@ -48,9 +48,9 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
    function pins `search_path` (T8.5, found by the Supabase security advisor on the
    real development project)
 7. `20261010000001_report_location_provenance.sql` — T8.7: `reports.location_source`
-   (`GPS` / `MAP_SELECTED`) + the raw device fix (`device_*`); a map-picked point may
-   not carry GPS accuracy/time. `submit_report` gains five optional trailing
-   parameters (old signature dropped). Existing points are backfilled as `GPS`.
+   (`GPS` / `MAP_SELECTED`); a map-picked point may not carry GPS accuracy/time and
+   the citizen's original GPS fix is not stored separately. `submit_report` gains one
+   optional trailing parameter, `p_location_source` (old signature dropped). Existing points are backfilled as `GPS`.
 8. `20261010000002_officer_evidence_front_rear.sql` — T8.7: renames the officer
    evidence enum values in place: `VEHICLE_OVERVIEW → VEHICLE_FRONT`,
    `VIOLATION_CONTEXT → VEHICLE_REAR` (existing rows keep their photos). **Apps older

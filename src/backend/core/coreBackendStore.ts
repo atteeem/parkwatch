@@ -407,7 +407,6 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
     const vehicle = draft.vehicle ?? MVP_MOCK_DETECTED_VEHICLE;
     const coords = draft.location.coordinates;
     const source = draft.location.coordinatesSource ?? "GPS";
-    const device = draft.location.deviceFix;
     // The submission id is the draft id: the same on every retry, also after a restart.
     // If an earlier attempt committed but its response was lost, this returns that report.
     const r = watch(
@@ -425,10 +424,7 @@ export function createCoreBackendStore({ userId, role, ops, storage, now = () =>
         locationAccuracyM: source === "GPS" ? coords?.accuracyMeters : undefined,
         locationCapturedAt: source === "GPS" ? coords?.capturedAt : undefined,
         locationSource: coords ? source : undefined,
-        deviceLatitude: device?.latitude,
-        deviceLongitude: device?.longitude,
-        deviceAccuracyM: device?.accuracyMeters,
-        deviceCapturedAt: device?.capturedAt,
+        // Data minimization: the raw device fix (draft.location.deviceFix) is never sent.
         plateRaw: vehicle.plate.raw,
         plateNormalized: vehicle.plate.normalized,
         plateCountry: vehicle.plate.country,

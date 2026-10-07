@@ -14,7 +14,7 @@ import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
 import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
-import { EvidenceThumbnails } from "../../src/components/EvidenceGallery";
+import { EvidenceGallery, EvidenceThumbnails } from "../../src/components/EvidenceGallery";
 import { useForegroundLocation } from "../../src/location/useForegroundLocation";
 import { formatDistance, straightLineDistance } from "../../src/geo/distance";
 import { officerCaseMarkers } from "../../src/map/mapLogic";
@@ -59,6 +59,8 @@ export default function ReportDetails() {
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<DeskDecision | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  // One shared gallery for the hero photo and the evidence thumbnails.
+  const [galleryAt, setGalleryAt] = useState<number | null>(null);
   // One guard per case stage: a second tap in the same stage is ignored.
   const guard = useGuardedAction(`${c?.status}|${c?.assignedOfficerId}`);
 
@@ -150,7 +152,14 @@ export default function ReportDetails() {
 
         <Card>
           <View style={{ flexDirection: "row" }}>
-            <EvidencePhoto uri={c.images[0]} style={styles.vehicleImg} />
+            {detail.evidence.length > 0 ? (
+              // Hero = gallery photo 1 (Front): tap opens the same gallery as the thumbnails.
+              <Pressable onPress={() => setGalleryAt(0)} accessibilityRole="imagebutton" accessibilityLabel={`${detail.evidence[0]!.caption} photo, open full screen`}>
+                <EvidencePhoto uri={detail.evidence[0]!.uri} style={styles.vehicleImg} />
+              </Pressable>
+            ) : (
+              <EvidencePhoto uri={c.images[0]} style={styles.vehicleImg} />
+            )}
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.plate}>{c.plate}</Text>
               <Text style={styles.fieldLabel}>Vehicle</Text>
@@ -231,7 +240,7 @@ export default function ReportDetails() {
               <Text style={styles.smallMuted}>{c.photoCount} photos</Text>
             </View>
             {/* Tap any photo: full screen, swipe through Front / Side / Rear / attachments. */}
-            <EvidenceThumbnails items={detail.evidence} thumbStyle={styles.evidenceThumb} max={4} style={{ gap: 4, marginTop: 8 }} />
+            <EvidenceThumbnails items={detail.evidence} thumbStyle={styles.evidenceThumb} max={4} style={{ gap: 4, marginTop: 8 }} onOpen={setGalleryAt} />
           </Card>
         </View>
 
@@ -307,6 +316,7 @@ export default function ReportDetails() {
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />
+      <EvidenceGallery items={detail.evidence} index={galleryAt} onClose={() => setGalleryAt(null)} />
     </SafeAreaView>
   );
 }
