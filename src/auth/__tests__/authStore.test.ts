@@ -207,8 +207,12 @@ describe("role resolution", () => {
     ["OFFICER profile + inactive membership", p("OFFICER"), [m("OFFICER", false)], "OFFICER_NOT_AUTHORIZED"],
     ["OFFICER profile + only an ADMIN membership", p("OFFICER"), [m("ADMIN")], "OFFICER_NOT_AUTHORIZED"],
     ["OFFICER profile + no membership", p("OFFICER"), [], "OFFICER_NOT_AUTHORIZED"],
-    ["SUPERVISOR", p("SUPERVISOR"), [m("SUPERVISOR")], "STAFF"],
-    ["ADMIN", p("ADMIN"), [], "STAFF"],
+    // T9.0: staff needs a server-set staff role AND an active SUPERVISOR/ADMIN membership.
+    ["SUPERVISOR + active SUPERVISOR membership", p("SUPERVISOR"), [m("SUPERVISOR")], "STAFF"],
+    ["ADMIN + active ADMIN membership", p("ADMIN"), [m("ADMIN")], "STAFF"],
+    ["ADMIN + no membership (no global admin)", p("ADMIN"), [], "STAFF_NOT_AUTHORIZED"],
+    ["SUPERVISOR + inactive membership", p("SUPERVISOR"), [m("SUPERVISOR", false)], "STAFF_NOT_AUTHORIZED"],
+    ["SUPERVISOR + only an OFFICER membership", p("SUPERVISOR"), [m("OFFICER")], "STAFF_NOT_AUTHORIZED"],
   ] as const)("%s -> %s", (_label, profile, memberships, kind) => {
     expect(resolveAccess(profile, memberships as readonly Membership[]).kind).toBe(kind);
   });

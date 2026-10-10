@@ -4,19 +4,22 @@ import type { ResolvedAccess } from "../auth/authTypes";
 // The session role currently comes from DEV_ROLE; real authentication will
 // replace only the role source, not these rules.
 
-export type SessionRole = "citizen" | "officer";
+export type SessionRole = "citizen" | "officer" | "admin";
 
-export const ROLE_HOME: Record<SessionRole, "/user/home" | "/officer/home"> = {
+export const ROLE_HOME: Record<SessionRole, "/user/home" | "/officer/home" | "/admin"> = {
   citizen: "/user/home",
   officer: "/officer/home",
+  // T9.0 operations console (active supervisors/administrators only).
+  admin: "/admin",
 };
 
-export type RouteArea = "citizen" | "officer" | "neutral";
+export type RouteArea = "citizen" | "officer" | "admin" | "neutral";
 
 /** Which role a pathname belongs to. */
 export function routeArea(pathname: string): RouteArea {
   if (pathname === "/user" || pathname.startsWith("/user/")) return "citizen";
   if (pathname === "/officer" || pathname.startsWith("/officer/")) return "officer";
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return "admin";
   return "neutral";
 }
 
@@ -55,7 +58,7 @@ export type SessionView =
 export const AUTH_HOME = "/auth/sign-in";
 export const ACCOUNT_STATUS = "/account/status";
 
-export type AppArea = "citizen" | "officer" | "auth" | "account";
+export type AppArea = "citizen" | "officer" | "admin" | "auth" | "account";
 
 export function appArea(pathname: string): AppArea | "neutral" {
   const a = routeArea(pathname);
@@ -73,14 +76,24 @@ export function homeFor(s: SessionView): string | null {
   if (s.access === null) return s.accessFailed ? ACCOUNT_STATUS : null;
   if (s.access.kind === "CITIZEN") return ROLE_HOME.citizen;
   if (s.access.kind === "OFFICER") return ROLE_HOME.officer;
-  return ACCOUNT_STATUS; // staff placeholder, not-authorized officer, invalid profile
+  if (s.access.kind === "STAFF") return ROLE_HOME.admin;
+  return ACCOUNT_STATUS; // not-authorized officer/staff, invalid profile
 }
 
-/** The role-app a session may use (null = neither). */
+/** The role-app a session may use (null = none). Only server-resolved access in BACKEND mode. */
 export function allowedRoleApp(s: SessionView): SessionRole | null {
   if (s.mode === "LOCAL_DEMO") return s.role;
   if (s.status !== "authenticated" || !s.access) return null;
-  return s.access.kind === "CITIZEN" ? "citizen" : s.access.kind === "OFFICER" ? "officer" : null;
+  switch (s.access.kind) {
+    case "CITIZEN":
+      return "citizen";
+    case "OFFICER":
+      return "officer";
+    case "STAFF":
+      return "admin";
+    default:
+      return null;
+  }
 }
 
 export type GuardDecision = { type: "allow" } | { type: "loading" } | { type: "redirect"; to: string };
@@ -92,6 +105,7 @@ export function guardArea(s: SessionView, area: AppArea): GuardDecision {
   switch (area) {
     case "citizen":
     case "officer":
+    case "admin":
       allowed = allowedRoleApp(s) === area;
       break;
     case "auth":

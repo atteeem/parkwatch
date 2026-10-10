@@ -28,7 +28,13 @@ export function resolveAccess(profile: TrustedProfile | null, memberships: reado
         : { kind: "OFFICER_NOT_AUTHORIZED" };
     }
     case "SUPERVISOR":
-    case "ADMIN":
-      return { kind: "STAFF", role: profile.role };
+    case "ADMIN": {
+      // Mirrors public.pw_console_org_ids(): server-set staff role AND an active
+      // SUPERVISOR/ADMIN membership. Organization-scoped; there is no global admin.
+      const active = memberships.filter((m) => m.active && (m.memberRole === "SUPERVISOR" || m.memberRole === "ADMIN"));
+      return active.length > 0
+        ? { kind: "STAFF", role: profile.role, organizations: active.map((m) => ({ id: m.organizationId, name: m.organizationName })) }
+        : { kind: "STAFF_NOT_AUTHORIZED", role: profile.role };
+    }
   }
 }

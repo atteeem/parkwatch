@@ -29,8 +29,13 @@ export type Membership = {
 export type ResolvedAccess =
   | { kind: "CITIZEN" }
   | { kind: "OFFICER"; organizations: { id: string; name?: string }[] }
-  /** Supervisor/admin accounts: no app tools yet (truthful placeholder). */
-  | { kind: "STAFF"; role: "SUPERVISOR" | "ADMIN" }
+  /**
+   * Supervisor/admin with an ACTIVE SUPERVISOR/ADMIN membership: may use the
+   * read-only operations console for those organizations (T9.0).
+   */
+  | { kind: "STAFF"; role: "SUPERVISOR" | "ADMIN"; organizations: { id: string; name?: string }[] }
+  /** Supervisor/admin profile without an active SUPERVISOR/ADMIN membership (or the reverse). */
+  | { kind: "STAFF_NOT_AUTHORIZED"; role: "SUPERVISOR" | "ADMIN" }
   /** Officer profile without an active membership (or the reverse). */
   | { kind: "OFFICER_NOT_AUTHORIZED" }
   | { kind: "PROFILE_INVALID" };

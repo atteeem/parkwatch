@@ -34,7 +34,8 @@ describe("where each session lands", () => {
     ["citizen", CITIZEN, "/user/home"],
     ["authorized officer", OFFICER, "/officer/home"],
     ["officer without active membership", signedIn({ kind: "OFFICER_NOT_AUTHORIZED" }), ACCOUNT_STATUS],
-    ["supervisor/admin", signedIn({ kind: "STAFF", role: "SUPERVISOR" }), ACCOUNT_STATUS],
+    ["active supervisor/admin -> operations console", signedIn({ kind: "STAFF", role: "SUPERVISOR", organizations: [{ id: "o1" }] }), "/admin"],
+    ["staff without an active membership", signedIn({ kind: "STAFF_NOT_AUTHORIZED", role: "ADMIN" }), ACCOUNT_STATUS],
     ["profile still loading", signedIn(null), null],
     ["profile failed to load", signedIn(null, true), ACCOUNT_STATUS],
   ])("%s -> %s", (_l, view, home) => expect(homeFor(view)).toBe(home));
@@ -123,7 +124,7 @@ describe("identity shown on screens", () => {
 
   it("account status copy is truthful per case", () => {
     expect(accountStatusCopy({ ...authed({ kind: "OFFICER_NOT_AUTHORIZED" }) }).title).toBe("Officer access is not active");
-    expect(accountStatusCopy({ ...authed({ kind: "STAFF", role: "ADMIN" }) })).toMatchObject({ title: "Administrator account", canRetry: false });
+    expect(accountStatusCopy({ ...authed({ kind: "STAFF_NOT_AUTHORIZED", role: "ADMIN" }) })).toMatchObject({ title: "Administrator access is not active", canRetry: true });
   });
 });
 

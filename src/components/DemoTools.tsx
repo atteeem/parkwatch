@@ -22,7 +22,8 @@ export function DemoTools() {
   const [message, setMessage] = useState<string | null>(null);
 
   if (!__DEV__ || !devSwitchRole) return null;
-  const other = role === "officer" ? "citizen" : "officer";
+  const others = (["citizen", "officer", "admin"] as const).filter((r) => r !== role);
+  const ROLE_LABEL = { citizen: "Citizen app", officer: "Officer app", admin: "Operations console" } as const;
 
   return (
     <View style={styles.card}>
@@ -31,10 +32,12 @@ export function DemoTools() {
         <Text style={styles.title}>Demo tools</Text>
         <Text style={styles.badge}>DEV ONLY</Text>
       </View>
-      <Pressable style={styles.row} onPress={() => devSwitchRole(other)} accessibilityRole="button">
-        <Ionicons name="swap-horizontal" size={17} color={colors.greenDark} />
-        <Text style={styles.rowLabel}>Switch to {other === "officer" ? "Officer" : "Citizen"} app</Text>
-      </Pressable>
+      {others.map((other) => (
+        <Pressable key={other} style={styles.row} onPress={() => devSwitchRole(other)} accessibilityRole="button">
+          <Ionicons name="swap-horizontal" size={17} color={colors.greenDark} />
+          <Text style={styles.rowLabel}>Switch to {ROLE_LABEL[other]}</Text>
+        </Pressable>
+      ))}
       <Pressable
         style={styles.row}
         onPress={() => {

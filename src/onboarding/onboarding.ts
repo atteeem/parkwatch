@@ -83,7 +83,7 @@ export async function saveOnboardingDone(storage: KeyValueStorage): Promise<void
 export function shouldShowOnboarding(done: boolean | null, home: string | null): boolean | null {
   if (home === null || done === null) return null;
   if (done) return false;
-  return home !== ROLE_HOME.officer && home !== ACCOUNT_STATUS;
+  return home !== ROLE_HOME.officer && home !== ROLE_HOME.admin && home !== ACCOUNT_STATUS;
 }
 
 /** Device-wide cache of the preference, so the entry route decides once. */

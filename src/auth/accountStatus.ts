@@ -31,12 +31,12 @@ export function accountStatusCopy(state: AuthState): AccountStatusCopy {
         body: "This officer account doesn't have active enforcement authorization. Ask your organization's administrator to activate it.",
         canRetry: true,
       };
-    case "STAFF":
+    case "STAFF_NOT_AUTHORIZED":
       return {
         icon: "briefcase-outline",
-        title: state.access.role === "ADMIN" ? "Administrator account" : "Supervisor account",
-        body: "Supervisor and administrator tools aren't available in the mobile app yet.",
-        canRetry: false,
+        title: state.access.role === "ADMIN" ? "Administrator access is not active" : "Supervisor access is not active",
+        body: "This account doesn't have an active supervisor or administrator membership. Ask your organization's administrator to activate it.",
+        canRetry: true,
       };
     case "PROFILE_INVALID":
       return {

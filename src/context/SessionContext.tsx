@@ -20,7 +20,7 @@ type SessionValue = {
   /** The role-app this session may use, or null (signed out, loading, no access). */
   role: SessionRole | null;
   /**
-   * DEVELOPMENT/DEMO ONLY: switch between the citizen and officer apps.
+   * DEVELOPMENT/DEMO ONLY: switch between the citizen app, the officer app and the operations console.
    * Defined only in LOCAL_DEMO mode in development builds.
    */
   devSwitchRole?: (next: SessionRole) => void;
