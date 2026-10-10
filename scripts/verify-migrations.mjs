@@ -10,6 +10,7 @@ import { runT83 } from "./verify-t83.mjs";
 import { runT84 } from "./verify-t84.mjs";
 import { runT85, runT85SearchPath } from "./verify-t85.mjs";
 import { runT87, runT87EnumRename } from "./verify-t87.mjs";
+import { runT90 } from "./verify-t90.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -340,6 +341,7 @@ await runT85({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT85SearchPath({ q, ok });
 await runT87({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT87EnumRename({ ok }, { migrationsDir, setupSql: SETUP_SQL });
+await runT90({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));

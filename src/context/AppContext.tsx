@@ -23,6 +23,9 @@ import { EarningsPeriod, selectEarnings, selectWalletActivity, WalletActivityIte
 import { ParkingHistoryItem, parkingHistory, VehicleView, vehicleViews } from "../presentation/parkingViews";
 import { ActionResult } from "../presentation/submitGuard";
 import { deviceTimeZone, localMonthlyStats, MonthlyStats } from "../presentation/officerStats";
+import { AdminApi } from "../admin/adminTypes";
+import { createLocalAdmin } from "../admin/localAdmin";
+import { createAdminOperations } from "../backend/admin/adminOperations";
 import { useAuth } from "../auth/AuthContext";
 import {
   createCoreBackendStore,
@@ -212,6 +215,13 @@ type AppContextValue = {
   markOfficerNotificationsRead: () => void;
   /** DEVELOPMENT/DEMO ONLY (no-op in production and in BACKEND mode): reset to the known demo seed. */
   resetDemoData: () => Promise<void>;
+
+  /**
+   * T9.0 operations console (read-only). Non-null only for a console session
+   * (BACKEND: server-resolved active SUPERVISOR/ADMIN membership; LOCAL_DEMO:
+   * the dev console role). The server scopes every call to the caller's organization.
+   */
+  admin: AdminApi | null;
 };
 
 export type ListItem<T extends AppListSpec> = T extends { kind: "citizenReports" }
@@ -286,7 +296,7 @@ function buildValue(args: {
   citizenProfile: ReporterDisplayProfile;
   actions: CoreActions;
   lists: ListAccess;
-  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData">;
+  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin">;
 }): AppContextValue {
   const { core, parking, citizenId, officerId, parkingOwnerId, derived } = args;
   const { now, officerCases } = derived;
@@ -348,6 +358,7 @@ const noop = () => undefined;
 function LocalAppProvider({ children }: { children: React.ReactNode }) {
   useEffect(registerDevTools, []);
   const state = useLocalStore();
+  const { role: sessionRole } = useSession();
 
   const value = useMemo<AppContextValue | null>(() => {
     if (!state) return null;
@@ -393,6 +404,8 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         refreshCoreIfStale: noop,
         capabilities: { withdrawals: true, demoTools: true },
         resetDemoData,
+        // LOCAL_DEMO console: the complete local store (demo convenience, not security).
+        admin: sessionRole === "admin" ? createLocalAdmin(() => state) : null,
       },
       lists: {
         getList,
@@ -455,7 +468,7 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
-  }, [state]);
+  }, [state, sessionRole]);
 
   // Render nothing until persisted state is loaded (a few ms), so no action
   // can run against seed data that is about to be replaced.
@@ -549,7 +562,15 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     void refreshProfile();
   }, [refreshProfile]);
 
-  const store = useCoreBackendStore(userId, role, onUnauthenticated);
+  // The console session has no citizen/officer core store; it reads through admin_* functions.
+  const coreRole = role === "citizen" || role === "officer" ? role : null;
+  const store = useCoreBackendStore(coreRole ? userId : null, coreRole, onUnauthenticated);
+  const adminApi = useMemo<AdminApi | null>(() => {
+    if (role !== "admin" || !userId) return null;
+    const client = getSupabaseClient();
+    if (!client.ok) return null;
+    return createAdminOperations(client.value, createEvidenceStorage(client.value), { timeZone: deviceTimeZone, onUnauthenticated });
+  }, [role, userId, onUnauthenticated]);
   const subscribe = useCallback((l: () => void) => (store ? store.subscribe(l) : () => undefined), [store]);
   const version = useSyncExternalStore(subscribe, () => store?.getVersion() ?? -1, () => store?.getVersion() ?? -1);
   const parking = useLocalStore();
@@ -602,6 +623,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         },
         capabilities: { withdrawals: false, demoTools: false },
         resetDemoData: noRefresh,
+        admin: adminApi,
       },
       lists: {
         getList,
@@ -663,7 +685,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         markOfficerNotificationsRead: markRead,
       },
     });
-  }, [version, parking, store, userId, role, displayName]);
+  }, [version, parking, store, userId, role, displayName, adminApi]);
 
   const refreshEvidenceUrl = useCallback(async (url: string) => (store ? store.refreshSignedUrl(url) : false), [store]);
 
