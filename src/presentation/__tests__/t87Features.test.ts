@@ -91,7 +91,8 @@ describe("evidence gallery", () => {
     expect(gallery).toMatch(/<EvidencePhoto uri=\{item\.uri\}/);
     expect(gallery).not.toMatch(/getPublicUrl|createSignedUrl|storage\.from/);
     expect(read("src/presentation/viewModels.ts")).toMatch(/evidence: citizenGalleryItems\(report\.evidence\)/);
-    for (const f of fs.readdirSync(path.join(ROOT, "supabase/migrations")).filter((f) => f >= "20261010")) {
+    for (const f of fs.readdirSync(path.join(ROOT, "supabase/migrations")).filter((f) => f.startsWith("20261010"))) {
+      // T8.7 migrations only. T9.0 adds org-scoped console read policies on purpose (tested in verify-t90).
       const sql = read(`supabase/migrations/${f}`);
       // No policy, helper or bucket setting for citizen/officer evidence is created or changed.
       const touches =

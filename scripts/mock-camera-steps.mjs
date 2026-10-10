@@ -5,6 +5,8 @@
 //
 //   node scripts/mock-camera-steps.mjs submit [draftId]           citizen@example.test submits a report with 3 photos
 //   node scripts/mock-camera-steps.mjs officer-photos <reportNo>  officer@example.test adds the 4 officer photos
+//   node scripts/mock-camera-steps.mjs pilot-data                 T9.0 console QA: 5 reports through the real workflow
+//                                                                 (charge issued, rejected, vehicle moved, in progress, new)
 //
 // Everything else (accept, checks, outcome, notifications, wallet) is done in the app.
 
@@ -60,7 +62,53 @@ if (cmd === "submit") {
     await rpc(me.token, "add_officer_evidence", { p_case_id: c.id, p_evidence_type: type, p_storage_path: path, p_captured_at: new Date().toISOString() });
   }
   console.log(JSON.stringify({ caseId: c.id, photos: 4 }));
+} else if (cmd === "pilot-data") {
+  // Same public API as the apps: the citizen submits, the officer works each case
+  // with server functions. Nothing here bypasses Row Level Security.
+  const citizen = await signIn("citizen@example.test");
+  const officer = await signIn("officer@example.test");
+  const plates = [["PLT-201", "no-parking"], ["PLT-202", "disabled"], ["PLT-203", "no-parking"], ["PLT-204", "fire-lane"], ["PLT-205", "no-parking"]];
+  const made = [];
+  for (const [i, [plate, violation]] of plates.entries()) {
+    const draft = `draft-pilot-${Date.now().toString(36)}-${i}`;
+    const now = new Date().toISOString();
+    const evidence = [];
+    for (const slot of ["FRONT", "SIDE", "REAR"]) {
+      const path = `${citizen.id}/${draft}/${draft}-${slot}.png`;
+      await upload(citizen.token, "report-evidence", path);
+      evidence.push({ slot, capture_source: "CAMERA", storage_path: path, captured_at: now });
+    }
+    const r = await rpc(citizen.token, "submit_report", {
+      p_submission_id: draft, p_violation_type: violation, p_location_address: `Mannerheimintie ${40 + i}, Helsinki`,
+      p_observed_at: now, p_submitted_at: now, p_evidence: evidence, p_notes: i === 0 ? "Blocking the bike lane" : "",
+      p_latitude: 60.1699 + i * 0.001, p_longitude: 24.9384, p_location_accuracy_m: i === 1 ? null : 8, p_location_captured_at: i === 1 ? null : now,
+      p_location_source: i === 1 ? "MAP_SELECTED" : "GPS",
+      p_plate_raw: plate, p_plate_normalized: plate.replace("-", ""), p_plate_country: "FI", p_vehicle_source: "MOCK_DETECTED",
+    });
+    made.push({ number: r.public_report_number, caseId: r.case_id });
+  }
+  const work = async (caseId, outcome) => {
+    await rpc(officer.token, "accept_case", { p_case_id: caseId });
+    if (!outcome) return;
+    await rpc(officer.token, "start_en_route", { p_case_id: caseId });
+    await rpc(officer.token, "start_inspection", { p_case_id: caseId });
+    for (const key of ["vehiclePresent", "plateMatches", "violationConfirmed", "restrictionVerified"]) {
+      await rpc(officer.token, "set_inspection_check", { p_case_id: caseId, p_check_key: key, p_answer: true });
+    }
+    for (const type of ["VEHICLE_FRONT", "LICENSE_PLATE", "PARKING_SIGN", "VEHICLE_REAR"]) {
+      const path = `${caseId}/${type}-pilot.png`;
+      await upload(officer.token, "officer-evidence", path);
+      await rpc(officer.token, "add_officer_evidence", { p_case_id: caseId, p_evidence_type: type, p_storage_path: path, p_captured_at: new Date().toISOString() });
+    }
+    await rpc(officer.token, "complete_case", { p_case_id: caseId, p_code: outcome, p_notes: outcome === "CHARGE_ISSUED" ? "Parking charge issued on site" : "" });
+  };
+  await work(made[0].caseId, "CHARGE_ISSUED");
+  await work(made[1].caseId, "REPORT_REJECTED");
+  await work(made[2].caseId, "VEHICLE_MOVED");
+  await work(made[3].caseId, null); // accepted, in progress
+  // made[4] stays NEW
+  console.log(JSON.stringify(made.map((m) => m.number)));
 } else {
-  console.log("usage: submit [draftId] | officer-photos <reportNumber>");
+  console.log("usage: submit [draftId] | officer-photos <reportNumber> | pilot-data");
   process.exit(1);
 }

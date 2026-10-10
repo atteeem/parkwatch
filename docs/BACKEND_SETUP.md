@@ -62,9 +62,18 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
     (2 MB, JPEG/PNG/WebP) with own-folder-only storage policies,
     `profiles.avatar_storage_path` (path only, not client-writable) and
     `set_my_avatar(path | null)`.
+11. `20261011000001_admin_console.sql` — T9.0: read-only operations console for
+    active SUPERVISOR/ADMIN members (`admin_*` functions, organization-scoped from
+    `auth.uid()`; no global admin) and two storage SELECT policies so console members
+    can view their own organization's evidence via signed URLs. Existing RLS unchanged.
+    See `docs/OPERATIONS_CONSOLE.md`.
 
-> T8.7 migrations (7–10) are **not applied to the real development project yet**.
-> Review them, run `npm run verify:migrations`, then apply in order.
+> T8.7 migrations (7–10) and the T9.0 migration (11) are **not applied to the real
+> development project yet**. Review them, run `npm run verify:migrations`, then apply in order.
+>
+> Console accounts are created with admin tooling only (service role, never the app):
+> set `profiles.role` to `SUPERVISOR` or `ADMIN` **and** add an active
+> `organization_members` row with `member_role` `SUPERVISOR` or `ADMIN`.
 
 After applying (4), set the enforcement area new reports go to. **This is a
 development-only routing setting**, controlled on the server; citizens never choose an
@@ -200,7 +209,7 @@ a service-role key in the app.
 
 1. Create the project (section 1). In **Authentication → Providers → Email**, decide
    whether email confirmation is on (the app handles both).
-2. Apply the migrations in order (section 4; ten as of T8.7).
+2. Apply the migrations in order (section 4; eleven as of T9.0).
 3. Run `supabase/seed.dev.sql` (demo organization, `helsinki-demo` jurisdiction,
    default jurisdiction).
 4. Verify in the SQL editor:

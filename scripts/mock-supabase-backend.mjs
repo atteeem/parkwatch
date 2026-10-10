@@ -17,7 +17,9 @@
 //
 // Test accounts (password "mock-password-1"): citizen@example.test,
 // citizen2@example.test, officer@example.test and officer2@example.test (active
-// members), inactive-officer@example.test, metadata-officer@example.test.
+// members), inactive-officer@example.test, metadata-officer@example.test;
+// T9.0 console: supervisor@example.test, admin@example.test (organization A),
+// inactive-supervisor@example.test, other-supervisor@example.test (organization B).
 // POST /__mock/membership {"email":..., "active": false} flips a membership.
 
 import http from "node:http";
@@ -51,9 +53,10 @@ async function addUser(email, displayName, opts = {}) {
     await db.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3::jsonb)`, [id, email, JSON.stringify(metadata)]);
     if (opts.role) await db.query(`update public.profiles set role = $2 where id = $1`, [id, opts.role]);
     if (opts.membership) {
-      await db.query(`insert into public.organization_members (organization_id, user_id, member_role, active) values ($1, $2, 'OFFICER', $3)`, [
-        orgId,
+      await db.query(`insert into public.organization_members (organization_id, user_id, member_role, active) values ($1, $2, $3, $4)`, [
+        opts.orgId ?? orgId,
         id,
+        opts.memberRole ?? "OFFICER",
         opts.membership === "active",
       ]);
     }
@@ -66,6 +69,16 @@ await addUser("officer@example.test", "Olli Officer", { role: "OFFICER", members
 await addUser("officer2@example.test", "Oona Officer", { role: "OFFICER", membership: "active" });
 await addUser("inactive-officer@example.test", "Ina Inactive", { role: "OFFICER", membership: "inactive" });
 await addUser("metadata-officer@example.test", "Meta Data", { metadata: { display_name: "Meta Data", role: "OFFICER" } });
+// T9.0 operations console (org-scoped; there is no global admin).
+const otherOrgId = await asAdmin(async (db) => {
+  const org = (await db.query(`insert into public.organizations (name) values ('Other City Enforcement (mock)') returning id`)).rows[0].id;
+  await db.query(`insert into public.jurisdictions (id, organization_id, name) values ('other-city', $1, 'Other City (demo)')`, [org]);
+  return org;
+});
+await addUser("supervisor@example.test", "Sanna Supervisor", { role: "SUPERVISOR", membership: "active", memberRole: "SUPERVISOR" });
+await addUser("admin@example.test", "Aino Admin", { role: "ADMIN", membership: "active", memberRole: "ADMIN" });
+await addUser("inactive-supervisor@example.test", "Iiris Inactive", { role: "SUPERVISOR", membership: "inactive", memberRole: "SUPERVISOR" });
+await addUser("other-supervisor@example.test", "Otto Other", { role: "SUPERVISOR", membership: "active", memberRole: "SUPERVISOR", orgId: otherOrgId });
 
 // --- helpers -----------------------------------------------------------------
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");

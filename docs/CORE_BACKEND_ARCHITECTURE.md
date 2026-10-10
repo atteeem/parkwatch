@@ -54,6 +54,20 @@ assignment as a parameter. Rule failures are raised as `CODE: message`.
   response followed by a retry still finds the report. A retaken officer
   photo replaces its slot and the old object is removed.
 
+## T9.0 operations console (read-only)
+
+- `admin_*` SECURITY DEFINER functions (search_path pinned, anon/PUBLIC revoked)
+  derive the caller's scope from `auth.uid()`: active SUPERVISOR/ADMIN membership +
+  SUPERVISOR/ADMIN profile role (`pw_console_org_ids()`). No client parameter carries
+  identity, organization or role; out-of-scope rows look missing. No global admin.
+- Existing RLS is unchanged. Two new storage SELECT policies let console members read
+  their own organization's evidence objects (for signed URLs).
+- Server-side filtering and offset paging (exact totals, max 100 per page).
+- Rewards counted once per report from its ledger state; citizens pseudonymous.
+- App: `src/admin` (types, local-demo implementation, views, UI) and
+  `src/backend/admin/adminOperations.ts`, exposed through `AppContext.admin`.
+  Details: `docs/OPERATIONS_CONSOLE.md`.
+
 ## T8.7 additions
 
 - **Report location provenance.** `latitude/longitude` is the report point officers
