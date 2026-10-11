@@ -56,6 +56,18 @@ describe("migrations on a real Postgres", () => {
     "T9.0: reward summary counts one reward per report (pending + release is not double-counted)",
     "T9.0: console functions are read-only (no row changes)",
     "T9.0: existing RLS is unchanged: supervisors still cannot read ledger/audit tables directly",
+    // T9.0 hardening (independent security review)
+    "T9.0 hardening: a completed CHARGE_ISSUED case shows OUTCOME_RECORDED in its history",
+    "T9.0 hardening: a completed REPORT_REJECTED case shows OUTCOME_RECORDED in its history",
+    "T9.0 hardening: Audit 'outcome' filter returns OUTCOME_RECORDED for every organization A outcome",
+    "T9.0 hardening: organization B's outcome event stays invisible to organization A",
+    "T9.0 hardening: audit metadata is reduced to allowed operational keys (case_id and unknown keys removed)",
+    "T9.0 hardening: active in A and B -> sees the union of both organizations",
+    "T9.0 hardening: active in A, inactive in B -> only A",
+    "T9.0 hardening: an organization B officer id as filter returns no rows to organization A",
+    "T9.0 hardening: revoked membership -> next console call FORBIDDEN and evidence access refused",
+    "T9.0 hardening: a citizen calling the console storage helper on a real object gets false",
+    "T9.0 hardening: a citizen whose sign-up metadata claims ADMIN stays a citizen and is refused",
     // T8.7
     "T8.7: a GPS point is stored with its accuracy, time and source GPS",
     "T8.7: a point picked on the map is stored as MAP_SELECTED without accuracy/time",

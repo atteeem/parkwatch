@@ -71,6 +71,27 @@ Migrations live in `supabase/migrations/` and must be applied **in filename orde
 > T8.7 migrations (7–10) and the T9.0 migration (11) are **not applied to the real
 > development project yet**. Review them, run `npm run verify:migrations`, then apply in order.
 >
+> ### Dev-cloud deployment (pending, one maintenance window)
+>
+> Apply in **filename order**, **before** launching any T8.7+ / T9 client:
+>
+> 1. `20261010000001_report_location_provenance.sql`
+> 2. `20261010000002_officer_evidence_front_rear.sql` — **the breaking cutover**
+> 3. `20261010000003_officer_monthly_stats.sql`
+> 4. `20261010000004_profile_avatars.sql`
+> 5. `20261011000001_admin_console.sql`
+>
+> * (2) renames the officer evidence enum. Officer apps older than T8.7 cannot save
+>   front/rear photos after it, and T8.7+ officer apps cannot before it. Update **all
+>   pilot officer devices to the T8.7+ app in the same window**, and make sure **no
+>   officer is mid-inspection** when it is applied. (Accepted for the pilot: there are
+>   no production users yet; no compatibility layer.)
+> * (1) is compatible with older citizen apps, but T8.7+ citizen apps need it applied
+>   first (they send `p_location_source`).
+> * Give staff the operations console (T9 web build) only **after** (5).
+> * Then run real-cloud QA (citizen, officer, and the console deny matrix /
+>   cross-organization checks with real roles).
+>
 > Console accounts are created with admin tooling only (service role, never the app):
 > set `profiles.role` to `SUPERVISOR` or `ADMIN` **and** add an active
 > `organization_members` row with `member_role` `SUPERVISOR` or `ADMIN`.

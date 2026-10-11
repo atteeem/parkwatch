@@ -49,8 +49,14 @@ and is shown through 1-hour signed URLs).
 
 ## Data shown — and not shown
 
-* Citizens appear only as a pseudonymous reference (`C-xxxxxxxx`): no names,
-  emails, account ids or balances.
+* Citizens appear only as a **stable pseudonymous operational reference**
+  (`C-xxxxxxxx`). It is derived deterministically from the account id, so the
+  same citizen always has the same reference: it is linkable and is **not**
+  anonymous. No names, emails or balances are shown, and citizen account ids are
+  never displayed as console text. Note: evidence storage is account-scoped
+  internally (object paths start with the account id); those paths are used only
+  to issue short-lived signed URLs and are not rendered in the console, but they
+  are present in the console's network plumbing.
 * Officers: display name, role, membership state, workload counts. No location
   history or tracking.
 * Money: integer cents; €5 qualifying reward, €60 mock/private parking charge.
@@ -59,7 +65,11 @@ and is shown through 1-hour signed URLs).
   released/voided), never by summing ledger rows.
 * Withdrawals, notifications and profile events are citizen-account data and are
   not part of the console.
-* Audit details never show storage paths, URLs, tokens or internal ids.
+* Audit metadata is reduced **on the server** to an allow-list of operational
+  keys (`code`, `entry`, `amount_cents`, `charge_cents`, `check`, `answer`,
+  `via`, `type`, `from`, `to`, `outcome`) before it leaves the database: ids
+  (e.g. `case_id`), account ids, storage paths, URLs, tokens and any future key
+  are dropped. The UI formats amounts as euros (e.g. "Parking charge · €60.00").
 
 ## Read-only
 
@@ -95,3 +105,34 @@ sign in as `supervisor@example.test` / `admin@example.test` (organization A) or
 Payment processing, payouts, bank accounts, parking-operator or municipality
 integrations, automatic/AI enforcement, employee tracking, fraud scoring, push
 infrastructure, supervisor write actions.
+
+## Access refresh and evidence URLs
+
+* If a staff membership is deactivated (or a role changes) while the console is
+  open, the next console call is refused (`FORBIDDEN`); the app then re-resolves
+  access from the server (profile + memberships) and the route guard moves the
+  user to account status. A still-valid session is not signed out.
+* Console evidence is shown through 1-hour signed URLs. If a photo fails to load
+  (most likely an expired URL), the detail page re-loads itself once (60-second
+  cooldown) to get freshly signed URLs from the same organization-scoped server
+  call; repeated failures show "Photo unavailable" instead of retrying in a loop.
+
+## Deployment
+
+See `docs/BACKEND_SETUP.md` → "Dev-cloud deployment": migrations in filename order
+before T8.7+/T9 clients; the officer evidence enum migration is a breaking cutover
+done in one maintenance window with all officer devices updated; the console is
+given to staff only after the T9 migration.
+
+## Documented decisions (deferred)
+
+* **Officer evidence enum cutover** (`20261010000002`): kept as a hard cutover for
+  the pilot (no production users). No compatibility layer.
+* **Supervisor officer-write rights** (pre-existing, T8.2): a SUPERVISOR profile with
+  an active SUPERVISOR membership is also an enforcement member, so the server lets
+  it use officer workflow functions (e.g. accept/complete a case) directly. The
+  console itself is read-only and does not offer these actions. Whether supervisors
+  keep officer write rights is a later role-policy decision.
+* **Performance**: overview and reward summaries compute the per-report reward state
+  for every report of the organization, and lists use offset paging with exact
+  totals. Fine at pilot scale; aggregates/keyset paging can come later.

@@ -562,6 +562,16 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     void refreshProfile();
   }, [refreshProfile]);
 
+  // The server refused console access (membership deactivated / role changed):
+  // re-resolve access from the server (profile + memberships). The route guard
+  // then leaves /admin. A still-valid session is NOT signed out.
+  const lastForbiddenCheck = useRef(0);
+  const onConsoleForbidden = useCallback(() => {
+    if (Date.now() - lastForbiddenCheck.current < 5_000) return;
+    lastForbiddenCheck.current = Date.now();
+    void refreshProfile();
+  }, [refreshProfile]);
+
   // The console session has no citizen/officer core store; it reads through admin_* functions.
   const coreRole = role === "citizen" || role === "officer" ? role : null;
   const store = useCoreBackendStore(coreRole ? userId : null, coreRole, onUnauthenticated);
@@ -569,8 +579,8 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     if (role !== "admin" || !userId) return null;
     const client = getSupabaseClient();
     if (!client.ok) return null;
-    return createAdminOperations(client.value, createEvidenceStorage(client.value), { timeZone: deviceTimeZone, onUnauthenticated });
-  }, [role, userId, onUnauthenticated]);
+    return createAdminOperations(client.value, createEvidenceStorage(client.value), { timeZone: deviceTimeZone, onUnauthenticated, onForbidden: onConsoleForbidden });
+  }, [role, userId, onUnauthenticated, onConsoleForbidden]);
   const subscribe = useCallback((l: () => void) => (store ? store.subscribe(l) : () => undefined), [store]);
   const version = useSyncExternalStore(subscribe, () => store?.getVersion() ?? -1, () => store?.getVersion() ?? -1);
   const parking = useLocalStore();

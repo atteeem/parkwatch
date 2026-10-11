@@ -17,9 +17,14 @@
 -- only additions are two storage SELECT policies so console members can view
 -- (via short-lived signed URLs) the evidence of their own organization.
 --
--- Data minimization: citizens appear only as a pseudonymous reference
--- (C-xxxxxxxx); no names, emails or citizen account balances. Officers appear
--- with display name and membership only; no location history.
+-- Data minimization: citizens appear only as a stable pseudonymous
+-- operational reference (C-xxxxxxxx, derived deterministically from the
+-- account id; linkable, not anonymous). No names, emails or citizen account
+-- balances, and account ids are never rendered as console text. Evidence
+-- storage paths (internally account-scoped) are used only to issue signed
+-- URLs and are not rendered. Officers appear with display name and
+-- membership only; no location history. Audit metadata is reduced to an
+-- allow-list of operational keys before it leaves the server.
 -- Withdrawals, notifications and profile events are citizen-account data and
 -- are not shown.
 -- ============================================================================
@@ -54,7 +59,9 @@ begin
   end if;
 end $$;
 
--- Pseudonymous citizen reference for operations (stable per citizen, not reversible in the UI).
+-- Stable pseudonymous operational reference: deterministic per account id
+-- (the same citizen gets the same reference), so it is linkable and not
+-- anonymous. It only avoids showing names, emails or account ids as text.
 create function public.pw_citizen_ref(p_citizen uuid) returns text
 language sql immutable set search_path = '' as $$
   select 'C-' || upper(left(md5(p_citizen::text), 8));
@@ -233,7 +240,21 @@ begin
   return result;
 end $$;
 
+-- Audit metadata for the console: ONLY these operational keys survive.
+-- Ids (e.g. case_id), account ids, storage paths, URLs, tokens and any key a
+-- future pw_audit call might add are dropped server-side.
+create function public.pw_console_audit_metadata(p_metadata jsonb) returns jsonb
+language sql immutable set search_path = '' as $$
+  select coalesce(
+    (select jsonb_object_agg(k, v) from jsonb_each(coalesce(p_metadata, '{}'::jsonb)) as e(k, v)
+     where k in ('code', 'entry', 'amount_cents', 'charge_cents', 'check', 'answer', 'via', 'type', 'from', 'to', 'outcome')
+       and jsonb_typeof(v) in ('string', 'number', 'boolean')),
+    '{}'::jsonb);
+$$;
+
 -- Audit events of one report and everything hanging off it (case, inspection, evidence, outcome, reward).
+-- complete_case records OUTCOME_RECORDED with the CASE id as entity id, so
+-- 'outcome' events are matched by enforcement_outcomes.case_id.
 create function public.pw_report_audit(p_report uuid) returns jsonb
 language sql stable security definer set search_path = '' as $$
   with ents as (
@@ -242,14 +263,14 @@ language sql stable security definer set search_path = '' as $$
     union all select 'officer_case', c.id from public.officer_cases c where c.report_id = p_report
     union all select 'inspection', i.id from public.inspections i join public.officer_cases c on c.id = i.case_id where c.report_id = p_report
     union all select 'evidence', e.id from public.officer_evidence e join public.officer_cases c on c.id = e.case_id where c.report_id = p_report
-    union all select 'outcome', o.id from public.enforcement_outcomes o join public.officer_cases c on c.id = o.case_id where c.report_id = p_report
+    union all select 'outcome', o.case_id from public.enforcement_outcomes o join public.officer_cases c on c.id = o.case_id where c.report_id = p_report
   )
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', a.id, 'created_at', a.created_at, 'actor_role', a.actor_role, 'source', a.source,
     'actor_label', case when a.actor_role = 'CITIZEN' and a.actor_user_id is not null then public.pw_citizen_ref(a.actor_user_id)
                         when a.actor_role = 'SYSTEM' then 'ParkWatch'
                         else coalesce(public.pw_console_member_name(a.actor_user_id), initcap(a.actor_role::text)) end,
-    'entity_type', a.entity_type, 'event_type', a.event_type, 'metadata', a.metadata
+    'entity_type', a.entity_type, 'event_type', a.event_type, 'metadata', public.pw_console_audit_metadata(a.metadata)
   ) order by a.created_at, a.id), '[]'::jsonb)
   from public.audit_events a join ents on ents.t = a.entity_type and ents.id = a.entity_id;
 $$;
@@ -505,7 +526,8 @@ begin
     union all select 'officer_case', c.id, sr.public_report_number from public.officer_cases c join sr on sr.id = c.report_id
     union all select 'inspection', i.id, sr.public_report_number from public.inspections i join public.officer_cases c on c.id = i.case_id join sr on sr.id = c.report_id
     union all select 'evidence', e.id, sr.public_report_number from public.officer_evidence e join public.officer_cases c on c.id = e.case_id join sr on sr.id = c.report_id
-    union all select 'outcome', o.id, sr.public_report_number from public.enforcement_outcomes o join public.officer_cases c on c.id = o.case_id join sr on sr.id = c.report_id
+    -- OUTCOME_RECORDED uses the case id as entity id (see complete_case).
+    union all select 'outcome', o.case_id, sr.public_report_number from public.enforcement_outcomes o join public.officer_cases c on c.id = o.case_id join sr on sr.id = c.report_id
   ), f as (
     select a.*, ents.num from public.audit_events a join ents on ents.t = a.entity_type and ents.id = a.entity_id
     where (p_actor_role is null or a.actor_role = p_actor_role)
@@ -524,7 +546,7 @@ begin
       'actor_label', case when p.actor_role = 'CITIZEN' and p.actor_user_id is not null then public.pw_citizen_ref(p.actor_user_id)
                           when p.actor_role = 'SYSTEM' then 'ParkWatch'
                           else coalesce(public.pw_console_member_name(p.actor_user_id), initcap(p.actor_role::text)) end,
-      'entity_type', p.entity_type, 'event_type', p.event_type, 'public_report_number', p.num, 'metadata', p.metadata
+      'entity_type', p.entity_type, 'event_type', p.event_type, 'public_report_number', p.num, 'metadata', public.pw_console_audit_metadata(p.metadata)
     ) order by p.created_at desc, p.id desc) from page p), '[]'::jsonb)
   ) into result;
   return result;
@@ -537,7 +559,8 @@ end $$;
 revoke all on function
   public.pw_console_org_ids(), public.pw_console_jurisdiction_ids(), public.pw_require_console(),
   public.pw_citizen_ref(uuid), public.pw_console_limit(integer), public.pw_report_reward_state(uuid),
-  public.pw_console_member_name(uuid), public.pw_plate_key(text), public.pw_report_audit(uuid)
+  public.pw_console_member_name(uuid), public.pw_plate_key(text), public.pw_report_audit(uuid),
+  public.pw_console_audit_metadata(jsonb)
 from public, anon, authenticated;
 
 -- Storage policy helper: evaluated for signed-in users only.

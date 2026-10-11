@@ -222,3 +222,40 @@ describe("role resolution", () => {
     expect(resolveAccess({ id: "u", role: "SUPERUSER" as never, displayName: "" }, []).kind).toBe("PROFILE_INVALID");
   });
 });
+
+describe("T9.0 hardening: revoked console access leaves /admin", () => {
+  it("active staff -> /admin allowed; membership deactivated -> after the FORBIDDEN-triggered re-check, /admin is no longer allowed (session kept)", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { guardArea } = require("../../navigation/roleGuard") as typeof import("../../navigation/roleGuard");
+    const { server, store } = setup({ sessionUser: OFFICER });
+    server.profiles[OFFICER.id] = { id: OFFICER.id, role: "SUPERVISOR", displayName: "Sanna Supervisor" };
+    server.memberships[OFFICER.id] = [{ organizationId: "org-1", organizationName: "Helsinki Enforcement", memberRole: "SUPERVISOR", active: true }];
+    await store.start();
+    const view = () => {
+      const s = store.getState();
+      if (s.mode !== "BACKEND" || s.status !== "authenticated") throw new Error(`not signed in: ${JSON.stringify(s)}`);
+      return { mode: "BACKEND" as const, status: "authenticated" as const, access: s.access, accessFailed: !!s.accessError };
+    };
+    expect(view().access).toMatchObject({ kind: "STAFF", role: "SUPERVISOR" });
+    expect(guardArea(view(), "admin")).toEqual({ type: "allow" });
+
+    // Server side: the membership is deactivated. The next console call is FORBIDDEN,
+    // which makes the app call refreshAccess (AppContext onConsoleForbidden -> refreshProfile).
+    server.memberships[OFFICER.id] = [{ ...server.memberships[OFFICER.id][0], active: false }];
+    await store.refreshAccess();
+
+    expect(view().access).toEqual({ kind: "STAFF_NOT_AUTHORIZED", role: "SUPERVISOR" });
+    expect(guardArea(view(), "admin")).toEqual({ type: "redirect", to: "/account/status" });
+    expect(store.getState()).toMatchObject({ status: "authenticated", user: OFFICER }); // not signed out
+  });
+
+  it("the console's FORBIDDEN handler is wired to the trusted access re-check (not a sign-out)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    const src = fs.readFileSync(require("path").join(__dirname, "../../context/AppContext.tsx"), "utf8");
+    expect(src).toMatch(/onForbidden: onConsoleForbidden/);
+    const handler = src.slice(src.indexOf("const onConsoleForbidden"), src.indexOf("const onConsoleForbidden") + 300);
+    expect(handler).toMatch(/refreshProfile\(\)/);
+    expect(handler).not.toMatch(/signOut/);
+  });
+});

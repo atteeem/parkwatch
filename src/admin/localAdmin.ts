@@ -34,7 +34,11 @@ export const LOCAL_DEMO_ORG = "Helsinki Parking Enforcement (demo)";
 
 const NO_CHARGE: readonly EnforcementOutcomeCode[] = ["VEHICLE_MOVED", "VALID_PERMIT", "DUPLICATE", "OTHER"];
 
-/** Pseudonymous citizen reference (stable, not reversible in the UI). */
+/**
+ * Stable pseudonymous operational reference: deterministic per account id, so
+ * the same citizen always gets the same reference (linkable, not anonymous).
+ * It only keeps names, emails and account ids out of the console text.
+ */
 export function citizenRef(citizenId: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < citizenId.length; i++) {
@@ -194,7 +198,8 @@ export function auditFor(s: ParkWatchState, reportIds?: ReadonlySet<string>): Ad
         entityType: "outcome",
         eventType: "OUTCOME_RECORDED",
         publicNumber: num,
-        metadata: { code: c.outcome.code },
+        // Same shape as complete_case on the server (charge only for CHARGE_ISSUED).
+        metadata: c.outcome.code === "CHARGE_ISSUED" && c.outcome.chargeAmountCents !== undefined ? { code: c.outcome.code, charge_cents: c.outcome.chargeAmountCents } : { code: c.outcome.code },
       });
     }
     for (const l of s.ledger.filter((x) => x.reportId === r.id)) {
