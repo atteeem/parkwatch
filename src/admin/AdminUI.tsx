@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
@@ -6,15 +6,32 @@ import { radius } from "../constants/spacing";
 import { GreenButton } from "../components/GreenButton";
 import type { DomainError, Result } from "../domain";
 import type { AdminPage, AdminAuditEvent } from "./adminTypes";
-import { ACTOR_ROLE_LABEL, AUDIT_ENTITY_LABEL, auditDetails, auditEventText, formatStamp, LoadFailure, loadFailure, pageSummary } from "./adminViews";
+import { ACTOR_ROLE_LABEL, AUDIT_ENTITY_LABEL, auditDetails, auditEventText, createEvidenceRetry, formatStamp, LoadFailure, loadFailure, pageSummary } from "./adminViews";
+import { EvidenceUrlContext } from "../context/EvidenceUrlContext";
+
+/** Keep the first row of each id, in order. */
+export function dedupeById<T>(rows: readonly T[]): T[] {
+  const seen = new Set<unknown>();
+  return rows.filter((r) => {
+    const id = (r as { id?: unknown }).id;
+    if (id === undefined) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Data hooks
 
 export type LoadState<T> = { phase: "loading" } | { phase: "failed"; failure: LoadFailure } | { phase: "ready"; data: T };
 
-/** One server read (re-run when `key` changes). Stale answers are ignored. */
-export function useAdminLoad<T>(load: () => Promise<Result<T>>, key: string): LoadState<T> & { reload: () => void } {
+/**
+ * One server read (re-run when `key` changes). Stale answers are ignored.
+ * `refresh()` re-reads without the loading state (the page and any open
+ * gallery stay); a lost access/session still replaces the page.
+ */
+export function useAdminLoad<T>(load: () => Promise<Result<T>>, key: string): LoadState<T> & { reload: () => void; refresh: () => Promise<void> } {
   const [state, setState] = useState<LoadState<T>>({ phase: "loading" });
   const seq = useRef(0);
   const loadRef = useRef(load);
@@ -31,7 +48,31 @@ export function useAdminLoad<T>(load: () => Promise<Result<T>>, key: string): Lo
     );
   }, []);
   useEffect(run, [key, run]);
-  return { ...state, reload: run };
+  const refresh = useCallback(async () => {
+    const my = ++seq.current;
+    const r = await loadRef.current().catch(() => null);
+    if (my !== seq.current || !r) return;
+    if (r.ok) setState({ phase: "ready", data: r.value });
+    else {
+      const f = loadFailure(r.error);
+      if (f.kind !== "error") setState({ phase: "failed", failure: f });
+    }
+  }, []);
+  return { ...state, reload: run, refresh };
+}
+
+/**
+ * Console detail pages: an evidence photo whose signed URL fails re-loads the
+ * detail once (cooldown), which re-signs the photos server-side. Only URLs of
+ * this page count; there is no retry loop.
+ */
+export function AdminEvidenceRefresh({ urls, refresh, children }: { urls: readonly string[]; refresh: () => Promise<void>; children: React.ReactNode }) {
+  const urlsRef = useRef(urls);
+  urlsRef.current = urls;
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const retry = useMemo(() => createEvidenceRetry({ isShown: (u) => urlsRef.current.includes(u), reload: () => refreshRef.current() }), []);
+  return <EvidenceUrlContext.Provider value={retry}>{children}</EvidenceUrlContext.Provider>;
 }
 
 export type PagedState<T, X = unknown> = {
@@ -82,7 +123,9 @@ export function useAdminPaged<T, X = unknown>(fetchPage: (offset: number) => Pro
           else setMoreFailure(f.kind === "error" ? f.message : "Could not load more.");
           return;
         }
-        setRows((prev) => (reset ? r.value.rows : [...prev, ...r.value.rows]));
+        // Offset pages can overlap when rows arrive between pages: keep the first
+        // occurrence of each id (order preserved, no duplicate keys).
+        setRows((prev) => (reset ? dedupeById(r.value.rows) : dedupeById([...prev, ...r.value.rows])));
         setTotal(r.value.total);
         setNext(r.value.nextOffset);
         if (r.value.summary !== undefined) setExtra(r.value.summary);

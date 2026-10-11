@@ -64,8 +64,12 @@ describe("admin operations (backend)", () => {
 
   it("the officer filter is a filter value only (the server still scopes to the caller's organization)", async () => {
     const { client, calls } = fakeClient({});
-    await createAdminOperations(client, fakeStorage([]).storage, { timeZone: () => "UTC" }).pageCases({ officerId: "u-1" }, 0);
-    expect(calls[0].args.p_officer).toBe("u-1");
+    const api = createAdminOperations(client, fakeStorage([]).storage, { timeZone: () => "UTC" });
+    await api.pageCases({ officerId: "3f1c2b4a-9d8e-4c7b-a6f5-0e1d2c3b4a59" }, 0);
+    expect(calls[0].args.p_officer).toBe("3f1c2b4a-9d8e-4c7b-a6f5-0e1d2c3b4a59");
+    // A malformed officer id is never sent (it is not a filter the server could match).
+    await api.pageCases({ officerId: "u-1" }, 0);
+    expect(calls[1].args.p_officer).toBeNull();
   });
 
   it("pages: rows, total, next offset; parking charge kept only for CHARGE_ISSUED", async () => {
@@ -89,7 +93,10 @@ describe("admin operations (backend)", () => {
   it("report detail: evidence via signed URLs; unreadable objects stay unreadable references (no public URL)", async () => {
     const { client } = fakeClient({
       admin_get_report: {
-        report: { id: "r1", public_report_number: 100005, status: "UNDER_REVIEW", priority: "NORMAL", location_source: "MAP_SELECTED", latitude: 60.1, longitude: 24.9, location_accuracy_m: 5, citizen_ref: "C-0000ABCD", notes: "" },
+        report: {
+          id: "r1", public_report_number: 100005, status: "UNDER_REVIEW", priority: "NORMAL", location_source: "MAP_SELECTED", latitude: 60.1, longitude: 24.9,
+          location_accuracy_m: 5, citizen_ref: "C-0000ABCD", notes: "", observed_at: "2026-10-10T08:00:00Z", submitted_at: "2026-10-10T08:01:00Z", received_at: "2026-10-10T08:01:02Z",
+        },
         evidence: [
           { slot: "REAR", storage_path: "u/d/rear.jpg" },
           { slot: "FRONT", storage_path: "u/d/front.jpg" },
@@ -141,5 +148,68 @@ describe("admin operations (backend)", () => {
     });
     const r = await createAdminOperations(client, fakeStorage([]).storage, { timeZone: () => "UTC" }).pageRewards({}, 0);
     expect(r).toMatchObject({ ok: true, value: { summary: { pendingCount: 2, availableCount: 1, voidedCount: 1, pendingCents: 1000, availableCents: 500 } } });
+  });
+});
+
+describe("admin operations: strict response validation (T9.0 hardening)", () => {
+  const api = (answers: Record<string, unknown>) => {
+    const { client, calls } = fakeClient(answers);
+    return { api: createAdminOperations(client, fakeStorage([]).storage, { timeZone: () => "UTC" }), calls };
+  };
+  const BACKEND_ERROR = { ok: false, error: { code: "BACKEND_ERROR", message: "BACKEND_ERROR" } };
+  const row = { id: "r1", public_report_number: 100001, status: "UNDER_REVIEW", priority: "NORMAL", submitted_at: "2026-10-10T08:00:00Z" };
+
+  it("a null page payload is an error, not an empty list", async () => {
+    expect(await api({ admin_page_reports: null }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+  });
+
+  it("an array where an object is expected is an error", async () => {
+    expect(await api({ admin_page_cases: [] }).api.pageCases({}, 0)).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_page_reports: { total: 1, rows: "nope" } }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_overview: [1, 2] }).api.overview()).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_list_officers: { rows: [] } }).api.listOfficers()).toEqual(BACKEND_ERROR);
+  });
+
+  it("unknown enum values are errors (no unchecked casts)", async () => {
+    expect(await api({ admin_page_reports: { total: 1, rows: [{ ...row, status: "HACKED" }] } }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_page_reports: { total: 1, rows: [{ ...row, priority: "URGENT" }] } }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_page_reports: { total: 1, rows: [{ ...row, case_status: "DONE" }] } }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+    expect(await api({ admin_page_reports: { total: 1, rows: [{ ...row, outcome_code: "FINE" }] } }).api.pageReports({}, 0)).toEqual(BACKEND_ERROR);
+    expect(
+      await api({ admin_page_rewards: { total: 1, rows: [{ id: "l", created_at: "t", entry_type: "REWARD_PENDING", amount_cents: 500, public_report_number: 1, citizen_ref: "C-1", reward_state: "PAID" }], summary: {} } }).api.pageRewards({}, 0)
+    ).toEqual(BACKEND_ERROR);
+    expect(
+      await api({ admin_get_case: { case: { id: "c", status: "NEW", priority: "NORMAL", created_at: "t" }, report: { id: "r", public_report_number: 1, status: "UNDER_REVIEW", observed_at: "t", citizen_ref: "C-1" }, citizen_evidence: [], officer_evidence: [{ evidence_type: "NOT_A_PHOTO_TYPE", storage_path: "c/x.jpg" }], reward_state: "NONE", audit: [] } }).api.getCase(
+        "3f1c2b4a-9d8e-4c7b-a6f5-0e1d2c3b4a59"
+      )
+    ).toEqual(BACKEND_ERROR);
+  });
+
+  it("a well-formed page still maps (valid data is unaffected)", async () => {
+    const r = await api({ admin_page_reports: { total: 1, next_offset: null, rows: [{ ...row, case_status: "NEW", outcome_code: null }] } }).api.pageReports({}, 0);
+    expect(r).toMatchObject({ ok: true, value: { total: 1, nextOffset: null, rows: [{ publicNumber: 100001, status: "UNDER_REVIEW", caseStatus: "NEW" }] } });
+  });
+
+  it("case ids: malformed UUIDs are never sent; valid UUIDs are", async () => {
+    const { api: a, calls } = api({ admin_get_case: null });
+    for (const bad of ["------------------------------------", "not-a-uuid", "3f1c2b4a9d8e4c7ba6f50e1d2c3b4a59", "3f1c2b4a-9d8e-4c7b-a6f5-0e1d2c3b4a5", "' or 1=1 --"]) {
+      expect(await a.getCase(bad)).toEqual({ ok: true, value: null });
+    }
+    expect(calls).toHaveLength(0);
+    expect(await a.getCase("3f1c2b4a-9d8e-4c7b-a6f5-0e1d2c3b4a59")).toEqual({ ok: true, value: null });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("FORBIDDEN asks the auth layer to re-resolve access (does not sign out); UNAUTHENTICATED keeps its session re-check", async () => {
+    const onForbidden = jest.fn();
+    const onUnauthenticated = jest.fn();
+    const forbidden = fakeClient({}, { code: "P0001", message: "FORBIDDEN: no" });
+    await createAdminOperations(forbidden.client, fakeStorage([]).storage, { timeZone: () => "UTC", onForbidden, onUnauthenticated }).pageAudit({}, 0);
+    expect(onForbidden).toHaveBeenCalledTimes(1);
+    expect(onUnauthenticated).not.toHaveBeenCalled();
+    const expired = fakeClient({}, { code: "PGRST301", message: "JWT expired" });
+    await createAdminOperations(expired.client, fakeStorage([]).storage, { timeZone: () => "UTC", onForbidden, onUnauthenticated }).overview();
+    expect(onUnauthenticated).toHaveBeenCalledTimes(1);
+    expect(onForbidden).toHaveBeenCalledTimes(1);
   });
 });

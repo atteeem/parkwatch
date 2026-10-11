@@ -2,14 +2,19 @@
 // admin_* server functions; the server derives the caller's organization
 // scope from auth.uid() (nothing here sends an organization, user or role).
 // Evidence is shown through short-lived signed URLs, never public links.
+//
+// Responses are validated strictly: a malformed payload (null, wrong shape,
+// unknown enum value) is a BACKEND_ERROR, never a valid-looking empty page or
+// an unchecked cast.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fail, ok, Result } from "../../domain";
+import { CaseStatus, CitizenReportStatus, EnforcementOutcomeCode, fail, ok, ReportPriority, Result } from "../../domain";
 import { mapRpcError, RawServerError } from "../operations/rpcErrors";
 import { EvidenceStorage } from "../storage/evidenceStorage";
-import { EVIDENCE_BUCKETS, storageUri } from "../mappers/common";
+import { EVIDENCE_BUCKETS, isUuid, storageUri } from "../mappers/common";
 import { CITIZEN_EVIDENCE_CAPTION, OFFICER_EVIDENCE_CAPTION, OFFICER_GALLERY_ORDER, GalleryItem } from "../../presentation/evidenceGallery";
 import {
+  ActorRole,
   ADMIN_AUDIT_PAGE_SIZE,
   ADMIN_PAGE_SIZE,
   AdminApi,
@@ -22,85 +27,130 @@ import {
   AdminReportDetail,
   AdminReportRow,
   AdminRewardRow,
+  AuditEntityType,
+  RewardEntryType,
+  RewardState,
 } from "../../admin/adminTypes";
 
 type J = Record<string, unknown>;
+
+/** A server answer that does not have the documented shape. */
+export class MalformedResponse extends Error {}
+const bad = (what: string): never => {
+  throw new MalformedResponse(what);
+};
+
+export const REPORT_STATUSES: readonly CitizenReportStatus[] = ["UNDER_REVIEW", "VERIFIED", "REJECTED"];
+export const CASE_STATUSES: readonly CaseStatus[] = ["NEW", "ASSIGNED", "EN_ROUTE", "ON_SITE", "INSPECTION", "COMPLETED"];
+export const PRIORITIES: readonly ReportPriority[] = ["NORMAL", "MEDIUM", "HIGH"];
+export const OUTCOMES: readonly EnforcementOutcomeCode[] = ["CHARGE_ISSUED", "REPORT_REJECTED", "VEHICLE_MOVED", "VALID_PERMIT", "DUPLICATE", "OTHER"];
+export const REWARD_STATES: readonly RewardState[] = ["NONE", "PENDING", "AVAILABLE", "VOIDED"];
+const REWARD_ENTRIES: readonly RewardEntryType[] = ["OPENING_BALANCE", "REWARD_PENDING", "REWARD_RELEASED", "REWARD_VOIDED", "WITHDRAWAL_REQUESTED", "WITHDRAWAL_PAID"];
+const ACTOR_ROLES: readonly ActorRole[] = ["CITIZEN", "OFFICER", "SUPERVISOR", "ADMIN", "SYSTEM"];
+const AUDIT_ENTITIES: readonly AuditEntityType[] = ["report", "officer_case", "inspection", "evidence", "outcome", "reward"];
+const CITIZEN_SLOTS = ["FRONT", "SIDE", "REAR", "ATTACHMENT"] as const;
+const MEMBER_ROLES: readonly AdminOfficer["memberRole"][] = ["OFFICER", "SUPERVISOR", "ADMIN"];
+
+/** A required value from a known set. */
+export function oneOf<T extends string>(v: unknown, allowed: readonly T[], field: string): T {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : bad(`${field}: ${String(v)}`);
+}
+/** An optional value from a known set (null/absent = undefined; anything else must be known). */
+function optOneOf<T extends string>(v: unknown, allowed: readonly T[], field: string): T | undefined {
+  return v === null || v === undefined ? undefined : oneOf(v, allowed, field);
+}
+const reqStr = (v: unknown, field: string): string => (typeof v === "string" && v !== "" ? v : bad(field));
 const str = (v: unknown): string | undefined => (typeof v === "string" && v !== "" ? v : undefined);
-const num = (v: unknown): number => {
+const reqNum = (v: unknown, field: string): number => {
   const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : bad(field);
+};
+const count = (v: unknown, field: string): number => {
+  const n = reqNum(v, field);
+  return Number.isInteger(n) && n >= 0 ? n : bad(field);
 };
 const optNum = (v: unknown): number | undefined => (v === null || v === undefined ? undefined : Number.isFinite(Number(v)) ? Number(v) : undefined);
-const arr = (v: unknown): J[] => (Array.isArray(v) ? (v as J[]).filter((x) => x && typeof x === "object") : []);
 const obj = (v: unknown): J | undefined => (v && typeof v === "object" && !Array.isArray(v) ? (v as J) : undefined);
+const reqObj = (v: unknown, field: string): J => obj(v) ?? bad(field);
+/** An array of objects; anything else is malformed. */
+const objs = (v: unknown, field: string): J[] => (Array.isArray(v) ? v.map((x, i) => reqObj(x, `${field}[${i}]`)) : bad(field));
 
 export function pageFrom<T>(json: unknown, map: (row: J) => T): AdminPage<T> {
-  const j = obj(json) ?? {};
+  const j = reqObj(json, "page");
   const next = j.next_offset;
-  return { rows: arr(j.rows).map(map), total: num(j.total), nextOffset: next === null || next === undefined ? null : num(next) };
+  return {
+    rows: objs(j.rows, "rows").map(map),
+    total: count(j.total, "total"),
+    nextOffset: next === null || next === undefined ? null : count(next, "next_offset"),
+  };
 }
 
 export const reportRowFrom = (r: J): AdminReportRow => ({
-  id: String(r.id),
-  publicNumber: num(r.public_report_number),
-  status: r.status as AdminReportRow["status"],
-  priority: r.priority as AdminReportRow["priority"],
-  submittedAt: String(r.submitted_at ?? ""),
+  id: reqStr(r.id, "id"),
+  publicNumber: count(r.public_report_number, "public_report_number"),
+  status: oneOf(r.status, REPORT_STATUSES, "status"),
+  priority: oneOf(r.priority, PRIORITIES, "priority"),
+  submittedAt: reqStr(r.submitted_at, "submitted_at"),
   receivedAt: str(r.received_at),
   plate: str(r.plate_raw),
   violationType: String(r.violation_type ?? ""),
   locationAddress: String(r.location_address ?? ""),
   caseId: str(r.case_id),
-  caseStatus: str(r.case_status) as AdminReportRow["caseStatus"],
-  outcomeCode: str(r.outcome_code) as AdminReportRow["outcomeCode"],
+  caseStatus: optOneOf(r.case_status, CASE_STATUSES, "case_status"),
+  outcomeCode: optOneOf(r.outcome_code, OUTCOMES, "outcome_code"),
   assignedOfficerName: str(r.assigned_officer_name),
 });
 
-export const caseRowFrom = (r: J): AdminCaseRow => ({
-  id: String(r.id),
-  publicNumber: num(r.public_report_number),
-  status: r.status as AdminCaseRow["status"],
-  priority: r.priority as AdminCaseRow["priority"],
-  assignedOfficerId: str(r.assigned_officer_id),
-  assignedOfficerName: str(r.assigned_officer_name),
-  locationAddress: String(r.location_address ?? ""),
-  plate: str(r.plate_raw),
-  violationType: String(r.violation_type ?? ""),
-  createdAt: String(r.created_at ?? ""),
-  completedAt: str(r.completed_at),
-  outcomeCode: str(r.outcome_code) as AdminCaseRow["outcomeCode"],
-  decidedAt: str(r.decided_at),
-  // A parking charge amount only ever accompanies CHARGE_ISSUED.
-  parkingChargeCents: r.outcome_code === "CHARGE_ISSUED" ? optNum(r.parking_charge_amount_cents) : undefined,
-});
+export const caseRowFrom = (r: J): AdminCaseRow => {
+  const outcomeCode = optOneOf(r.outcome_code, OUTCOMES, "outcome_code");
+  return {
+    id: reqStr(r.id, "id"),
+    publicNumber: count(r.public_report_number, "public_report_number"),
+    status: oneOf(r.status, CASE_STATUSES, "status"),
+    priority: oneOf(r.priority, PRIORITIES, "priority"),
+    assignedOfficerId: str(r.assigned_officer_id),
+    assignedOfficerName: str(r.assigned_officer_name),
+    locationAddress: String(r.location_address ?? ""),
+    plate: str(r.plate_raw),
+    violationType: String(r.violation_type ?? ""),
+    createdAt: reqStr(r.created_at, "created_at"),
+    completedAt: str(r.completed_at),
+    outcomeCode,
+    decidedAt: str(r.decided_at),
+    // A parking charge amount only ever accompanies CHARGE_ISSUED.
+    parkingChargeCents: outcomeCode === "CHARGE_ISSUED" ? optNum(r.parking_charge_amount_cents) : undefined,
+  };
+};
 
 export const auditFrom = (a: J): AdminAuditEvent => ({
-  id: String(a.id),
-  createdAt: String(a.created_at ?? ""),
-  actorRole: a.actor_role as AdminAuditEvent["actorRole"],
+  id: reqStr(a.id, "id"),
+  createdAt: reqStr(a.created_at, "created_at"),
+  actorRole: oneOf(a.actor_role, ACTOR_ROLES, "actor_role"),
   actorLabel: String(a.actor_label ?? ""),
   source: String(a.source ?? ""),
-  entityType: a.entity_type as AdminAuditEvent["entityType"],
-  eventType: String(a.event_type ?? ""),
+  entityType: oneOf(a.entity_type, AUDIT_ENTITIES, "entity_type"),
+  eventType: reqStr(a.event_type, "event_type"),
   publicNumber: optNum(a.public_report_number),
   metadata: obj(a.metadata) ?? {},
 });
 
-export const outcomeFrom = (o: J | undefined): AdminOutcome | undefined =>
-  o
-    ? {
-        code: o.code as AdminOutcome["code"],
-        decidedAt: String(o.decided_at ?? ""),
-        decidedByName: str(o.decided_by_name),
-        parkingChargeCents: o.code === "CHARGE_ISSUED" ? optNum(o.parking_charge_amount_cents) : undefined,
-        notes: str(o.notes),
-      }
-    : undefined;
+export const outcomeFrom = (o: J | undefined): AdminOutcome | undefined => {
+  if (!o) return undefined;
+  const code = oneOf(o.code, OUTCOMES, "outcome.code");
+  return {
+    code,
+    decidedAt: reqStr(o.decided_at, "outcome.decided_at"),
+    decidedByName: str(o.decided_by_name),
+    parkingChargeCents: code === "CHARGE_ISSUED" ? optNum(o.parking_charge_amount_cents) : undefined,
+    notes: str(o.notes),
+  };
+};
 
-const point = (r: J) => (r.latitude != null && r.longitude != null ? { latitude: num(r.latitude), longitude: num(r.longitude) } : undefined);
+const point = (r: J) => (r.latitude != null && r.longitude != null ? { latitude: reqNum(r.latitude, "latitude"), longitude: reqNum(r.longitude, "longitude") } : undefined);
 const vehicle = (r: J) => [str(r.vehicle_make), str(r.vehicle_model), str(r.vehicle_color)].filter(Boolean).join(" · ") || undefined;
+const locationSource = (r: J) => optOneOf(r.location_source, ["GPS", "MAP_SELECTED"] as const, "location_source") ?? (point(r) ? "GPS" : undefined);
 const timeline = (c: J) => ({
-  createdAt: String(c.created_at ?? ""),
+  createdAt: reqStr(c.created_at, "created_at"),
   assignedAt: str(c.assigned_at),
   enRouteAt: str(c.en_route_at),
   onSiteAt: str(c.on_site_at),
@@ -108,138 +158,171 @@ const timeline = (c: J) => ({
   completedAt: str(c.completed_at),
 });
 
-const CITIZEN_ORDER = ["FRONT", "SIDE", "REAR", "ATTACHMENT"];
-
-/** Citizen evidence rows -> gallery items (signed URL, or an unreadable storage reference). */
+/** Citizen evidence rows -> gallery items (signed URL, or an unreadable storage reference). Paths never become keys or text. */
 export function citizenItems(rows: J[], signed: Record<string, string>): GalleryItem[] {
-  return [...rows]
-    .sort((a, b) => CITIZEN_ORDER.indexOf(String(a.slot)) - CITIZEN_ORDER.indexOf(String(b.slot)))
-    .map((e, i) => {
-      const path = String(e.storage_path);
-      return {
-        key: `c-${i}-${path}`,
-        uri: signed[path] ?? storageUri(EVIDENCE_BUCKETS.citizen, path),
-        caption: CITIZEN_EVIDENCE_CAPTION[String(e.slot) as keyof typeof CITIZEN_EVIDENCE_CAPTION] ?? "Photo",
-      };
-    });
+  return rows
+    .map((e) => ({ e, slot: oneOf(e.slot, CITIZEN_SLOTS, "slot"), path: reqStr(e.storage_path, "storage_path") }))
+    .sort((a, b) => CITIZEN_SLOTS.indexOf(a.slot) - CITIZEN_SLOTS.indexOf(b.slot))
+    .map(({ slot, path }, i) => ({
+      key: `c-${slot}-${i}`,
+      uri: signed[path] ?? storageUri(EVIDENCE_BUCKETS.citizen, path),
+      caption: CITIZEN_EVIDENCE_CAPTION[slot],
+    }));
 }
 
 export function officerItems(rows: J[], signed: Record<string, string>): GalleryItem[] {
-  return [...rows]
-    .sort((a, b) => OFFICER_GALLERY_ORDER.indexOf(a.evidence_type as never) - OFFICER_GALLERY_ORDER.indexOf(b.evidence_type as never))
-    .map((e) => {
-      const path = String(e.storage_path);
-      return {
-        key: `o-${String(e.evidence_type)}`,
-        uri: signed[path] ?? storageUri(EVIDENCE_BUCKETS.officer, path),
-        caption: OFFICER_EVIDENCE_CAPTION[e.evidence_type as keyof typeof OFFICER_EVIDENCE_CAPTION] ?? "Photo",
-      };
-    });
+  return rows
+    .map((e) => ({ type: oneOf(e.evidence_type, OFFICER_GALLERY_ORDER, "evidence_type"), path: reqStr(e.storage_path, "storage_path") }))
+    .sort((a, b) => OFFICER_GALLERY_ORDER.indexOf(a.type) - OFFICER_GALLERY_ORDER.indexOf(b.type))
+    .map(({ type, path }) => ({
+      key: `o-${type}`,
+      uri: signed[path] ?? storageUri(EVIDENCE_BUCKETS.officer, path),
+      caption: OFFICER_EVIDENCE_CAPTION[type],
+    }));
 }
 
+const paths = (rows: J[]) => rows.map((e) => reqStr(e.storage_path, "storage_path"));
+
 export function reportDetailFrom(j: J, signedCitizen: Record<string, string>): AdminReportDetail {
-  const r = obj(j.report) ?? {};
+  const r = reqObj(j.report, "report");
   const c = obj(j.case);
+  const source = locationSource(r);
   return {
-    id: String(r.id),
-    publicNumber: num(r.public_report_number),
-    status: r.status as AdminReportDetail["status"],
-    priority: r.priority as AdminReportDetail["priority"],
+    id: reqStr(r.id, "report.id"),
+    publicNumber: count(r.public_report_number, "report.public_report_number"),
+    status: oneOf(r.status, REPORT_STATUSES, "report.status"),
+    priority: oneOf(r.priority, PRIORITIES, "report.priority"),
     violationType: String(r.violation_type ?? ""),
     plate: str(r.plate_raw),
     vehicle: vehicle(r),
     locationAddress: String(r.location_address ?? ""),
     point: point(r),
-    locationSource: (str(r.location_source) as AdminReportDetail["locationSource"]) ?? (point(r) ? "GPS" : undefined),
-    accuracyMeters: str(r.location_source) === "MAP_SELECTED" ? undefined : optNum(r.location_accuracy_m),
+    locationSource: source,
+    accuracyMeters: source === "MAP_SELECTED" ? undefined : optNum(r.location_accuracy_m),
     notes: String(r.notes ?? ""),
-    observedAt: String(r.observed_at ?? ""),
-    submittedAt: String(r.submitted_at ?? ""),
+    observedAt: reqStr(r.observed_at, "report.observed_at"),
+    submittedAt: reqStr(r.submitted_at, "report.submitted_at"),
     receivedAt: str(r.received_at),
-    citizenRef: String(r.citizen_ref ?? ""),
-    evidence: citizenItems(arr(j.evidence), signedCitizen),
+    citizenRef: reqStr(r.citizen_ref, "report.citizen_ref"),
+    evidence: citizenItems(objs(j.evidence, "evidence"), signedCitizen),
     caseInfo: c
-      ? { id: String(c.id), status: c.status as never, priority: c.priority as never, assignedOfficerName: str(c.assigned_officer_name), ...timeline(c) }
+      ? {
+          id: reqStr(c.id, "case.id"),
+          status: oneOf(c.status, CASE_STATUSES, "case.status"),
+          priority: oneOf(c.priority, PRIORITIES, "case.priority"),
+          assignedOfficerName: str(c.assigned_officer_name),
+          ...timeline(c),
+        }
       : undefined,
     outcome: outcomeFrom(obj(j.outcome)),
-    rewardState: (str(j.reward_state) as AdminReportDetail["rewardState"]) ?? "NONE",
-    ledger: arr(j.ledger).map((l) => ({ id: String(l.id), entryType: l.entry_type as never, amountCents: num(l.amount_cents), createdAt: String(l.created_at ?? "") })),
-    audit: arr(j.audit).map(auditFrom),
+    rewardState: oneOf(j.reward_state, REWARD_STATES, "reward_state"),
+    ledger: objs(j.ledger, "ledger").map((l) => ({
+      id: reqStr(l.id, "ledger.id"),
+      entryType: oneOf(l.entry_type, REWARD_ENTRIES, "ledger.entry_type"),
+      amountCents: count(l.amount_cents, "ledger.amount_cents"),
+      createdAt: reqStr(l.created_at, "ledger.created_at"),
+    })),
+    audit: objs(j.audit, "audit").map(auditFrom),
   };
 }
 
 export function caseDetailFrom(j: J, signedCitizen: Record<string, string>, signedOfficer: Record<string, string>): AdminCaseDetail {
-  const c = obj(j.case) ?? {};
-  const r = obj(j.report) ?? {};
+  const c = reqObj(j.case, "case");
+  const r = reqObj(j.report, "report");
   const i = obj(j.inspection);
   return {
-    id: String(c.id),
-    status: c.status as AdminCaseDetail["status"],
-    priority: c.priority as AdminCaseDetail["priority"],
+    id: reqStr(c.id, "case.id"),
+    status: oneOf(c.status, CASE_STATUSES, "case.status"),
+    priority: oneOf(c.priority, PRIORITIES, "case.priority"),
     assignedOfficerName: str(c.assigned_officer_name),
     timeline: timeline(c),
     report: {
-      id: String(r.id),
-      publicNumber: num(r.public_report_number),
-      status: r.status as AdminCaseDetail["report"]["status"],
+      id: reqStr(r.id, "report.id"),
+      publicNumber: count(r.public_report_number, "report.public_report_number"),
+      status: oneOf(r.status, REPORT_STATUSES, "report.status"),
       violationType: String(r.violation_type ?? ""),
       plate: str(r.plate_raw),
       vehicle: vehicle(r),
       locationAddress: String(r.location_address ?? ""),
       point: point(r),
-      locationSource: (str(r.location_source) as AdminCaseDetail["report"]["locationSource"]) ?? (point(r) ? "GPS" : undefined),
+      locationSource: locationSource(r),
       notes: String(r.notes ?? ""),
-      observedAt: String(r.observed_at ?? ""),
+      observedAt: reqStr(r.observed_at, "report.observed_at"),
       receivedAt: str(r.received_at),
-      citizenRef: String(r.citizen_ref ?? ""),
+      citizenRef: reqStr(r.citizen_ref, "report.citizen_ref"),
     },
-    citizenEvidence: citizenItems(arr(j.citizen_evidence), signedCitizen),
-    officerEvidence: officerItems(arr(j.officer_evidence), signedOfficer),
+    citizenEvidence: citizenItems(objs(j.citizen_evidence, "citizen_evidence"), signedCitizen),
+    officerEvidence: officerItems(objs(j.officer_evidence, "officer_evidence"), signedOfficer),
     inspection: i
       ? {
-          startedAt: String(i.started_at ?? ""),
+          startedAt: reqStr(i.started_at, "inspection.started_at"),
           completedAt: str(i.completed_at),
           notes: String(i.notes ?? ""),
           plateConfirmedAt: str(i.plate_confirmed_via_scan_at),
-          checks: arr(i.checks).map((k) => ({ key: String(k.key), answer: typeof k.answer === "boolean" ? k.answer : null, answeredAt: str(k.answered_at) })),
+          checks: objs(i.checks, "inspection.checks").map((k) => ({
+            key: reqStr(k.key, "check.key"),
+            answer: typeof k.answer === "boolean" ? k.answer : k.answer === null || k.answer === undefined ? null : bad("check.answer"),
+            answeredAt: str(k.answered_at),
+          })),
         }
       : undefined,
     outcome: outcomeFrom(obj(j.outcome)),
-    rewardState: (str(j.reward_state) as AdminCaseDetail["rewardState"]) ?? "NONE",
-    audit: arr(j.audit).map(auditFrom),
+    rewardState: oneOf(j.reward_state, REWARD_STATES, "reward_state"),
+    audit: objs(j.audit, "audit").map(auditFrom),
   };
 }
 
 export const officerFrom = (o: J): AdminOfficer => ({
-  userId: String(o.user_id),
+  userId: reqStr(o.user_id, "user_id"),
   displayName: str(o.display_name),
   profileRole: String(o.profile_role ?? ""),
-  memberRole: o.member_role as AdminOfficer["memberRole"],
-  active: o.active === true,
+  memberRole: oneOf(o.member_role, MEMBER_ROLES, "member_role"),
+  active: typeof o.active === "boolean" ? o.active : bad("active"),
   organizationName: String(o.organization_name ?? ""),
-  activeCases: num(o.active_cases),
-  completedThisMonth: num(o.completed_this_month),
+  activeCases: count(o.active_cases, "active_cases"),
+  completedThisMonth: count(o.completed_this_month, "completed_this_month"),
 });
 
 export const rewardRowFrom = (r: J): AdminRewardRow => ({
-  id: String(r.id),
-  createdAt: String(r.created_at ?? ""),
-  entryType: r.entry_type as AdminRewardRow["entryType"],
-  amountCents: num(r.amount_cents),
-  publicNumber: num(r.public_report_number),
-  citizenRef: String(r.citizen_ref ?? ""),
-  rewardState: (str(r.reward_state) as AdminRewardRow["rewardState"]) ?? "NONE",
+  id: reqStr(r.id, "id"),
+  createdAt: reqStr(r.created_at, "created_at"),
+  entryType: oneOf(r.entry_type, REWARD_ENTRIES, "entry_type"),
+  amountCents: count(r.amount_cents, "amount_cents"),
+  publicNumber: count(r.public_report_number, "public_report_number"),
+  citizenRef: reqStr(r.citizen_ref, "citizen_ref"),
+  rewardState: oneOf(r.reward_state, REWARD_STATES, "reward_state"),
 });
+
+/** Map a server answer; a malformed one becomes BACKEND_ERROR (never fake data). */
+export function parse<T>(map: () => T): Result<T> {
+  try {
+    return ok(map());
+  } catch (e) {
+    if (e instanceof MalformedResponse) return fail("BACKEND_ERROR", "BACKEND_ERROR");
+    throw e;
+  }
+}
 
 const n = <T>(v: T | undefined): T | null => (v === undefined || (v as unknown) === "" ? null : v);
 
-export function createAdminOperations(client: SupabaseClient, storage: EvidenceStorage, opts: { timeZone: () => string; onUnauthenticated?: () => void }): AdminApi {
+export function createAdminOperations(
+  client: SupabaseClient,
+  storage: EvidenceStorage,
+  opts: {
+    timeZone: () => string;
+    /** The session is no longer valid: re-check it (the auth layer signs out if it is gone). */
+    onUnauthenticated?: () => void;
+    /** The server refused console access (e.g. membership deactivated): re-resolve access so the route guard can leave /admin. */
+    onForbidden?: () => void;
+  }
+): AdminApi {
   async function rpc(fn: string, args: Record<string, unknown> = {}): Promise<Result<unknown>> {
     try {
       const { data, error, status } = await client.rpc(fn, args);
       if (error) {
         const e = mapRpcError(error as RawServerError, status);
         if (e.code === "UNAUTHENTICATED") opts.onUnauthenticated?.();
+        if (e.code === "FORBIDDEN") opts.onForbidden?.();
         return { ok: false, error: e };
       }
       return ok(data);
@@ -247,43 +330,45 @@ export function createAdminOperations(client: SupabaseClient, storage: EvidenceS
       return { ok: false, error: mapRpcError(e as RawServerError) };
     }
   }
-  const paths = (rows: J[]) => rows.map((e) => String(e.storage_path)).filter(Boolean);
 
   return {
     async whoami() {
       const r = await rpc("admin_whoami");
       if (!r.ok) return r;
-      const j = obj(r.value);
-      if (!j) return fail("BACKEND_ERROR", "BACKEND_ERROR");
-      return ok({
-        role: j.role === "ADMIN" ? "ADMIN" : "SUPERVISOR",
-        displayName: String(j.display_name ?? ""),
-        organizations: arr(j.organizations).map((o) => ({ id: String(o.id), name: String(o.name ?? ""), memberRole: String(o.member_role ?? "") })),
+      return parse(() => {
+        const j = reqObj(r.value, "whoami");
+        return {
+          role: oneOf(j.role, ["SUPERVISOR", "ADMIN"] as const, "role"),
+          displayName: String(j.display_name ?? ""),
+          organizations: objs(j.organizations, "organizations").map((o) => ({ id: reqStr(o.id, "org.id"), name: String(o.name ?? ""), memberRole: String(o.member_role ?? "") })),
+        };
       });
     },
     async overview() {
       const r = await rpc("admin_overview", { p_time_zone: opts.timeZone() });
       if (!r.ok) return r;
-      const j = obj(r.value);
-      if (!j) return fail("BACKEND_ERROR", "BACKEND_ERROR");
-      return ok({
-        reportsUnderReview: num(j.reports_under_review),
-        reportsReceivedToday: num(j.reports_received_today),
-        casesActive: num(j.cases_active),
-        casesNew: num(j.cases_new),
-        casesAssigned: num(j.cases_assigned),
-        casesEnRoute: num(j.cases_en_route),
-        casesOnSite: num(j.cases_on_site),
-        casesHighPriorityOpen: num(j.cases_high_priority_open),
-        completedToday: num(j.completed_today),
-        chargesToday: num(j.charges_today),
-        rejectedToday: num(j.rejected_today),
-        noChargeToday: num(j.no_charge_today),
-        rewardsPendingCount: num(j.rewards_pending_count),
-        rewardsPendingCents: num(j.rewards_pending_cents),
-        rewardsAvailableCount: num(j.rewards_available_count),
-        rewardsAvailableCents: num(j.rewards_available_cents),
-        last7Days: arr(j.last_7_days).map((d) => ({ day: String(d.day), received: num(d.received), completed: num(d.completed) })),
+      return parse(() => {
+        const j = reqObj(r.value, "overview");
+        const c = (k: string) => count(j[k], k);
+        return {
+          reportsUnderReview: c("reports_under_review"),
+          reportsReceivedToday: c("reports_received_today"),
+          casesActive: c("cases_active"),
+          casesNew: c("cases_new"),
+          casesAssigned: c("cases_assigned"),
+          casesEnRoute: c("cases_en_route"),
+          casesOnSite: c("cases_on_site"),
+          casesHighPriorityOpen: c("cases_high_priority_open"),
+          completedToday: c("completed_today"),
+          chargesToday: c("charges_today"),
+          rejectedToday: c("rejected_today"),
+          noChargeToday: c("no_charge_today"),
+          rewardsPendingCount: c("rewards_pending_count"),
+          rewardsPendingCents: c("rewards_pending_cents"),
+          rewardsAvailableCount: c("rewards_available_count"),
+          rewardsAvailableCents: c("rewards_available_cents"),
+          last7Days: objs(j.last_7_days, "last_7_days").map((d) => ({ day: reqStr(d.day, "day"), received: count(d.received, "received"), completed: count(d.completed, "completed") })),
+        };
       });
     },
     async pageReports(f, offset) {
@@ -297,21 +382,24 @@ export function createAdminOperations(client: SupabaseClient, storage: EvidenceS
         p_offset: offset,
         p_limit: ADMIN_PAGE_SIZE,
       });
-      return r.ok ? ok(pageFrom(r.value, reportRowFrom)) : r;
+      return r.ok ? parse(() => pageFrom(r.value, reportRowFrom)) : r;
     },
     async getReport(publicNumber) {
       if (!Number.isSafeInteger(publicNumber) || publicNumber <= 0) return ok(null);
       const r = await rpc("admin_get_report", { p_public_number: publicNumber });
       if (!r.ok) return r;
+      if (r.value === null) return ok(null); // missing or outside the caller's organization
       const j = obj(r.value);
-      if (!j) return ok(null);
-      const signed = await storage.sign(EVIDENCE_BUCKETS.citizen, paths(arr(j.evidence)));
-      return ok(reportDetailFrom(j, signed));
+      if (!j) return fail("BACKEND_ERROR", "BACKEND_ERROR");
+      const toSign = parse(() => paths(objs(j.evidence, "evidence")));
+      if (!toSign.ok) return toSign;
+      const signed = await storage.sign(EVIDENCE_BUCKETS.citizen, toSign.value);
+      return parse(() => reportDetailFrom(j, signed));
     },
     async pageCases(f, offset) {
       const r = await rpc("admin_page_cases", {
         p_status: n(f.status),
-        p_officer: n(f.officerId),
+        p_officer: f.officerId && isUuid(f.officerId) ? f.officerId : null,
         p_outcome: n(f.outcome),
         p_priority: n(f.priority),
         p_from: n(f.from),
@@ -320,24 +408,24 @@ export function createAdminOperations(client: SupabaseClient, storage: EvidenceS
         p_offset: offset,
         p_limit: ADMIN_PAGE_SIZE,
       });
-      return r.ok ? ok(pageFrom(r.value, caseRowFrom)) : r;
+      return r.ok ? parse(() => pageFrom(r.value, caseRowFrom)) : r;
     },
     async getCase(caseId) {
-      if (!/^[0-9a-f-]{36}$/i.test(caseId)) return ok(null);
+      if (!isUuid(caseId)) return ok(null);
       const r = await rpc("admin_get_case", { p_case_id: caseId });
       if (!r.ok) return r;
+      if (r.value === null) return ok(null);
       const j = obj(r.value);
-      if (!j) return ok(null);
-      const [sc, so] = await Promise.all([
-        storage.sign(EVIDENCE_BUCKETS.citizen, paths(arr(j.citizen_evidence))),
-        storage.sign(EVIDENCE_BUCKETS.officer, paths(arr(j.officer_evidence))),
-      ]);
-      return ok(caseDetailFrom(j, sc, so));
+      if (!j) return fail("BACKEND_ERROR", "BACKEND_ERROR");
+      const toSign = parse(() => ({ c: paths(objs(j.citizen_evidence, "citizen_evidence")), o: paths(objs(j.officer_evidence, "officer_evidence")) }));
+      if (!toSign.ok) return toSign;
+      const [sc, so] = await Promise.all([storage.sign(EVIDENCE_BUCKETS.citizen, toSign.value.c), storage.sign(EVIDENCE_BUCKETS.officer, toSign.value.o)]);
+      return parse(() => caseDetailFrom(j, sc, so));
     },
     async listOfficers() {
       const now = new Date();
       const r = await rpc("admin_list_officers", { p_month_start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString() });
-      return r.ok ? ok(arr(r.value).map(officerFrom)) : r;
+      return r.ok ? parse(() => objs(r.value, "officers").map(officerFrom)) : r;
     },
     async pageRewards(f, offset) {
       const r = await rpc("admin_page_rewards", {
@@ -350,16 +438,18 @@ export function createAdminOperations(client: SupabaseClient, storage: EvidenceS
         p_limit: ADMIN_PAGE_SIZE,
       });
       if (!r.ok) return r;
-      const s = obj(obj(r.value)?.summary) ?? {};
-      return ok({
-        ...pageFrom(r.value, rewardRowFrom),
-        summary: {
-          pendingCount: num(s.pending_count),
-          availableCount: num(s.available_count),
-          voidedCount: num(s.voided_count),
-          pendingCents: num(s.pending_cents),
-          availableCents: num(s.available_cents),
-        },
+      return parse(() => {
+        const s = reqObj(reqObj(r.value, "page").summary, "summary");
+        return {
+          ...pageFrom(r.value, rewardRowFrom),
+          summary: {
+            pendingCount: count(s.pending_count, "pending_count"),
+            availableCount: count(s.available_count, "available_count"),
+            voidedCount: count(s.voided_count, "voided_count"),
+            pendingCents: count(s.pending_cents, "pending_cents"),
+            availableCents: count(s.available_cents, "available_cents"),
+          },
+        };
       });
     },
     async pageAudit(f, offset) {
@@ -373,7 +463,7 @@ export function createAdminOperations(client: SupabaseClient, storage: EvidenceS
         p_offset: offset,
         p_limit: ADMIN_AUDIT_PAGE_SIZE,
       });
-      return r.ok ? ok(pageFrom(r.value, auditFrom)) : r;
+      return r.ok ? parse(() => pageFrom(r.value, auditFrom)) : r;
     },
   };
 }

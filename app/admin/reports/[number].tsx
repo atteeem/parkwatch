@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { radius } from "../../../src/constants/spacing";
 import { useApp } from "../../../src/context/AppContext";
 import { AdminPage } from "../../../src/admin/AdminShell";
-import { adminStyles, AuditList, FailureState, KeyValue, LoadingState, NotFoundState, Pill, Section, useAdminLoad } from "../../../src/admin/AdminUI";
+import { AdminEvidenceRefresh, adminStyles, AuditList, FailureState, KeyValue, LoadingState, NotFoundState, Pill, Section, useAdminLoad } from "../../../src/admin/AdminUI";
 import {
   CASE_STATUS_LABEL,
   formatEuros,
@@ -37,7 +37,10 @@ export default function AdminReportDetailScreen() {
       ) : !load.data ? (
         <NotFoundState what="Report" onBack={back.onPress} />
       ) : (
-        <ReportBody d={load.data} openCase={(id) => router.push(`/admin/cases/${id}` as never)} />
+        // An expired photo URL re-loads this report once (fresh signed URLs, same scope).
+        <AdminEvidenceRefresh urls={load.data.evidence.map((e) => e.uri)} refresh={load.refresh}>
+          <ReportBody d={load.data} openCase={(id) => router.push(`/admin/cases/${id}` as never)} />
+        </AdminEvidenceRefresh>
       )}
     </AdminPage>
   );

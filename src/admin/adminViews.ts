@@ -113,6 +113,8 @@ export function auditDetails(metadata: Record<string, unknown>): string {
     .map(([k, v]) => {
       const val = String(v);
       if (k === "amount_cents" && Number.isFinite(Number(v))) return `amount ${formatEuros(Number(v))}`;
+      // The private/mock parking charge recorded with an outcome (not a payment).
+      if (k === "charge_cents" && Number.isFinite(Number(v))) return `Parking charge · ${formatEuros(Number(v))}`;
       if ((k === "code" || k === "outcome") && val in OUTCOME_LABEL) return outcomeText(val as EnforcementOutcomeCode);
       if (k === "entry" && val in REWARD_ENTRY_LABEL) return REWARD_ENTRY_LABEL[val as RewardEntryType];
       if (k === "check") return CHECK_TEXT[val] ?? val;
@@ -164,3 +166,35 @@ export function loadFailure(error: DomainError | { code: string; message?: strin
 /** "Showing 25 of 140" */
 export const pageSummary = (shown: number, total: number): string =>
   total === 0 ? "No results" : shown >= total ? `${total} ${total === 1 ? "result" : "results"}` : `Showing ${shown} of ${total}`;
+
+// ---------------------------------------------------------------------------
+// Evidence signed-URL recovery (console detail pages)
+
+/** Re-load a detail at most once per cooldown when one of ITS photos fails. */
+export const EVIDENCE_RETRY_COOLDOWN_MS = 60_000;
+
+/**
+ * Returns the EvidenceUrlContext callback for a console detail page: a failed
+ * image (most likely an expired signed URL) re-loads the detail once, which
+ * re-signs its photos server-side (same organization scope as before). URLs
+ * that are not on this page are ignored; repeated failures within the cooldown
+ * do nothing (the photo shows "Photo unavailable"), so there is no loop.
+ */
+export function createEvidenceRetry(opts: {
+  isShown: (url: string) => boolean;
+  reload: () => Promise<unknown> | void;
+  now?: () => number;
+  cooldownMs?: number;
+}): (failedUrl: string) => Promise<boolean> {
+  let last = -Infinity;
+  const now = opts.now ?? Date.now;
+  const cooldown = opts.cooldownMs ?? EVIDENCE_RETRY_COOLDOWN_MS;
+  return async (failedUrl) => {
+    if (!opts.isShown(failedUrl)) return false;
+    const t = now();
+    if (t - last < cooldown) return false;
+    last = t;
+    await opts.reload();
+    return true;
+  };
+}

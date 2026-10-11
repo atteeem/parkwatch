@@ -6,7 +6,7 @@ import { colors } from "../../../src/constants/colors";
 import { radius } from "../../../src/constants/spacing";
 import { useApp } from "../../../src/context/AppContext";
 import { AdminPage } from "../../../src/admin/AdminShell";
-import { adminStyles, AuditList, FailureState, KeyValue, LoadingState, NotFoundState, Pill, Section, useAdminLoad } from "../../../src/admin/AdminUI";
+import { AdminEvidenceRefresh, adminStyles, AuditList, FailureState, KeyValue, LoadingState, NotFoundState, Pill, Section, useAdminLoad } from "../../../src/admin/AdminUI";
 import {
   CASE_STATUS_LABEL,
   formatEuros,
@@ -45,7 +45,10 @@ export default function AdminCaseDetailScreen() {
       ) : !load.data ? (
         <NotFoundState what="Case" onBack={back.onPress} />
       ) : (
-        <CaseBody d={load.data} openReport={(n) => router.push(`/admin/reports/${n}` as never)} />
+        // An expired photo URL re-loads this case once (fresh signed URLs, same scope).
+        <AdminEvidenceRefresh urls={[...load.data.citizenEvidence, ...load.data.officerEvidence].map((e) => e.uri)} refresh={load.refresh}>
+          <CaseBody d={load.data} openReport={(n) => router.push(`/admin/reports/${n}` as never)} />
+        </AdminEvidenceRefresh>
       )}
     </AdminPage>
   );
