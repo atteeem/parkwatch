@@ -36,7 +36,9 @@ export default function Parking() {
   const insets = useSafeAreaInsets();
   const { activeParking, vehicles, startParking, extendParking, endParking } = useApp();
   const [flow, dispatch] = useReducer(parkingFlowReducer, INITIAL_PARKING_FLOW);
-  const now = useNow(activeParking ? 1000 : 15_000);
+  // Every second while times are on screen (countdown, duration, review); otherwise rarely.
+  const liveTimes = !!activeParking || flow.setup.step === "SELECT_DURATION" || flow.setup.step === "CONFIRM";
+  const now = useNow(liveTimes ? 1000 : 15_000);
   const location = useForegroundLocation({ watch: true });
   const [follow, dispatchFollow] = useReducer(followReducer, INITIAL_FOLLOW_STATE);
   const [recenterToken, setRecenterToken] = useState(0);
