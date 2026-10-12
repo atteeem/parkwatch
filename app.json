@@ -62,7 +62,16 @@
           "isAndroidMotionActivityEnabled": false
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
     ]
   }
 }

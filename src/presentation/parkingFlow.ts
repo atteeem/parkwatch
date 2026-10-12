@@ -5,8 +5,9 @@
 
 import { DIAL_MAX_MINUTES, DIAL_MIN_MINUTES, snapMinutes } from "./parkingDial";
 
-export const DEFAULT_PARKING_MINUTES = 60;
-export const DEFAULT_EXTENSION_MINUTES = 30;
+/** The dial starts at the minimum, like a parking meter: 1 minute (start and extension). */
+export const DEFAULT_PARKING_MINUTES = DIAL_MIN_MINUTES;
+export const DEFAULT_EXTENSION_MINUTES = DIAL_MIN_MINUTES;
 
 export type SetupStep =
   | { step: "SELECT_AREA" }
@@ -70,7 +71,7 @@ export function parkingFlowReducer(state: ParkingFlowState, a: ParkingFlowAction
       if (s.step === "AREA_DETAIL") return setup({ step: "SELECT_AREA" });
       return state;
     case "STARTED":
-      return { ...state, setup: { step: "SELECT_AREA" }, active: { step: "ACTIVE" } };
+      return { ...state, setup: { step: "SELECT_AREA" }, active: { step: "ACTIVE" }, minutes: DEFAULT_PARKING_MINUTES };
     case "OPEN_EXTEND":
       return { ...state, active: { step: "EXTEND", minutes: DEFAULT_EXTENSION_MINUTES } };
     case "OPEN_END":
@@ -78,7 +79,7 @@ export function parkingFlowReducer(state: ParkingFlowState, a: ParkingFlowAction
     case "CLOSE_ACTIVE":
       return { ...state, active: { step: "ACTIVE" } };
     case "ENDED":
-      return { ...state, setup: { step: "SELECT_AREA" }, active: { step: "ACTIVE" } };
+      return { ...state, setup: { step: "SELECT_AREA" }, active: { step: "ACTIVE" }, minutes: DEFAULT_PARKING_MINUTES };
   }
 }
 

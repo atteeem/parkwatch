@@ -1,16 +1,18 @@
-// Circular duration dial (pure). One full turn = one hour; the dial can be
-// turned several times (hours accumulate). Values snap to 5-minute steps and
-// stay within the parking rules (the domain still receives whole minutes).
+// Circular duration dial (pure), like a mechanical parking meter: one full
+// turn = 60 minutes, so 6 degrees = 1 minute. The dial represents the TOTAL
+// duration and can be turned several times (hours accumulate). Values snap to
+// whole minutes and stay within the parking rules (1 minute .. the maximum).
 
 import { MAX_PARKING_DURATION_MINUTES } from "../domain";
-import { formatClock, formatDurationMinutes, WHEEL_MIN_MINUTES, WHEEL_STEP_MINUTES } from "./parkingViews";
+import { formatClock, formatDurationMinutes } from "./parkingViews";
 
 export const DIAL_MINUTES_PER_TURN = 60;
-export const DIAL_STEP_MINUTES = WHEEL_STEP_MINUTES;
-export const DIAL_MIN_MINUTES = WHEEL_MIN_MINUTES;
+export const DIAL_DEGREES_PER_MINUTE = 360 / DIAL_MINUTES_PER_TURN;
+export const DIAL_STEP_MINUTES = 1;
+export const DIAL_MIN_MINUTES = 1;
 export const DIAL_MAX_MINUTES = MAX_PARKING_DURATION_MINUTES;
-/** Screen-reader increment/decrement step. */
-export const DIAL_A11Y_STEP_MINUTES = 15;
+/** Screen-reader increment/decrement step (same as one tick). */
+export const DIAL_A11Y_STEP_MINUTES = 1;
 /** Touches closer than this to the centre are ignored (the angle is unstable there). */
 export const DIAL_DEAD_ZONE_PX = 18;
 
@@ -19,7 +21,7 @@ export const DEFAULT_DIAL_RANGE: DialRange = { min: DIAL_MIN_MINUTES, max: DIAL_
 
 export const clampMinutes = (m: number, r: DialRange = DEFAULT_DIAL_RANGE): number => Math.min(r.max, Math.max(r.min, m));
 
-/** Nearest 5-minute step, within the range. */
+/** Nearest whole minute, within the range. */
 export const snapMinutes = (m: number, r: DialRange = DEFAULT_DIAL_RANGE): number =>
   clampMinutes(Math.round(m / DIAL_STEP_MINUTES) * DIAL_STEP_MINUTES, r);
 
@@ -53,7 +55,7 @@ export function arcFraction(m: number): number {
 /**
  * Drag tracking. `raw` is the unsnapped, clamped duration that follows the
  * finger continuously (so turning back from the maximum responds at once);
- * `value` is what is shown and used: `raw` snapped to 5 minutes.
+ * `value` is what is shown and used: `raw` rounded to a whole minute.
  */
 export type DialDrag = { lastAngle: number; raw: number; value: number };
 
@@ -66,11 +68,9 @@ export function moveDrag(d: DialDrag, angle: number, r: DialRange = DEFAULT_DIAL
   return { lastAngle: angle, raw, value: snapMinutes(raw, r) };
 }
 
-/** Screen-reader adjust: move to the next/previous multiple of 15 minutes. */
+/** Screen-reader adjust: one minute up or down, within the range. */
 export function accessibilityStep(value: number, direction: 1 | -1, r: DialRange = DEFAULT_DIAL_RANGE): number {
-  const s = DIAL_A11Y_STEP_MINUTES;
-  const next = direction > 0 ? Math.floor(value / s) * s + s : Math.ceil(value / s) * s - s;
-  return clampMinutes(next, r);
+  return clampMinutes(Math.round(value) + direction * DIAL_A11Y_STEP_MINUTES, r);
 }
 
 /** "1 hour 15 minutes, ends at 15:45" */
