@@ -243,6 +243,11 @@ describe("Parking tab truthfulness and structure", () => {
     expect(screen).toMatch(/guard\.run\(\(\) => endParking\(\)/);
   });
 
+  it("start/end times on the duration and review steps are live (no minute-stale 'Now')", () => {
+    expect(screen).toMatch(/const liveTimes = !!activeParking \|\| flow\.setup\.step === "SELECT_DURATION" \|\| flow\.setup\.step === "CONFIRM";/);
+    expect(screen).toMatch(/useNow\(liveTimes \? 1000 : 15_000\)/);
+  });
+
   it("Android Back steps back inside the sheet; vehicles/history stay reachable from the menu", () => {
     expect(screen).toMatch(/hardwareBackPress/);
     expect(screen).toMatch(/router\.push\("\/user\/parking\/vehicles"\)/);
