@@ -51,9 +51,43 @@ export const DEMO_PARKING_HOURLY_RATE_CENTS = 200;
 /** Longest single parking duration (start or extension) the MVP accepts. */
 export const MAX_PARKING_DURATION_MINUTES = 24 * 60;
 
+export type DemoLatLng = { latitude: number; longitude: number };
+
+/**
+ * A demo parking area. Geometry, names and prices are ILLUSTRATIVE ONLY: they are
+ * not official municipal zones or any operator's areas. The flat demo rate
+ * applies at all times (no time-of-day pricing is simulated).
+ */
+export type DemoParkingZone = {
+  /** Area code shown on the map badge (also the session's zoneId). */
+  id: string;
+  label: string;
+  /** Short area name. */
+  name: string;
+  /** Street address stored on the session. */
+  location: string;
+  hourlyRateCents: number;
+  /** Badge position. */
+  center: DemoLatLng;
+  /** Demo outline drawn on the map (closed by the map). */
+  boundary: readonly DemoLatLng[];
+};
+
+/** A small rectangular demo outline around a centre point. */
+const demoBox = (c: DemoLatLng, halfLat = 0.0006, halfLng = 0.0013): DemoLatLng[] => [
+  { latitude: c.latitude + halfLat, longitude: c.longitude - halfLng },
+  { latitude: c.latitude + halfLat, longitude: c.longitude + halfLng },
+  { latitude: c.latitude - halfLat, longitude: c.longitude + halfLng },
+  { latitude: c.latitude - halfLat, longitude: c.longitude - halfLng },
+];
+
+const zone = (z: Omit<DemoParkingZone, "label" | "boundary">): DemoParkingZone => ({ ...z, label: `Zone ${z.id}`, boundary: demoBox(z.center) });
+
 /** Demo zones offered when starting simulated parking. */
-export const DEMO_PARKING_ZONES: readonly { id: string; label: string; location: string }[] = [
-  { id: "B2", label: "Zone B2", location: "Fredrikinkatu 22, Helsinki" },
-  { id: "A1", label: "Zone A1", location: "Kaivokatu 12, Helsinki" },
-  { id: "C4", label: "Zone C4", location: "Pohjoisesplanadi 33, Helsinki" },
+export const DEMO_PARKING_ZONES: readonly DemoParkingZone[] = [
+  zone({ id: "B2", name: "Fredrikinkatu", location: "Fredrikinkatu 22, Helsinki", hourlyRateCents: DEMO_PARKING_HOURLY_RATE_CENTS, center: { latitude: 60.1622, longitude: 24.9368 } }),
+  zone({ id: "A1", name: "Railway Square", location: "Kaivokatu 12, Helsinki", hourlyRateCents: DEMO_PARKING_HOURLY_RATE_CENTS, center: { latitude: 60.1706, longitude: 24.9425 } }),
+  zone({ id: "C4", name: "Esplanadi", location: "Pohjoisesplanadi 33, Helsinki", hourlyRateCents: 300, center: { latitude: 60.1676, longitude: 24.9475 } }),
+  zone({ id: "D7", name: "Kamppi", location: "Malminkatu 5, Helsinki", hourlyRateCents: 300, center: { latitude: 60.1683, longitude: 24.9301 } }),
+  zone({ id: "E3", name: "Market Square", location: "Eteläranta 10, Helsinki", hourlyRateCents: 250, center: { latitude: 60.1662, longitude: 24.9532 } }),
 ];

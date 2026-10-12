@@ -5,12 +5,15 @@ import {
   addMinutes,
   DEMO_PARKING_HOURLY_RATE_CENTS,
   DEMO_PARKING_ZONES,
+  DemoParkingZone,
   estimateParkingCostCents,
   IsoTimestamp,
+  MAX_PARKING_DURATION_MINUTES,
   ParkingSession,
   parkingCostCents,
   Vehicle,
 } from "../domain";
+import { formatDistance, LatLng, straightLineDistance } from "../geo/distance";
 import { formatEuros } from "./viewModels";
 
 const MINUTE = 60_000;
@@ -140,14 +143,98 @@ export type ParkingQuote = {
   rateText: string;
 };
 
-export function parkingQuote(durationMinutes: number, now: Date): ParkingQuote {
+export function parkingQuote(durationMinutes: number, now: Date, hourlyRateCents = DEMO_PARKING_HOURLY_RATE_CENTS): ParkingQuote {
   const start = now.toISOString();
   return {
     durationText: formatDurationMinutes(durationMinutes),
     startText: formatClock(start),
     endText: formatClock(addMinutes(start, durationMinutes)),
-    estimateText: formatEuros(estimateParkingCostCents(durationMinutes)),
-    rateText: `${formatEuros(DEMO_PARKING_HOURLY_RATE_CENTS)} / hour (demo rate)`,
+    estimateText: formatEuros(estimateParkingCostCents(durationMinutes, hourlyRateCents)),
+    rateText: `${formatEuros(hourlyRateCents)} / hour (demo rate)`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Map-first parking: demo areas
+
+export type ParkingAreaRow = {
+  id: string;
+  name: string;
+  location: string;
+  rateText: string;
+  /** Straight-line distance from the device; only when a real fix exists. */
+  distanceText?: string;
+  distanceMeters?: number;
+};
+
+export const findZone = (zoneId: string | undefined): DemoParkingZone | undefined => DEMO_PARKING_ZONES.find((z) => z.id === zoneId);
+
+export const hourlyRateText = (cents: number): string => `${formatEuros(cents)} / h`;
+
+/**
+ * Areas for the "Select area" sheet. With a device position they are sorted
+ * nearest first (straight-line distance, never a route or ETA); without one
+ * they keep the configured order. `query` matches the area code or name.
+ */
+export function parkingAreaRows(from: LatLng | undefined, query = ""): ParkingAreaRow[] {
+  const q = query.trim().toLowerCase();
+  const rows = DEMO_PARKING_ZONES.filter((z) => !q || z.id.toLowerCase().includes(q) || z.name.toLowerCase().includes(q) || z.location.toLowerCase().includes(q)).map((z) => {
+    const d = straightLineDistance(from, z.center);
+    return {
+      id: z.id,
+      name: z.name,
+      location: z.location,
+      rateText: hourlyRateText(z.hourlyRateCents),
+      ...(d === null ? {} : { distanceMeters: d, distanceText: formatDistance(d) }),
+    };
+  });
+  return from ? [...rows].sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0)) : rows;
+}
+
+/** Facts shown for a selected area. Truthful: one flat demo rate, no time-of-day pricing. */
+export function parkingAreaDetail(z: DemoParkingZone) {
+  return {
+    id: z.id,
+    name: z.name,
+    location: z.location,
+    rateText: hourlyRateText(z.hourlyRateCents),
+    pricingText: "Demo rate applies at all times",
+    maxText: `Up to ${formatDurationMinutes(MAX_PARKING_DURATION_MINUTES)} per session`,
+    sourceText: "Demo area · not official zone data",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Duration step / extension quotes (map-first flow)
+
+export type DurationQuote = { durationText: string; endText: string; estimateCents: number; estimateText: string };
+
+/** Live quote while choosing a duration: "1 h 15 min", ends "15:46", estimated demo cost. */
+export function durationQuote(minutes: number, now: Date, hourlyRateCents: number): DurationQuote {
+  const cents = estimateParkingCostCents(minutes, hourlyRateCents);
+  return {
+    durationText: formatDurationMinutes(minutes),
+    endText: formatClock(addMinutes(now.toISOString(), minutes)),
+    estimateCents: cents,
+    estimateText: formatEuros(cents),
+  };
+}
+
+export type ExtensionQuote = { currentEndText: string; newEndText: string; addedText: string; totalEstimateText: string };
+
+/**
+ * Extending: the domain adds time to the planned end, or to now if that has
+ * passed. The estimate is the whole session at its demo rate up to the new end.
+ */
+export function extensionQuote(s: ParkingSession, addedMinutes: number, now: Date): ExtensionQuote {
+  const end = Date.parse(s.plannedEndAt);
+  const base = end > now.getTime() ? end : now.getTime();
+  const newEnd = new Date(base + addedMinutes * MINUTE).toISOString();
+  return {
+    currentEndText: formatClock(s.plannedEndAt),
+    newEndText: formatClock(newEnd),
+    addedText: `+${formatDurationMinutes(addedMinutes)}`,
+    totalEstimateText: formatEuros(parkingCostCents(s.hourlyRateCents, s.startedAt, newEnd)),
   };
 }
 
@@ -158,6 +245,9 @@ export type ActiveParkingView = {
   id: string;
   plate: string;
   zone: string;
+  zoneId: string;
+  /** Demo area name ("Railway Square"); the zone label when the area is unknown. */
+  areaName: string;
   location: string;
   startText: string;
   endText: string;
@@ -179,6 +269,8 @@ export function toActiveParkingView(s: ParkingSession, now: Date): ActiveParking
     id: s.id,
     plate: s.plate.raw,
     zone: zoneLabel(s.zoneId),
+    zoneId: s.zoneId,
+    areaName: findZone(s.zoneId)?.name ?? zoneLabel(s.zoneId),
     location: s.location,
     startText: formatClock(s.startedAt),
     endText: formatClock(s.plannedEndAt),

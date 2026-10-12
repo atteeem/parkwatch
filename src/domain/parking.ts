@@ -125,7 +125,8 @@ export function startParking(
     startedAt: meta.at,
     plannedEndAt: addMinutes(meta.at, input.durationMinutes),
     status: "ACTIVE",
-    hourlyRateCents: DEMO_PARKING_HOURLY_RATE_CENTS,
+    // The zone's demo rate, captured at start.
+    hourlyRateCents: zone.hourlyRateCents,
     extensions: [],
     provider: "SIMULATED",
   });

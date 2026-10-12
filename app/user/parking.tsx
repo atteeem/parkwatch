@@ -1,293 +1,414 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, Modal, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { BackHandler, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/constants/colors";
-import { typography } from "../../src/constants/typography";
-import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
-import { UserBottomNav } from "../../src/components/UserBottomNav";
-import { GreenButton } from "../../src/components/GreenButton";
-import { Card } from "../../src/components/Card";
-import { ConfirmDialog } from "../../src/components/ConfirmDialog";
+import { UserBottomNav, userBottomNavHeight } from "../../src/components/UserBottomNav";
+import { FollowLocationButton } from "../../src/components/map/MapControls";
+import { ParkingMap } from "../../src/components/parking/ParkingMap";
+import { ParkingSheet } from "../../src/components/parking/ParkingSheet";
+import { AreaDetail, AreaPicker } from "../../src/components/parking/AreaSteps";
+import { VehiclePicker } from "../../src/components/parking/VehiclePicker";
+import { DurationDial } from "../../src/components/parking/DurationStep";
+import { ParkingConfirmation } from "../../src/components/parking/ParkingConfirmation";
+import { ActiveParkingSummary, EndParking, ExtendParking } from "../../src/components/parking/ActiveParkingSheet";
+import { SheetCTA, SheetGhost, SheetHeader } from "../../src/components/parking/sheetParts";
 import { useApp } from "../../src/context/AppContext";
+import { DEMO_PARKING_ZONES } from "../../src/domain";
+import { haptics } from "../../src/feedback/haptics";
 import { useNow } from "../../src/hooks/useNow";
+import { useForegroundLocation } from "../../src/location/useForegroundLocation";
+import { followReducer, INITIAL_FOLLOW_STATE } from "../../src/map/mapLogic";
 import { describeDomainError } from "../../src/presentation/errors";
-import { PARKING_EXTENSION_PRESETS, toActiveParkingView } from "../../src/presentation/parkingViews";
+import { dialAccessibilityText } from "../../src/presentation/parkingDial";
+import { canGoBackInFlow, highlightedZone, INITIAL_PARKING_FLOW, parkingFlowReducer } from "../../src/presentation/parkingFlow";
+import { durationQuote, extensionQuote, findZone, parkingAreaRows, toActiveParkingView } from "../../src/presentation/parkingViews";
+import { createSubmitGuard } from "../../src/presentation/submitGuard";
 
-// Parking tab. Sessions are SIMULATED on this device: no parking operator is
-// contacted and nothing is paid. The active card is derived from the stored
-// session and the current time (no hardcoded timer).
+// Parking tab: one map screen. A bottom sheet walks through
+// area -> vehicle -> duration -> review, and shows the running session.
+// Parking is SIMULATED on this device: no operator is contacted and no
+// payment is taken. Location (foreground only) is used to show where the
+// user is and to sort nearby demo areas; it is not stored or sent anywhere.
 export default function Parking() {
   const router = useRouter();
-  const { activeParking, vehicles, extendParking, endParking } = useApp();
-  const now = useNow(1000, !!activeParking);
-  const active = activeParking ? toActiveParkingView(activeParking, now) : undefined;
-  const [extendOpen, setExtendOpen] = useState(false);
-  const [confirmEnd, setConfirmEnd] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  const { activeParking, vehicles, startParking, extendParking, endParking } = useApp();
+  const [flow, dispatch] = useReducer(parkingFlowReducer, INITIAL_PARKING_FLOW);
+  const now = useNow(activeParking ? 1000 : 15_000);
+  const location = useForegroundLocation({ watch: true });
+  const [follow, dispatchFollow] = useReducer(followReducer, INITIAL_FOLLOW_STATE);
+  const [recenterToken, setRecenterToken] = useState(0);
+  const [sheetHeight, setSheetHeight] = useState(240);
+  const [query, setQuery] = useState("");
+  const [menu, setMenu] = useState<"closed" | "menu" | "about">("closed");
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [justStarted, setJustStarted] = useState(false);
+  const pendingNewVehicle = useRef<string[] | null>(null);
 
-  const startParking = () => {
-    if (active) {
-      setNotice("Parking is already active. Extend or end it below.");
+  const navHeight = userBottomNavHeight(insets.bottom);
+  const userFix = location.permission === "granted" ? location.fix : undefined;
+  const active = activeParking ? toActiveParkingView(activeParking, now) : undefined;
+  const s = flow.setup;
+  const stepKey = active ? `active-${flow.active.step}` : s.step;
+  // A fresh double-tap guard per step: one tap = one start/extension/end.
+  const guard = useMemo(() => createSubmitGuard(), [stepKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => setError(null), [stepKey]);
+  useEffect(() => {
+    if (!toast && !justStarted) return;
+    const t = setTimeout(() => {
+      setToast(null);
+      setJustStarted(false);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [toast, justStarted]);
+
+  // Coming back from "Add vehicle": the vehicle just added is selected.
+  useEffect(() => {
+    const before = pendingNewVehicle.current;
+    if (!before || s.step !== "SELECT_VEHICLE") return;
+    const added = vehicles.find((v) => !before.includes(v.id));
+    if (added) {
+      pendingNewVehicle.current = null;
+      dispatch({ type: "CHOOSE_VEHICLE", vehicleId: added.id });
+    }
+  }, [vehicles, s.step]);
+
+  // Android Back steps back inside the sheet before it leaves the tab.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (menu !== "closed") {
+          setMenu("closed");
+          return true;
+        }
+        if (!canGoBackInFlow(flow, !!activeParking)) return false;
+        dispatch({ type: "BACK" });
+        return true;
+      });
+      return () => sub.remove();
+    }, [flow, activeParking, menu])
+  );
+
+  const recenter = () => {
+    if (location.permission === "blocked") {
+      if (Platform.OS !== "web") void Linking.openSettings();
       return;
     }
-    router.push("/user/parking/start");
+    if (location.permission !== "granted") {
+      void location.requestPermission();
+      return;
+    }
+    dispatchFollow({ type: "RECENTER" });
+    setRecenterToken((t) => t + 1);
+    void location.refreshLocation();
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-        <Text style={typography.screenTitle}>Parking</Text>
-        <Text style={typography.screenSubtitle}>Manage your parking sessions and charges</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20, gap: 16 }}>
-        <View style={styles.previewBanner}>
-          <Ionicons name="information-circle-outline" size={16} color={colors.blue} />
-          <Text style={styles.previewText}>
-            Demo parking: sessions run on this phone only and no payment is taken. Parking charges below are examples.
-          </Text>
+  const zone = s.step === "SELECT_AREA" ? undefined : findZone(s.zoneId);
+  const defaultVehicleId = vehicles.find((v) => v.isDefault)?.id;
+  const chosenVehicleId = s.step === "SELECT_VEHICLE" ? (s.vehicleId && vehicles.some((v) => v.id === s.vehicleId) ? s.vehicleId : defaultVehicleId) : undefined;
+
+  const start = () => {
+    if (s.step !== "CONFIRM") return;
+    guard.run(() => startParking(s.vehicleId, s.zoneId, s.minutes), {
+      onSuccess: () => {
+        haptics.success("parkingChanged");
+        dispatch({ type: "STARTED" });
+        setJustStarted(true);
+      },
+      onError: (e) => setError(describeDomainError(e).message),
+    });
+  };
+
+  const extend = () => {
+    if (!activeParking || flow.active.step !== "EXTEND") return;
+    const minutes = flow.active.minutes;
+    const newEnd = extensionQuote(activeParking, minutes, now).newEndText;
+    guard.run(() => extendParking(minutes), {
+      onSuccess: () => {
+        haptics.success("parkingChanged");
+        dispatch({ type: "CLOSE_ACTIVE" });
+        setToast(`Extended · now ends ${newEnd}`);
+      },
+      onError: (e) => setError(describeDomainError(e).message),
+    });
+  };
+
+  const end = () => {
+    guard.run(() => endParking(), {
+      onSuccess: () => {
+        haptics.success("parkingChanged");
+        dispatch({ type: "ENDED" });
+        setToast("Parking ended · saved to history");
+      },
+      onError: (e) => setError(describeDomainError(e).message),
+    });
+  };
+
+  let content: React.ReactNode;
+  // The main button of the taller steps is pinned under the scrolling content.
+  let footer: React.ReactNode = null;
+  if (active && activeParking) {
+    if (flow.active.step === "EXTEND") {
+      content = (
+        <ExtendParking
+          session={activeParking}
+          minutes={flow.active.minutes}
+          now={now}
+          error={error}
+          onChange={(m) => dispatch({ type: "SET_MINUTES", minutes: m })}
+          onConfirm={extend}
+          onBack={() => dispatch({ type: "BACK" })}
+          showCta={false}
+        />
+      );
+      footer = <SheetCTA label="Confirm extension" onPress={extend} />;
+    } else if (flow.active.step === "END") {
+      content = <EndParking view={active} error={error} onConfirm={end} onBack={() => dispatch({ type: "BACK" })} showCta={false} />;
+      footer = (
+        <>
+          <SheetCTA label="End parking" danger onPress={end} />
+          <SheetGhost label="Keep parking" onPress={() => dispatch({ type: "BACK" })} />
+        </>
+      );
+    } else {
+      content = (
+        <ActiveParkingSummary
+          view={active}
+          justStarted={justStarted}
+          notice={toast}
+          onExtend={() => dispatch({ type: "OPEN_EXTEND" })}
+          onEnd={() => dispatch({ type: "OPEN_END" })}
+        />
+      );
+    }
+  } else if (s.step === "SELECT_AREA" || !zone) {
+    content = <AreaPicker rows={parkingAreaRows(userFix, query)} query={query} onSelect={(id) => dispatch({ type: "SELECT_ZONE", zoneId: id })} />;
+  } else if (s.step === "AREA_DETAIL") {
+    content = <AreaDetail zone={zone} onContinue={() => dispatch({ type: "CONTINUE", vehicleId: defaultVehicleId })} onChange={() => dispatch({ type: "BACK" })} />;
+  } else if (s.step === "SELECT_VEHICLE") {
+    content = (
+      <VehiclePicker
+        vehicles={vehicles}
+        selectedId={chosenVehicleId}
+        onSelect={(id) => dispatch({ type: "CHOOSE_VEHICLE", vehicleId: id })}
+        onAdd={() => {
+          pendingNewVehicle.current = vehicles.map((v) => v.id);
+          router.push("/user/parking/add-vehicle");
+        }}
+        onContinue={() => dispatch({ type: "CONTINUE", vehicleId: chosenVehicleId })}
+        onBack={() => dispatch({ type: "BACK" })}
+      />
+    );
+  } else {
+    const vehicle = vehicles.find((v) => v.id === s.vehicleId);
+    if (!vehicle) {
+      // The chosen vehicle was removed meanwhile: pick again.
+      content = (
+        <View>
+          <SheetHeader title="Vehicle not available" subtitle="Choose the vehicle again." />
+          <SheetCTA label="Choose vehicle" onPress={() => dispatch({ type: "BACK" })} />
         </View>
+      );
+    } else if (s.step === "SELECT_DURATION") {
+      const q = durationQuote(s.minutes, now, zone.hourlyRateCents);
+      content = (
+        <View>
+          <SheetHeader title="Parking duration" subtitle={`${zone.id} · ${zone.name} · ${vehicle.plate}`} onBack={() => dispatch({ type: "BACK" })} />
+          <DurationDial
+            minutes={s.minutes}
+            onChange={(m) => dispatch({ type: "SET_MINUTES", minutes: m })}
+            secondary={`Ends ${q.endText}`}
+            centerTitle={q.estimateText}
+            centerCaption="estimated demo cost"
+            accessibilityLabel="Parking duration"
+            accessibilityValueText={dialAccessibilityText(s.minutes, now)}
+          />
+        </View>
+      );
+      footer = (
+        <SheetCTA
+          label={`${q.estimateText} · Continue`}
+          accessibilityHint="Estimated demo cost. Review before starting; no payment is taken."
+          onPress={() => dispatch({ type: "CONTINUE" })}
+        />
+      );
+    } else {
+      content = (
+        <ParkingConfirmation zone={zone} vehicle={vehicle} minutes={s.minutes} now={now} error={error} onStart={start} onBack={() => dispatch({ type: "BACK" })} showCta={false} />
+      );
+      footer = <SheetCTA label="Start parking" onPress={start} />;
+    }
+  }
 
-        {notice && (
-          <Pressable style={styles.notice} onPress={() => setNotice(null)}>
-            <Ionicons name="information-circle" size={16} color={colors.greenDark} />
-            <Text style={styles.noticeText}>{notice}</Text>
-          </Pressable>
-        )}
-        {error && (
-          <Pressable style={styles.errorBanner} onPress={() => setError(null)}>
-            <Ionicons name="alert-circle" size={16} color="#B3261E" />
-            <Text style={styles.errorText}>{error}</Text>
-          </Pressable>
-        )}
+  const showSearch = !active && (s.step === "SELECT_AREA" || s.step === "AREA_DETAIL");
 
-        {active ? (
-          <Card dark>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={styles.pCircle}>
-                  <Text style={{ fontWeight: "800", color: "#06210F", fontSize: 16 }}>P</Text>
-                </View>
-                <Text style={styles.darkTitle}>Active Parking</Text>
-              </View>
-              <View style={[styles.timer, active.expired && { borderColor: colors.red }]} accessibilityLabel={`${active.remainingText} left`}>
-                <Text style={styles.timerText}>{active.expired ? "00:00" : active.remainingText}</Text>
-                <Text style={[styles.timerLabel, active.expired && { color: "#FFB4AB" }]}>{active.expired ? "expired" : "left"}</Text>
-              </View>
-            </View>
-            <Text style={styles.plate}>{active.plate}</Text>
-            <Text style={styles.darkSub}>
-              <Ionicons name="location" size={11} color="#B9C1BB" /> {active.location}
-            </Text>
-            <Text style={styles.zone}>{active.zone}</Text>
-            <View style={styles.timesRow}>
-              <View>
-                <Text style={styles.costLabel}>Started</Text>
-                <Text style={styles.timeValue}>{active.startText}</Text>
-              </View>
-              <View>
-                <Text style={styles.costLabel}>Ends</Text>
-                <Text style={styles.timeValue}>{active.endText}</Text>
-              </View>
-              <View>
-                <Text style={styles.costLabel}>Parked</Text>
-                <Text style={styles.timeValue}>{active.elapsedText}</Text>
-              </View>
-            </View>
-            <Text style={styles.costLabel}>Current cost (demo rate)</Text>
-            <Text style={styles.cost}>{active.currentCostText}</Text>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-              <Pressable style={styles.darkBtnOutline} onPress={() => setExtendOpen(true)} accessibilityRole="button">
-                <Ionicons name="time-outline" size={15} color="#fff" />
-                <Text style={styles.darkBtnOutlineLabel}>Extend</Text>
+  return (
+    <View style={styles.root}>
+      <ParkingMap
+        style={StyleSheet.absoluteFill}
+        zones={DEMO_PARKING_ZONES}
+        selectedZoneId={highlightedZone(flow, activeParking?.zoneId)}
+        onZonePress={active ? undefined : (id) => dispatch({ type: "SELECT_ZONE", zoneId: id })}
+        userFix={userFix}
+        following={follow.following && !!userFix}
+        onUserGesture={() => dispatchFollow({ type: "USER_GESTURE" })}
+        recenterToken={recenterToken}
+        topInset={insets.top + 64}
+        bottomInset={navHeight + sheetHeight}
+      />
+
+      <View style={[styles.topBar, { top: insets.top + 8 }]} pointerEvents="box-none">
+        {showSearch ? (
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={colors.textSecondary} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => s.step === "AREA_DETAIL" && dispatch({ type: "BACK" })}
+              placeholder="Search area or street"
+              placeholderTextColor={colors.textLight}
+              style={styles.searchInput}
+              autoCorrect={false}
+              returnKeyType="search"
+              accessibilityLabel="Search parking areas"
+            />
+            {!!query && (
+              <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18} color={colors.textLight} />
               </Pressable>
-              <Pressable style={styles.darkBtnSolid} onPress={() => setConfirmEnd(true)} accessibilityRole="button">
-                <Ionicons name="square-outline" size={15} color={colors.red} />
-                <Text style={styles.darkBtnSolidLabel}>End Parking</Text>
-              </Pressable>
-            </View>
-          </Card>
+            )}
+          </View>
         ) : (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIcon}>
-              <Text style={{ fontWeight: "800", color: colors.greenDark, fontSize: 18 }}>P</Text>
-            </View>
-            <Text style={styles.emptyTitle}>No active parking</Text>
-            <Text style={styles.emptyBody}>Choose a vehicle, zone and duration to start a parking session.</Text>
-            <GreenButton label="Start Parking" small onPress={startParking} style={{ marginTop: 12, alignSelf: "stretch" }} />
+          <View style={styles.titlePill}>
+            <Text style={styles.titlePillText}>Parking</Text>
+            <Text style={styles.titlePillDemo}>Demo</Text>
           </View>
         )}
+        <Pressable onPress={() => setMenu("menu")} style={styles.roundBtn} accessibilityRole="button" accessibilityLabel="Parking menu">
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.textPrimary} />
+        </Pressable>
+      </View>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <Pressable style={styles.quickAction} onPress={startParking} accessibilityRole="button">
-            <Ionicons name="pricetag-outline" size={20} color={colors.greenDark} />
-            <Text style={styles.quickActionLabel}>Start Parking</Text>
-          </Pressable>
-          <Pressable style={styles.quickAction} onPress={() => router.push("/user/parking/vehicles")} accessibilityRole="button">
-            <Ionicons name="car-outline" size={20} color={colors.greenDark} />
-            <Text style={styles.quickActionLabel}>My Vehicles</Text>
-          </Pressable>
-          <Pressable style={styles.quickAction} onPress={() => router.push("/user/parking/history")} accessibilityRole="button">
-            <Ionicons name="time-outline" size={20} color={colors.greenDark} />
-            <Text style={styles.quickActionLabel}>Parking History</Text>
-          </Pressable>
+      {!!toast && !active && (
+        <View style={[styles.toast, { top: insets.top + 66 }]} accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark-circle" size={16} color={colors.greenDark} />
+          <Text style={styles.toastText}>{toast}</Text>
         </View>
+      )}
 
-        <View>
-          <Text style={typography.sectionHeading}>Parking Charges</Text>
-          <Text style={styles.examplesNote}>Examples only. Operator charges are not connected yet.</Text>
-          <Card style={{ marginTop: 10 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={styles.unpaidChip}><Text style={styles.unpaidChipLabel}>Unpaid</Text></View>
-              <View style={styles.providerChip}><Text style={styles.providerChipLabel}>P</Text></View>
-              <Text style={{ fontWeight: "700", fontSize: 13 }}>Parking operator</Text>
-              <Text style={{ marginLeft: "auto", fontWeight: "800", fontSize: 17 }}>{"€60.00"}</Text>
-            </View>
-            <Text style={styles.chargeMeta}>
-              <Ionicons name="car" size={12} /> JSK-306
-            </Text>
-            <Text style={styles.chargeMeta}>
-              <Ionicons name="information-circle-outline" size={12} /> No valid parking payment found
-            </Text>
-            <Text style={styles.dueText}>Due Jul 30</Text>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-              <GreenButton label="Pay Now" small style={{ flex: 1 }} disabled />
-              <GreenButton label="View Details" small variant="outline" style={{ flex: 1 }} disabled />
-            </View>
-          </Card>
-          <Card style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={styles.paidChip}><Text style={styles.paidChipLabel}>Paid</Text></View>
-              <View style={[styles.providerChip, { backgroundColor: "#12140F" }]}><Text style={styles.providerChipLabel}>A</Text></View>
-              <Text style={{ fontWeight: "700", fontSize: 13 }}>Parking operator</Text>
-              <Text style={{ marginLeft: "auto", fontWeight: "800", fontSize: 17 }}>{"€5.00"}</Text>
-            </View>
-            <Text style={styles.chargeMeta}>
-              <Ionicons name="car" size={12} /> JSK-306
-            </Text>
-            <Text style={[styles.dueText, { color: colors.greenDark }]}>Paid Jul 27</Text>
-          </Card>
-        </View>
+      <View style={[styles.recenter, { bottom: navHeight + sheetHeight + 12 }]}>
+        <FollowLocationButton following={follow.following && !!userFix} onPress={recenter} />
+      </View>
 
-        <View>
-          <Text style={typography.sectionHeading}>Registered Vehicles</Text>
-          {vehicles.length === 0 && <Text style={styles.examplesNote}>No vehicles yet.</Text>}
-          {vehicles.map((v) => (
-            <Pressable key={v.id} style={styles.vehicleRow} onPress={() => router.push("/user/parking/vehicles")}>
-              <Ionicons name="car" size={20} color={colors.textSecondary} />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontWeight: "800", fontSize: 14.5 }}>{v.plate}</Text>
-                {!!v.title && <Text style={{ fontSize: 12, color: colors.textSecondary }}>{v.title}</Text>}
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-            </Pressable>
-          ))}
-          <Pressable style={styles.addVehicle} onPress={() => router.push("/user/parking/add-vehicle")}>
-            <Ionicons name="add-circle-outline" size={18} color={colors.greenDark} />
-            <Text style={styles.addVehicleLabel}>Add vehicle</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+      <ParkingSheet bottomOffset={navHeight} stepKey={stepKey} onHeight={setSheetHeight} accessibilityLabel="Parking panel" footer={footer}>
+        {content}
+      </ParkingSheet>
 
-      <Modal visible={extendOpen} transparent animationType="fade" onRequestClose={() => setExtendOpen(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setExtendOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <Text style={styles.sheetTitle}>Extend parking</Text>
-            <Text style={styles.sheetBody}>
-              {active ? `Currently ends at ${active.endText}.` : ""} Choose how much time to add.
-            </Text>
-            <View style={styles.sheetOptions}>
-              {PARKING_EXTENSION_PRESETS.map((p) => (
-                <Pressable
-                  key={p.minutes}
-                  style={styles.sheetOption}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    const r = extendParking(p.minutes);
-                    setExtendOpen(false);
-                    if (r.ok) setNotice(`Parking extended by ${p.label.replace("+", "")}.`);
-                    else setError(describeDomainError(r.error).message);
-                  }}
-                >
-                  <Text style={styles.sheetOptionLabel}>{p.label}</Text>
+      <UserBottomNav />
+
+      {/* Menu: an in-screen overlay (no portal/exit animation), closed before any navigation. */}
+      {menu !== "closed" && (
+        <Pressable style={[StyleSheet.absoluteFill, styles.backdrop]} onPress={() => setMenu("closed")} accessibilityLabel="Close menu">
+          <Pressable style={[styles.menu, { marginTop: insets.top + 60 }]} onPress={() => {}}>
+            {menu === "menu" ? (
+              <>
+                {(
+                  [
+                    ["car-outline", "My vehicles", () => router.push("/user/parking/vehicles")],
+                    ["time-outline", "Parking history", () => router.push("/user/parking/history")],
+                    ["information-circle-outline", "About demo parking", null],
+                  ] as const
+                ).map(([icon, label, go]) => (
+                  <Pressable
+                    key={label}
+                    style={styles.menuRow}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      if (go) {
+                        setMenu("closed");
+                        go();
+                      } else setMenu("about");
+                    }}
+                  >
+                    <Ionicons name={icon} size={20} color={colors.textPrimary} />
+                    <Text style={styles.menuLabel}>{label}</Text>
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <View style={{ padding: 6 }}>
+                <Text style={styles.aboutTitle} accessibilityRole="header">
+                  About demo parking
+                </Text>
+                <Text style={styles.aboutText}>
+                  Parking in ParkWatch is a simulation. Sessions are stored on this device only. No parking operator is contacted and no payment is
+                  taken, so a demo session is not valid parking.
+                </Text>
+                <Text style={styles.aboutText}>Areas, outlines and prices are illustrative demo data, not official zones or tariffs.</Text>
+                <Text style={styles.aboutText}>
+                  Your location is used only while this screen is open, to show where you are and sort nearby areas. It is not saved or sent.
+                </Text>
+                <Pressable onPress={() => setMenu("closed")} style={styles.aboutClose} accessibilityRole="button">
+                  <Text style={styles.aboutCloseLabel}>Close</Text>
                 </Pressable>
-              ))}
-            </View>
-            <Pressable onPress={() => setExtendOpen(false)} style={{ alignItems: "center", marginTop: 14 }}>
-              <Text style={{ color: colors.textSecondary, fontWeight: "700" }}>Cancel</Text>
-            </Pressable>
+              </View>
+            )}
           </Pressable>
         </Pressable>
-      </Modal>
+      )}
 
-      <ConfirmDialog
-        visible={confirmEnd}
-        title="End parking?"
-        message={active ? `${active.plate} has been parked for ${active.elapsedText}. Current cost at the demo rate: ${active.currentCostText}.` : ""}
-        confirmLabel="End Parking"
-        destructive
-        onCancel={() => setConfirmEnd(false)}
-        onConfirm={() => {
-          const r = endParking();
-          setConfirmEnd(false);
-          if (r.ok) setNotice("Parking ended. You can find it in Parking History.");
-          else setError(describeDomainError(r.error).message);
-        }}
-      />
-      <UserBottomNav />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  notice: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.greenLight, borderRadius: radius.card, padding: 12 },
-  noticeText: { flex: 1, fontSize: 12.5, color: colors.greenDark, fontWeight: "600" },
-  errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.redLight, borderRadius: radius.card, padding: 12 },
-  errorText: { flex: 1, fontSize: 12.5, color: "#B3261E", fontWeight: "600" },
-  timesRow: { flexDirection: "row", gap: 24 },
-  timeValue: { color: "#fff", fontWeight: "700", fontSize: 14, marginTop: 2 },
-  emptyCard: { alignItems: "center", backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 20, ...shadow.card },
-  emptyIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.greenLight, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontWeight: "800", fontSize: 16, marginTop: 10 },
-  emptyBody: { fontSize: 12.5, color: colors.textSecondary, textAlign: "center", marginTop: 4 },
-  examplesNote: { fontSize: 11.5, color: colors.textLight, marginTop: 4 },
-  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
-  sheetTitle: { fontSize: 18, fontWeight: "800" },
-  sheetBody: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
-  sheetOptions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 16 },
-  sheetOption: { flexBasis: "47%", flexGrow: 1, borderWidth: 1.5, borderColor: colors.green, borderRadius: radius.button, paddingVertical: 14, alignItems: "center" },
-  sheetOptionLabel: { fontWeight: "800", fontSize: 14, color: colors.greenDark },
-  previewBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.blueLight, borderRadius: radius.card, padding: 12 },
-  previewText: { flex: 1, fontSize: 12, color: colors.textPrimary, lineHeight: 16 },
-  safe: { flex: 1, backgroundColor: colors.background },
-  pCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
-  darkTitle: { color: "#fff", fontWeight: "800", fontSize: 17 },
-  timer: { width: 76, height: 76, borderRadius: 38, borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
-  timerText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  timerLabel: { color: "#B9C1BB", fontSize: 9 },
-  plate: { color: "#fff", fontWeight: "800", fontSize: 20, marginTop: 16 },
-  darkSub: { color: "#B9C1BB", fontSize: 12.5, marginTop: 4 },
-  zone: { color: colors.green, fontWeight: "700", fontSize: 12.5, marginTop: 6 },
-  costLabel: { color: "#B9C1BB", fontSize: 11.5, marginTop: 14 },
-  cost: { color: "#fff", fontWeight: "800", fontSize: 22, marginTop: 2 },
-  darkBtnOutline: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff", borderRadius: radius.chip, paddingVertical: 12 },
-  darkBtnOutlineLabel: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  darkBtnSolid: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderRadius: radius.chip, paddingVertical: 12 },
-  darkBtnSolidLabel: { color: colors.red, fontWeight: "700", fontSize: 13 },
-  quickAction: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, alignItems: "center", justifyContent: "center", paddingVertical: 18, gap: 8 },
-  quickActionLabel: { fontWeight: "700", fontSize: 12, textAlign: "center" },
-  unpaidChip: { backgroundColor: colors.redLight, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 3 },
-  unpaidChipLabel: { color: colors.red, fontWeight: "700", fontSize: 11 },
-  paidChip: { backgroundColor: colors.greenLight, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 3 },
-  paidChipLabel: { color: colors.greenDark, fontWeight: "700", fontSize: 11 },
-  providerChip: { width: 20, height: 20, borderRadius: 6, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" },
-  providerChipLabel: { color: "#fff", fontWeight: "800", fontSize: 11 },
-  chargeMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
-  dueText: { fontSize: 11.5, fontWeight: "700", color: colors.red, marginTop: 4 },
-  vehicleRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: 14, marginTop: 10 },
-  addVehicle: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: colors.green, borderStyle: "dashed", borderRadius: radius.card, paddingVertical: 14, marginTop: 10 },
-  addVehicleLabel: { color: colors.greenDark, fontWeight: "700" },
+  root: { flex: 1, backgroundColor: "#E8EFEA" },
+  topBar: { position: "absolute", left: 16, right: 16, flexDirection: "row", alignItems: "center", gap: 10 },
+  search: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.textPrimary, paddingVertical: 0 },
+  titlePill: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  titlePillText: { fontSize: 20, fontWeight: "800", color: colors.textPrimary, backgroundColor: colors.white, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 6, overflow: "hidden" },
+  titlePillDemo: { fontSize: 11.5, fontWeight: "700", color: colors.textSecondary, backgroundColor: colors.white, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: "hidden" },
+  roundBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  recenter: { position: "absolute", right: 16 },
+  toast: { position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.white, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, elevation: 4, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  toastText: { fontSize: 13, fontWeight: "700", color: colors.textPrimary },
+  backdrop: { backgroundColor: "rgba(0,0,0,0.25)", alignItems: "flex-end", paddingHorizontal: 16, zIndex: 20, elevation: 20 },
+  menu: { width: 270, backgroundColor: colors.white, borderRadius: 18, paddingVertical: 6, paddingHorizontal: 6, elevation: 8, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 14, minHeight: 48 },
+  menuLabel: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },
+  aboutTitle: { fontSize: 17, fontWeight: "800", marginBottom: 8 },
+  aboutText: { fontSize: 13.5, color: colors.textPrimary, lineHeight: 19, marginBottom: 8 },
+  aboutClose: { alignSelf: "flex-end", paddingHorizontal: 12, paddingVertical: 10 },
+  aboutCloseLabel: { fontSize: 14.5, fontWeight: "800", color: colors.greenDark },
 });

@@ -11,7 +11,7 @@
 import { Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 
-export type SuccessHaptic = "photoSaved" | "reportSubmitted" | "caseAccepted" | "officerEvidenceComplete";
+export type SuccessHaptic = "photoSaved" | "reportSubmitted" | "caseAccepted" | "officerEvidenceComplete" | "parkingChanged";
 
 export const HAPTIC_MIN_INTERVAL_MS = 400;
 
