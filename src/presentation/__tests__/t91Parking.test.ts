@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { addVehicle, DEMO_PARKING_HOURLY_RATE_CENTS, DEMO_PARKING_ZONES, MAX_PARKING_DURATION_MINUTES, ParkingSession, startParking } from "../../domain";
 import {
+  DIAL_DEGREES_PER_MINUTE,
   accessibilityStep,
   angleAt,
   angleDelta,
@@ -37,10 +38,14 @@ describe("parking flow state machine", () => {
     const s1 = run([{ type: "SELECT_ZONE", zoneId: "A1" }, { type: "CONTINUE", vehicleId: "v1" }]);
     expect(s1.setup).toEqual({ step: "SELECT_VEHICLE", zoneId: "A1", vehicleId: "v1" });
     const s2 = run([{ type: "CHOOSE_VEHICLE", vehicleId: "v2" }, { type: "CONTINUE" }], s1);
-    expect(s2.setup).toEqual({ step: "SELECT_DURATION", zoneId: "A1", vehicleId: "v2", minutes: 60 });
+    // the duration step starts at 1 minute, like a parking meter
+    expect(s2.setup).toEqual({ step: "SELECT_DURATION", zoneId: "A1", vehicleId: "v2", minutes: 1 });
     const s3 = run([{ type: "SET_MINUTES", minutes: 77 }, { type: "CONTINUE" }], s2);
-    expect(s3.setup).toEqual({ step: "CONFIRM", zoneId: "A1", vehicleId: "v2", minutes: 75 });
-    expect(run([{ type: "STARTED" }], s3).setup).toEqual({ step: "SELECT_AREA" });
+    expect(s3.setup).toEqual({ step: "CONFIRM", zoneId: "A1", vehicleId: "v2", minutes: 77 });
+    const started = run([{ type: "STARTED" }], s3);
+    expect(started.setup).toEqual({ step: "SELECT_AREA" });
+    // the next session starts from 1 minute again
+    expect(run([{ type: "SELECT_ZONE", zoneId: "A1" }, { type: "CONTINUE", vehicleId: "v1" }, { type: "CONTINUE" }], started).setup).toMatchObject({ minutes: 1 });
   });
 
   it("vehicle step cannot continue without a vehicle", () => {
@@ -70,8 +75,9 @@ describe("parking flow state machine", () => {
 
   it("active session: Extend / End and back to the summary; Back is consumed only inside a sub-step", () => {
     const ext = run([{ type: "OPEN_EXTEND" }]);
-    expect(ext.active).toEqual({ step: "EXTEND", minutes: 30 });
-    expect(run([{ type: "SET_MINUTES", minutes: 47 }], ext).active).toEqual({ step: "EXTEND", minutes: 45 });
+    expect(ext.active).toEqual({ step: "EXTEND", minutes: 1 });
+    expect(run([{ type: "SET_MINUTES", minutes: 47 }], ext).active).toEqual({ step: "EXTEND", minutes: 47 });
+    expect(run([{ type: "SET_MINUTES", minutes: 0 }], ext).active).toEqual({ step: "EXTEND", minutes: 1 });
     expect(canGoBackInFlow(ext, true)).toBe(true);
     expect(run([{ type: "BACK" }], ext).active).toEqual({ step: "ACTIVE" });
     expect(run([{ type: "OPEN_END" }]).active).toEqual({ step: "END" });
@@ -104,18 +110,49 @@ describe("circular duration dial", () => {
     expect(d.value).toBe(65);
   });
 
-  it("snaps to 5 minutes and clamps to the allowed range; turning back from the max responds at once", () => {
-    expect(snapMinutes(62)).toBe(60);
-    expect(snapMinutes(63)).toBe(65);
-    expect(snapMinutes(-40)).toBe(5);
+  it("whole-minute steps: 6 degrees = 1 minute, one turn = 60 minutes, no 5-minute snapping", () => {
+    expect(DIAL_DEGREES_PER_MINUTE).toBe(6);
+    expect(snapMinutes(62)).toBe(62);
+    expect(snapMinutes(63)).toBe(63);
+    expect(snapMinutes(63.4)).toBe(63);
+    expect(snapMinutes(63.6)).toBe(64);
+    expect(snapMinutes(0)).toBe(1);
+    expect(snapMinutes(-40)).toBe(1);
     expect(snapMinutes(10_000)).toBe(MAX_PARKING_DURATION_MINUTES);
-    let d = startDrag(0, 5);
-    d = moveDrag(d, 300); // a large counter-clockwise turn at the minimum stays at the minimum
-    expect(d.value).toBe(5);
-    d = moveDrag(d, 330); // and moves again as soon as the finger turns forward
-    expect(d.value).toBeGreaterThan(5);
-    const max = { min: 5, max: 120 };
-    let m = startDrag(0, 115, );
+    // from the 1-minute start: 6° -> 2, 30° -> 6, 90° -> 16, 180° -> 31, a full turn -> 61
+    const turnTo = (degs: number[]) => degs.reduce((d, a) => moveDrag(d, a), startDrag(0, 1)).value;
+    expect(turnTo([6])).toBe(2);
+    expect(turnTo([30])).toBe(6);
+    expect(turnTo([45, 90])).toBe(16);
+    expect(turnTo([90, 180])).toBe(31);
+    expect(turnTo([90, 180, 270, 359.9])).toBe(61);
+    // every minute is reachable one by one
+    let d = startDrag(0, 1);
+    const seen: number[] = [];
+    for (let a = 1; a <= 60; a++) {
+      d = moveDrag(d, a);
+      if (seen.at(-1) !== d.value) seen.push(d.value);
+    }
+    expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  it("multi-turn: 1 h + one tick = 61, back one tick = 59, two full turns = 2 h more", () => {
+    const tick = (from: number, deg: number) => moveDrag(startDrag(0, from), deg).value;
+    expect(tick(60, 6)).toBe(61);
+    expect(tick(60, -6 + 360)).toBe(59); // a small counter-clockwise move from 12 o'clock
+    let d = startDrag(0, 1);
+    for (let a = 30; a <= 720; a += 30) d = moveDrag(d, a % 360);
+    expect(d.value).toBe(121);
+  });
+
+  it("clamps at 1 minute and at the maximum; turning back from either end responds at once", () => {
+    let d = startDrag(0, 1);
+    d = moveDrag(d, 300); // counter-clockwise at the minimum stays at 1
+    expect(d.value).toBe(1);
+    d = moveDrag(d, 306); // and moves as soon as the finger turns forward
+    expect(d.value).toBe(2);
+    const max = { min: 1, max: 120 };
+    let m = startDrag(0, 115);
     for (const a of [90, 180, 270, 0, 90]) m = moveDrag(m, a, max);
     expect(m.value).toBe(120);
     m = moveDrag(m, 60, max);
@@ -130,20 +167,27 @@ describe("circular duration dial", () => {
     expect(arcFraction(0)).toBe(0);
   });
 
-  it("screen readers adjust in 15-minute steps with a spoken value", () => {
-    expect(accessibilityStep(60, 1)).toBe(75);
-    expect(accessibilityStep(65, 1)).toBe(75);
-    expect(accessibilityStep(65, -1)).toBe(60);
-    expect(accessibilityStep(5, -1)).toBe(5);
+  it("screen readers adjust by 1 minute with a spoken value", () => {
+    expect(accessibilityStep(60, 1)).toBe(61);
+    expect(accessibilityStep(60, -1)).toBe(59);
+    expect(accessibilityStep(2, -1)).toBe(1);
+    expect(accessibilityStep(1, -1)).toBe(1);
+    expect(accessibilityStep(MAX_PARKING_DURATION_MINUTES, 1)).toBe(MAX_PARKING_DURATION_MINUTES);
+    expect(dialAccessibilityText(37, new Date(2026, 9, 12, 14, 15))).toBe("37 minutes, ends at 14:52");
+    expect(dialAccessibilityText(72, new Date(2026, 9, 12, 14, 15))).toBe("1 hour 12 minutes, ends at 15:27");
+    expect(dialAccessibilityText(1, new Date(2026, 9, 12, 14, 15))).toBe("1 minute, ends at 14:16");
     expect(dialAccessibilityText(75, new Date(2026, 9, 12, 14, 30))).toBe("1 hour 15 minutes, ends at 15:45");
     expect(dialAccessibilityText(5, new Date(2026, 9, 12, 14, 30))).toBe("5 minutes, ends at 14:35");
   });
 
   it("headline and presets", () => {
+    expect(dialHeadline(1)).toBe("1m");
+    expect(dialHeadline(61)).toBe("1h 1m");
     expect(dialHeadline(75)).toBe("1h 15m");
     expect(dialHeadline(45)).toBe("45m");
     expect(dialHeadline(120)).toBe("2h");
     expect(dialPresets().map((p) => p.label)).toEqual(["30 min", "1 h", "2 h", "Max"]);
+    expect(dialPresets().slice(0, 3).map((p) => p.minutes)).toEqual([30, 60, 120]);
     expect(dialPresets().at(-1)!.minutes).toBe(MAX_PARKING_DURATION_MINUTES);
   });
 });
@@ -184,6 +228,17 @@ describe("demo areas and quotes", () => {
     expect(JSON.stringify(d)).not.toMatch(/free|Mon|Sat/);
   });
 
+  it("minute-level prices in integer cents at the area's demo rate", () => {
+    const at300 = (m: number) => durationQuote(m, NOW, 300);
+    expect(at300(1)).toMatchObject({ estimateCents: 5, estimateText: "€0.05", endText: "14:32", durationText: "1 min" });
+    expect(at300(30).estimateText).toBe("€1.50");
+    expect(at300(61)).toMatchObject({ estimateCents: 305, estimateText: "€3.05", endText: "15:32" });
+    expect(at300(2).estimateCents).toBe(10);
+    // non-round rates stay whole cents (no float display errors)
+    for (let m = 1; m <= 180; m++) expect(Number.isInteger(durationQuote(m, NOW, 250).estimateCents)).toBe(true);
+    expect(durationQuote(1, NOW, 250).estimateText).toBe("€0.04");
+  });
+
   it("duration quote updates price and end time live", () => {
     expect(durationQuote(75, NOW, 220)).toEqual({ durationText: "1 h 15 min", endText: "15:46", estimateCents: 275, estimateText: "€2.75" });
     expect(durationQuote(30, NOW, 300).estimateText).toBe("€1.50");
@@ -205,6 +260,10 @@ describe("demo areas and quotes", () => {
       provider: "SIMULATED",
     };
     expect(extensionQuote(s, 30, NOW)).toEqual({ currentEndText: "15:00", newEndText: "15:30", addedText: "+30 min", totalEstimateText: "€3.00" });
+    // minute by minute: 1 -> 15:01, 15 -> 15:15, 61 -> 16:01
+    expect(extensionQuote(s, 1, NOW)).toMatchObject({ newEndText: "15:01", addedText: "+1 min" });
+    expect(extensionQuote(s, 15, NOW).newEndText).toBe("15:15");
+    expect(extensionQuote(s, 61, NOW).newEndText).toBe("16:01");
     expect(extensionQuote(s, 30, new Date(2026, 9, 12, 16, 0)).newEndText).toBe("16:30");
     expect(toActiveParkingView(s, NOW)).toMatchObject({ zoneId: "A1", areaName: "Railway Square" });
   });

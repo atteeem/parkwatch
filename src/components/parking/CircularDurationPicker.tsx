@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { PanResponder, StyleSheet, Text, View } from "react-native";
 import { colors } from "../../constants/colors";
+import { dialClick } from "../../feedback/dialClick";
 import {
   accessibilityStep,
   angleAt,
@@ -18,10 +19,11 @@ const RING = 20;
 const HANDLE = 38;
 
 /**
- * Large circular duration control: drag the handle (or anywhere on the ring)
- * around the circle; one turn = one hour, turning on adds hours. Values snap
- * to 5 minutes and stay within `range`. Screen readers get an adjustable
- * control (increment/decrement by 15 minutes) instead of the drag.
+ * Large circular duration control, like a mechanical parking meter: drag the
+ * handle (or anywhere on the ring) around the circle; one turn = 60 minutes,
+ * turning on adds hours. Values snap to whole minutes and stay within `range`.
+ * Each new minute reached by dragging plays a short click (`onTick`). Screen
+ * readers get an adjustable control (increment/decrement by 1 minute).
  */
 export function CircularDurationPicker({
   value,
@@ -32,6 +34,7 @@ export function CircularDurationPicker({
   accessibilityValueText,
   centerTitle,
   centerCaption,
+  onTick = dialClick.tick,
 }: {
   value: number;
   onChange: (minutes: number) => void;
@@ -41,6 +44,8 @@ export function CircularDurationPicker({
   accessibilityValueText: string;
   centerTitle?: string;
   centerCaption?: string;
+  /** A new minute was reached while dragging (sound; must never throw into the gesture). */
+  onTick?: () => void;
 }) {
   const S = size;
   const R = S / 2 - RING / 2;
@@ -48,8 +53,8 @@ export function CircularDurationPicker({
   const [dragRaw, setDragRaw] = useState<number | null>(null);
   const drag = useRef<DialDrag | null>(null);
   const origin = useRef<{ x: number; y: number } | null>(null);
-  const latest = useRef({ value, onChange, range });
-  latest.current = { value, onChange, range };
+  const latest = useRef({ value, onChange, range, onTick });
+  latest.current = { value, onChange, range, onTick };
 
   const angleOf = (pageX: number, pageY: number): number | null => {
     const o = origin.current;
@@ -71,6 +76,7 @@ export function CircularDurationPicker({
           // ignores touches, so location* is relative to the dial.
           const { pageX, pageY, locationX, locationY } = e.nativeEvent;
           origin.current = { x: pageX - locationX, y: pageY - locationY };
+          dialClick.preload();
           const a = angleOf(pageX, pageY);
           drag.current = a === null ? null : startDrag(a, latest.current.value);
         },
@@ -81,10 +87,21 @@ export function CircularDurationPicker({
             drag.current = startDrag(a, latest.current.value);
             return;
           }
+          const prev = drag.current.value;
           const next = moveDrag(drag.current, a, latest.current.range);
           drag.current = next;
           setDragRaw(next.raw);
-          if (next.value !== latest.current.value) latest.current.onChange(next.value);
+          // Compare with the drag's own last minute (not the prop), so several moves
+          // before a re-render still click exactly once per new minute.
+          if (next.value !== prev) {
+            latest.current.onChange(next.value);
+            // Sound is an enhancement: a failure must not break the drag.
+            try {
+              latest.current.onTick();
+            } catch {
+              // ignore
+            }
+          }
         },
         onPanResponderRelease: () => {
           drag.current = null;

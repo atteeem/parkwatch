@@ -25,16 +25,26 @@ describe("CircularDurationPicker", () => {
     expect(dial.props.accessibilityLabel).toBe("Parking duration");
     expect(dial.props.accessibilityValue).toEqual({ text: "1 hour, ends at 15:31" });
     act(() => dial.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } }));
-    expect(onChange).toHaveBeenLastCalledWith(75);
+    expect(onChange).toHaveBeenLastCalledWith(61);
     act(() => dial.props.onAccessibilityAction({ nativeEvent: { actionName: "decrement" } }));
-    expect(onChange).toHaveBeenLastCalledWith(45);
+    expect(onChange).toHaveBeenLastCalledWith(59);
+  });
+
+  it("cannot decrement below 1 minute", () => {
+    const onChange = jest.fn();
+    let r!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      r = TestRenderer.create(<CircularDurationPicker value={1} onChange={onChange} onTick={jest.fn()} accessibilityValueText="x" />);
+    });
+    act(() => r.root.find((n) => n.props.accessibilityRole === "adjustable").props.onAccessibilityAction({ nativeEvent: { actionName: "decrement" } }));
+    expect(onChange).toHaveBeenLastCalledWith(1);
   });
 
   it("dragging works from the first move: the origin comes from the touch start (no async measuring)", () => {
     const onChange = jest.fn();
     let r!: TestRenderer.ReactTestRenderer;
     act(() => {
-      r = TestRenderer.create(<CircularDurationPicker value={60} size={260} onChange={onChange} accessibilityValueText="x" />);
+      r = TestRenderer.create(<CircularDurationPicker value={60} size={260} onChange={onChange} onTick={jest.fn()} accessibilityValueText="x" />);
     });
     const dial = r.root.find((n) => n.props.accessibilityRole === "adjustable");
     // Dial at page (100, 200); centre (230, 330); ring radius 120.
@@ -193,5 +203,54 @@ describe("bottom sheet drag", () => {
     expect(sheetSnap(false, -10, -0.9)).toBe(true);
     expect(sheetSnap(true, 20, 0.1)).toBe(true);
     expect(sheetSnap(false, 20, 0.1)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tactile click: one per newly reached minute while dragging.
+const dragEvent = (deg: number, t: number) => {
+  const x = 230 + 120 * Math.sin((deg * Math.PI) / 180);
+  const y = 330 - 120 * Math.cos((deg * Math.PI) / 180);
+  const touch = { touchActive: true, startPageX: 230, startPageY: 210, startTimeStamp: 0, currentPageX: x, currentPageY: y, currentTimeStamp: t, previousPageX: x, previousPageY: y, previousTimeStamp: t };
+  return {
+    nativeEvent: { pageX: x, pageY: y, locationX: x - 100, locationY: y - 200, touches: [], changedTouches: [], timestamp: t },
+    touchHistory: { numberActiveTouches: 1, indexOfSingleActiveTouch: 0, mostRecentTimeStamp: t, touchBank: [touch] },
+  };
+};
+
+describe("dial click on minute change", () => {
+  const setup = (onTick: () => void) => {
+    const onChange = jest.fn();
+    let r!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      r = TestRenderer.create(<CircularDurationPicker value={10} size={260} onChange={onChange} onTick={onTick} accessibilityValueText="x" />);
+    });
+    return { dial: r.root.find((n) => n.props.accessibilityRole === "adjustable"), onChange };
+  };
+
+  it("clicks once per new minute, not for finger movement within the same minute, and also backwards", () => {
+    const onTick = jest.fn();
+    const { dial, onChange } = setup(onTick);
+    act(() => dial.props.onResponderGrant(dragEvent(0, 1)));
+    act(() => dial.props.onResponderMove(dragEvent(1, 2))); // 10.17 -> still 10
+    act(() => dial.props.onResponderMove(dragEvent(2, 3))); // 10.33 -> still 10
+    expect(onTick).not.toHaveBeenCalled();
+    act(() => dial.props.onResponderMove(dragEvent(6, 4))); // 11
+    act(() => dial.props.onResponderMove(dragEvent(12, 5))); // 12
+    expect(onTick).toHaveBeenCalledTimes(2);
+    expect(onChange.mock.calls.map((c) => c[0])).toEqual([11, 12]);
+    act(() => dial.props.onResponderMove(dragEvent(6, 6))); // back to 11
+    expect(onTick).toHaveBeenCalledTimes(3);
+    expect(onChange).toHaveBeenLastCalledWith(11);
+  });
+
+  it("a failing sound never breaks the dial", () => {
+    const { dial, onChange } = setup(() => {
+      throw new Error("audio unavailable");
+    });
+    act(() => dial.props.onResponderGrant(dragEvent(0, 1)));
+    expect(() => act(() => dial.props.onResponderMove(dragEvent(6, 2)))).not.toThrow();
+    act(() => dial.props.onResponderMove(dragEvent(12, 3)));
+    expect(onChange.mock.calls.map((c) => c[0])).toEqual([11, 12]);
   });
 });
