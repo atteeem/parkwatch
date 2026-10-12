@@ -9,6 +9,9 @@ import { tabNavigation } from "../navigation/roleGuard";
 import { isUserNavItemActive, USER_NAV_ITEMS } from "./userNavItems";
 import { NavTab } from "./NavTab";
 
+/** Height of the citizen bottom bar (border + padding + icon/label/indicator + safe-area padding). */
+export const userBottomNavHeight = (insetBottom: number): number => 56 + Math.max(insetBottom, 10) + 6;
+
 export function UserBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
