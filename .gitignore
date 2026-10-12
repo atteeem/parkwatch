@@ -26,3 +26,4 @@ coverage/
 .claude/
 # T8.5 real-cloud QA output (ids only) and local test credentials
 cloud-qa-results.local.json
+cloud-qa-t87-t90-results.local.json
