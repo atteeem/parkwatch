@@ -20,11 +20,27 @@ export const OFFICER_CAMERA_GUIDE: Record<OfficerEvidenceType, CameraGuideKind> 
 
 /** Short hint under the frame. Plain framing advice; no claim of detection. */
 export const CAMERA_GUIDE_HINT: Record<CameraGuideKind, string> = {
-  "vehicle-front": "Fit the front of the vehicle inside the frame",
-  "vehicle-side": "Fit the whole side of the vehicle inside the frame",
-  "vehicle-rear": "Fit the rear of the vehicle inside the frame",
+  "vehicle-front": "Both headlights and the plate in frame",
+  "vehicle-side": "Front to rear, both wheels in frame",
+  "vehicle-rear": "Both tail lights and the plate in frame",
   plate: "Fill the frame with the licence plate",
-  sign: "Fit the parking sign inside the frame",
+  sign: "Fit the whole parking sign in the frame",
+};
+
+/** Instruction under "Take 3 Photos" for the citizen's current shot. */
+export const CITIZEN_SHOT_INSTRUCTION: Record<CitizenEvidenceType, string> = {
+  FRONT: "Front photo: stand in front of the vehicle and line it up with the outline.",
+  SIDE: "Side photo: step back until the whole side of the vehicle fits the outline.",
+  REAR: "Rear photo: stand behind the vehicle and line it up with the outline.",
+};
+
+/** Small label above the frame naming the shot. */
+export const CAMERA_GUIDE_LABEL: Record<CameraGuideKind, string> = {
+  "vehicle-front": "FRONT",
+  "vehicle-side": "SIDE",
+  "vehicle-rear": "REAR",
+  plate: "LICENCE PLATE",
+  sign: "PARKING SIGN",
 };
 
 /** width / height of the frame for each subject. */
