@@ -5,8 +5,8 @@ import { ReportStepper } from "../../../src/components/ReportStepper";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { CitizenEvidenceType, isDraftValid, qualifiesAsRequiredEvidence } from "../../../src/domain";
 import { afterStep, CITIZEN_PHOTO_SLOTS, nextMissingSlot } from "../../../src/presentation/reportDraft";
-import { CITIZEN_CAMERA_GUIDE } from "../../../src/presentation/cameraGuides";import { haptics } from "../../../src/feedback/haptics";
-
+import { CITIZEN_CAMERA_GUIDE, CITIZEN_SHOT_INSTRUCTION } from "../../../src/presentation/cameraGuides";
+import { haptics } from "../../../src/feedback/haptics";
 
 export default function ReportPhotos() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function ReportPhotos() {
       instructionTitle="Take 3 Photos"
       instructionBody={
         activeSlot
-          ? "Line the vehicle up with the guide and take a clear photo."
+          ? CITIZEN_SHOT_INSTRUCTION[activeSlot]
           : "All 3 photos are taken. Tap a photo below to retake it, or continue."
       }
       guide={activeSlot ? CITIZEN_CAMERA_GUIDE[activeSlot] : undefined}
