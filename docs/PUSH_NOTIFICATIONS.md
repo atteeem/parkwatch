@@ -1,10 +1,12 @@
 # Push notifications (T9.2)
 
-> Status: implemented and verified **locally only** (PGlite with the real
-> migrations, Jest with a fake Expo transport, web console against the mock
-> backend). The T9.2 migrations are **not applied** to the development project,
-> the `push-dispatch` function is **not deployed**, no real push has been sent,
-> and nothing has been tested on a phone.
+> Status (2026-10-14): the three T9.2 migrations are **applied to the
+> development project** (`gmwssplqtjbrpvlvbjcs`) and verified there (schema,
+> privileges, and `scripts/sql/t92-cloud-qa.sql`: 135/135, fully rolled back).
+> The `push-dispatch` function is **not deployed**, no scheduler or webhook
+> exists, no real push has been sent, EAS is not configured, and nothing has
+> been tested on a phone. Recovery script: `supabase/rollback/20261014_t92_rollback.sql`
+> (not run).
 
 ## Architecture
 
@@ -112,11 +114,27 @@ reportId | caseId}`; the screen loads the record through the normal access check
 * Real push (explicit opt-in, after approved deployment):
   `PARKWATCH_RUN_PUSH_QA=1 node scripts/push-dispatch-smoke.mjs`.
 
-## Deployment (requires approval - NOT done)
+## Deployment
 
-See the T9.2 deployment proposal. Summary:
+How the migrations were applied: the development project's migration history
+does not match the local file names (earlier migrations were applied outside
+the CLI), so `supabase db push` would try to re-run every old migration. Each
+T9.2 file was instead executed on its own with
+`npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f <file>`,
+wrapped in `begin; ... commit;` together with its row in
+`supabase_migrations.schema_migrations` (version = file prefix).
 
-1. Apply migrations in order: `20261014000001`, `20261014000002`, `20261014000003`.
+Real-cloud database QA (repeatable, leaves nothing behind):
+
+```bash
+npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t92-cloud-qa.sql
+```
+
+Dry run of the same script on PGlite: `node scripts/run-t92-cloud-qa-local.mjs`.
+
+Remaining steps (each needs approval):
+
+1. ~~Apply migrations in order: `20261014000001`, `20261014000002`, `20261014000003`.~~ Done on the development project.
 2. Secrets: `PUSH_DISPATCH_SECRET` (random >= 32 chars), optional `EXPO_ACCESS_TOKEN`.
 3. Deploy: `npx supabase functions deploy push-dispatch --project-ref gmwssplqtjbrpvlvbjcs --no-verify-jwt`
    (the shared secret header is the authentication; the function is not called by the app).
