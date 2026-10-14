@@ -9,6 +9,7 @@ import { radius } from "../../../src/constants/spacing";
 import { BackHeader } from "../../../src/components/Header";
 import { ReportStepper } from "../../../src/components/ReportStepper";
 import { GreenButton } from "../../../src/components/GreenButton";
+import { PlateEntryCard } from "../../../src/components/plate/PlateEntryCard";
 import { Card } from "../../../src/components/Card";
 import { useReportDraft } from "../../../src/context/ReportContext";
 import { VIOLATION_TYPES } from "../../../src/data/types";
@@ -143,6 +144,8 @@ export default function AddDetails() {
             </Pressable>
           </View>
         </Card>
+
+        <PlateEntryCard />
 
         <Card>
           <Text style={styles.sectionTitle}>Location</Text>

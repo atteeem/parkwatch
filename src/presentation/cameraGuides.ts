@@ -45,9 +45,9 @@ export const CAMERA_GUIDE_LABEL: Record<CameraGuideKind, string> = {
 
 /** width / height of the frame for each subject. */
 const ASPECT: Record<CameraGuideKind, number> = {
-  "vehicle-front": 1.35,
+  "vehicle-front": 4 / 3,
   "vehicle-side": 2.4,
-  "vehicle-rear": 1.35,
+  "vehicle-rear": 4 / 3,
   plate: 4.2,
   sign: 0.72,
 };
@@ -76,3 +76,45 @@ export function guideFrame(kind: CameraGuideKind, screenWidth: number, screenHei
   }
   return { width: Math.round(width), height: Math.round(height) };
 }
+
+// ---------------------------------------------------------------------------
+// Fit inside the free camera area (between the instruction card and the photo
+// slots), so the guide is large but never sits under a control.
+
+/** Height kept free under the frame for the level line and the hint. */
+export const GUIDE_RESERVED_BELOW = 74;
+/** Small free area (short phones): only the level line stays; the hint is already in the instruction card. */
+export const GUIDE_COMPACT_AREA = 300;
+export const GUIDE_RESERVED_BELOW_COMPACT = 32;
+export const guideIsCompact = (areaHeight: number) => areaHeight < GUIDE_COMPACT_AREA;
+/** Room above the frame for the shot label on its top edge. */
+export const GUIDE_RESERVED_ABOVE = 12;
+
+const AREA_WIDTH_SHARE: Record<CameraGuideKind, number> = {
+  "vehicle-front": 0.86,
+  "vehicle-side": 0.95,
+  "vehicle-rear": 0.86,
+  plate: 0.86,
+  sign: 0.6,
+};
+
+/** Frame size inside a measured free area: the subject's shape, as large as fits. */
+export function guideFrameInArea(kind: CameraGuideKind, areaWidth: number, areaHeight: number): { width: number; height: number } {
+  const aspect = ASPECT[kind];
+  let width = Math.max(0, areaWidth) * AREA_WIDTH_SHARE[kind];
+  let height = width / aspect;
+  const below = guideIsCompact(areaHeight) ? GUIDE_RESERVED_BELOW_COMPACT : GUIDE_RESERVED_BELOW;
+  const maxHeight = Math.max(0, areaHeight - below - GUIDE_RESERVED_ABOVE);
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspect;
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
+/** Which vehicle view a guide kind shows (plate / sign are not vehicle views). */
+export const GUIDE_VIEW: Partial<Record<CameraGuideKind, "FRONT" | "SIDE" | "REAR">> = {
+  "vehicle-front": "FRONT",
+  "vehicle-side": "SIDE",
+  "vehicle-rear": "REAR",
+};

@@ -42,6 +42,10 @@ type ReportContextValue = {
   /** Reverse-geocoded address for a point (ignored if stale or the address was typed). */
   setGeocodedAddress: (address: string, point: { latitude: number; longitude: number }) => void;
   setNotes: (notes: string) => void;
+  /** Licence plate typed by the citizen (empty restores the default vehicle context). */
+  setPlate: (plate: string) => void;
+  /** Body type for the camera framing outline only (photos are kept). */
+  setGuideVehicleType: (vehicleType: NonNullable<ReportDraft["guideVehicleType"]>) => void;
   addAttachment: (uri: string) => void;
   removeAttachment: (evidenceId: string) => void;
   markSubmitted: (reportId: string) => void;
@@ -147,6 +151,11 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
     []
   );
   const setNotes = useCallback((notes: string) => dispatch({ type: "SET_NOTES", notes }), []);
+  const setPlate = useCallback((plate: string) => dispatch({ type: "SET_PLATE", plate }), []);
+  const setGuideVehicleType = useCallback(
+    (vehicleType: NonNullable<ReportDraft["guideVehicleType"]>) => dispatch({ type: "SET_GUIDE_VEHICLE_TYPE", vehicleType }),
+    []
+  );
   const addAttachment = useCallback(
     (uri: string) => dispatch({ type: "ADD_ATTACHMENT", uri, pickedAt: new Date().toISOString() }),
     []
@@ -184,6 +193,8 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
       resetToDeviceFix,
       setGeocodedAddress,
       setNotes,
+      setPlate,
+      setGuideVehicleType,
       addAttachment,
       removeAttachment,
       markSubmitted,
@@ -194,7 +205,7 @@ export function ReportProvider({ children, storage = asyncStorageAdapter }: { ch
       recordUpload,
       resetUploads,
     }),
-    [state, startNewReport, capturePhoto, setViolation, setLocation, setDeviceFix, selectMapPoint, resetToDeviceFix, setGeocodedAddress, setNotes, addAttachment, removeAttachment, markSubmitted, unsentDraft, resumeDraft, discardDraft, uploaded, recordUpload, resetUploads]
+    [state, startNewReport, capturePhoto, setViolation, setLocation, setDeviceFix, selectMapPoint, resetToDeviceFix, setGeocodedAddress, setNotes, setPlate, setGuideVehicleType, addAttachment, removeAttachment, markSubmitted, unsentDraft, resumeDraft, discardDraft, uploaded, recordUpload, resetUploads]
   );
 
   return <ReportContext.Provider value={value}>{children}</ReportContext.Provider>;

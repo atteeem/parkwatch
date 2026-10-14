@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Linking, Platform } from "react-native";
+import { View, Text, Pressable, StyleSheet, Linking, Platform, useWindowDimensions } from "react-native";
 import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { permissionView, takePhotoSafely } from "./cameraCapture.logic";
 import { CAMERA_EDUCATION } from "../presentation/permissionEducation";
 import { CameraGuideOverlay } from "./CameraGuideOverlay";
 import type { CameraGuideKind } from "../presentation/cameraGuides";
+import type { VehicleGuideProfile } from "../presentation/vehicleGuideGeometry";
 
 export type CaptureSlot = { key: string; label: string; done: boolean; icon?: keyof typeof Ionicons.glyphMap };
 
@@ -30,6 +31,10 @@ type Props = {
   continueLabel?: string;
   /** Framing outline for the active slot (purely visual). */
   guide?: CameraGuideKind;
+  /** Vehicle body type for vehicle guides (citizen choice; officer = generic). */
+  guideProfile?: VehicleGuideProfile;
+  /** Small control row under the instruction card (e.g. the vehicle-type chip). */
+  accessory?: React.ReactNode;
   /** Busy text shown on the shutter area while the parent saves (e.g. "Uploading…"). */
   busyLabel?: string;
 };
@@ -47,6 +52,8 @@ export function CameraCapture({
   onClose,
   continueLabel = "Continue",
   guide,
+  guideProfile,
+  accessory,
   busyLabel,
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -55,7 +62,11 @@ export function CameraCapture({
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
+  // Free area between the instruction card and the photo slots: the guide is sized into it.
+  const [guideArea, setGuideArea] = useState<{ y: number; height: number } | undefined>(undefined);
   const insets = useSafeAreaInsets();
+  // Short phones: lower slot cards so the framing guide keeps a usable size.
+  const shortScreen = useWindowDimensions().height < 700;
 
   const activeSlot = slots.find((s) => s.key === activeSlotKey) ?? slots.find((s) => !s.done);
   const allDone = slots.every((s) => s.done);
@@ -125,7 +136,7 @@ export function CameraCapture({
     <View style={styles.fill}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} enableTorch={flash === "on"} />
       {/* Behind every control: drawn before them and never takes touches. */}
-      {guide && activeSlot ? <CameraGuideOverlay kind={guide} /> : null}
+      {guide && activeSlot && guideArea ? <CameraGuideOverlay kind={guide} profile={guideProfile} area={guideArea} /> : null}
 
       <View style={[styles.overlayTop, { marginTop: insets.top + 10 }]}>
         <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close camera">
@@ -143,6 +154,7 @@ export function CameraCapture({
         <Text style={styles.instructionTitle}>{instructionTitle}</Text>
         <Text style={styles.instructionBody}>{instructionBody}</Text>
       </View>
+      {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
 
       {captureError && (
         <Pressable style={styles.errorCard} onPress={() => setCaptureError(null)}>
@@ -151,7 +163,13 @@ export function CameraCapture({
         </Pressable>
       )}
 
-      <View style={styles.spacer} />
+      <View
+        style={styles.spacer}
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          setGuideArea((a) => (a && Math.abs(a.y - y) < 1 && Math.abs(a.height - height) < 1 ? a : { y, height }));
+        }}
+      />
 
       <View style={styles.slotsRow}>
         {slots.map((s) => {
@@ -164,7 +182,7 @@ export function CameraCapture({
               accessibilityRole="button"
               accessibilityState={{ selected: isActive, disabled: !onSelectSlot || capturing }}
               accessibilityLabel={`${s.label}, ${s.done ? (isActive ? "captured, selected for retake" : "captured") : isActive ? "next photo" : "not taken yet"}`}
-              style={[styles.slotCard, s.done && styles.slotCardDone, isActive && styles.slotCardActive]}
+              style={[styles.slotCard, shortScreen && styles.slotCardShort, s.done && styles.slotCardDone, isActive && styles.slotCardActive]}
             >
               {s.done ? (
                 <Ionicons name="checkmark-circle" size={22} color={colors.green} />
@@ -265,6 +283,7 @@ const styles = StyleSheet.create({
   errorText: { color: "#fff", fontSize: 12.5, fontWeight: "600", flex: 1 },
 
   spacer: { flex: 1 },
+  accessory: { marginTop: 8, marginHorizontal: 20, flexDirection: "row" },
 
   busyLabel: { color: "#fff", fontSize: 12.5, fontWeight: "700", textAlign: "center", marginBottom: 8 },
   slotsRow: {
@@ -285,6 +304,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: "rgba(0,0,0,0.25)",
   },
+  slotCardShort: { aspectRatio: undefined, height: 62 },
   slotCardDone: {
     borderStyle: "solid",
     borderColor: colors.green,

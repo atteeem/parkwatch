@@ -13,13 +13,16 @@ import {
   CITIZEN_EVIDENCE_TYPES,
   CitizenEvidenceType,
   createCitizenEvidence,
+  createPlateNumber,
   createEmptyDraft,
   draftObservedAtOf,
   GeoPoint,
   IsoTimestamp,
   MVP_MOCK_DETECTED_VEHICLE,
+  normalizePlate,
   ReportDraft,
 } from "../domain";
+import { sanitizePlateInput } from "./plateEntry";
 
 export type CitizenDraftState = {
   draft: ReportDraft;
@@ -45,6 +48,10 @@ export type DraftAction =
   | { type: "ADD_ATTACHMENT"; uri: string; pickedAt: IsoTimestamp }
   | { type: "REMOVE_ATTACHMENT"; evidenceId: string }
   | { type: "MARK_SUBMITTED"; reportId: string }
+  /** Camera framing only (see ReportDraft.guideVehicleType). Photos are kept. */
+  | { type: "SET_GUIDE_VEHICLE_TYPE"; vehicleType: NonNullable<ReportDraft["guideVehicleType"]> }
+  /** Licence plate typed by the citizen (empty = back to the default vehicle context). */
+  | { type: "SET_PLATE"; plate: string }
   /** Recover a persisted unsent draft (same draft id = same server submission). */
   | { type: "RESTORE"; draft: ReportDraft };
 
@@ -128,6 +135,13 @@ export function draftReducer(state: CitizenDraftState, action: DraftAction): Cit
       return { ...state, draft: { ...d, attachments: d.attachments.filter((a) => a.id !== action.evidenceId) } };
     case "MARK_SUBMITTED":
       return { ...state, submittedReportId: action.reportId };
+    case "SET_GUIDE_VEHICLE_TYPE":
+      return { ...state, draft: { ...d, guideVehicleType: action.vehicleType } };
+    case "SET_PLATE": {
+      const raw = sanitizePlateInput(action.plate);
+      if (!normalizePlate(raw)) return { ...state, draft: { ...d, vehicle: { ...MVP_MOCK_DETECTED_VEHICLE } } };
+      return { ...state, draft: { ...d, vehicle: { plate: createPlateNumber(raw, "FI"), source: "CITIZEN_CONFIRMED" } } };
+    }
   }
 }
 

@@ -1,47 +1,69 @@
 import React from "react";
 import { StyleSheet, Text, useWindowDimensions, View, ViewStyle } from "react-native";
-import { CAMERA_GUIDE_HINT, CAMERA_GUIDE_LABEL, CameraGuideKind, guideFrame } from "../presentation/cameraGuides";
-import { GUIDE_SHAPES } from "./cameraGuides/VehicleGuides";
+import { CAMERA_GUIDE_HINT, CAMERA_GUIDE_LABEL, CameraGuideKind, GUIDE_VIEW, guideFrame, guideFrameInArea, guideIsCompact } from "../presentation/cameraGuides";
+import type { VehicleGuideProfile } from "../presentation/vehicleGuideGeometry";
+import { VehicleGuide } from "./cameraGuides/VehicleGuide";
+import { PlateTarget, SignTarget } from "./cameraGuides/OfficerGuides";
+import { LevelIndicator } from "./cameraGuides/LevelIndicator";
+import { useDeviceLevel } from "../sensors/useDeviceLevel";
 
 const CORNER = "rgba(255,255,255,0.9)";
 
 /**
- * Framing guide drawn over the camera preview: four corner marks, a ghosted
- * line-art silhouette of the subject (front / side / rear / plate / sign), a
- * short label above and a hint below. Purely visual: it never detects or
- * checks anything, is hidden from screen readers and never takes touches, so
- * the shutter and slot buttons drawn above it keep working.
+ * Framing guide over the camera preview: corner marks, the subject's line-art
+ * silhouette (vehicle type x front / side / rear, or a plate / sign target),
+ * the shot label on the frame's top edge, a phone-level line and a hint.
+ * Purely visual: nothing is detected or checked, it is hidden from screen
+ * readers and never takes touches, so the controls drawn above keep working.
+ *
+ * `area` = the free space between the instruction card and the photo slots
+ * (measured by the camera screen); the frame is sized to fit inside it.
  */
-export function CameraGuideOverlay({ kind }: { kind: CameraGuideKind }) {
+export function CameraGuideOverlay({
+  kind,
+  profile = "GENERIC",
+  area,
+  showLevel = true,
+}: {
+  kind: CameraGuideKind;
+  profile?: VehicleGuideProfile;
+  area?: { y: number; height: number };
+  showLevel?: boolean;
+}) {
   const { width: sw, height: sh } = useWindowDimensions();
-  const { width, height } = guideFrame(kind, sw, sh);
-  const Shape = GUIDE_SHAPES[kind];
+  const level = useDeviceLevel(showLevel);
+  const { width, height } = area ? guideFrameInArea(kind, sw, area.height) : guideFrame(kind, sw, sh);
+  const view = GUIDE_VIEW[kind];
+  const compact = !!area && guideIsCompact(area.height);
+  const pad = Math.round(Math.min(width, height) * 0.04);
+  const inner = { width: width - 2 * pad, height: height - 2 * pad };
+  const box: ViewStyle = area ? { position: "absolute", left: 0, right: 0, top: area.y, height: area.height } : { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 };
+
   return (
-    <View style={styles.fill} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <View style={[box, styles.center]} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       <View style={{ width, height }}>
         <Corners size={Math.max(18, Math.min(28, width * 0.08))} />
-        {/* shot label sits on the frame's top edge, between the corner marks (adds no height) */}
         <View style={styles.labelRow}>
           <Text style={styles.label}>{CAMERA_GUIDE_LABEL[kind]}</Text>
         </View>
-        {/* the silhouette sits inside the corner marks with a little breathing room */}
-        <View style={[StyleSheet.absoluteFill, { margin: Math.round(Math.min(width, height) * 0.06) }]}>
-          <ScaledShape Shape={Shape} />
+        <View style={[StyleSheet.absoluteFill, { padding: pad, alignItems: "center", justifyContent: "center" }]}>
+          {view ? (
+            <VehicleGuide profile={profile} view={view} width={inner.width} height={inner.height} />
+          ) : kind === "plate" ? (
+            <PlateTarget width={inner.width} height={inner.height} />
+          ) : (
+            <SignTarget width={inner.width} height={inner.height} />
+          )}
         </View>
       </View>
-      <View style={styles.hintPill}>
-        <Text style={styles.hint}>{CAMERA_GUIDE_HINT[kind]}</Text>
+      <View style={styles.below}>
+        {showLevel ? <LevelIndicator level={level} /> : null}
+        {compact ? null : (
+          <View style={styles.hintPill}>
+            <Text style={styles.hint}>{CAMERA_GUIDE_HINT[kind]}</Text>
+          </View>
+        )}
       </View>
-    </View>
-  );
-}
-
-/** Measures its box once laid out and draws the shape at that size. */
-function ScaledShape({ Shape }: { Shape: (p: { W: number; H: number }) => React.ReactElement }) {
-  const [size, setSize] = React.useState<{ W: number; H: number } | null>(null);
-  return (
-    <View style={StyleSheet.absoluteFill} onLayout={(e) => setSize({ W: e.nativeEvent.layout.width, H: e.nativeEvent.layout.height })}>
-      {size && size.W > 0 && size.H > 0 ? <Shape W={size.W} H={size.H} /> : null}
     </View>
   );
 }
@@ -63,9 +85,10 @@ function Corners({ size: c }: { size: number }) {
 const shadow = { textShadowColor: "rgba(0,0,0,0.55)", textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } };
 
 const styles = StyleSheet.create({
-  fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  center: { alignItems: "center", justifyContent: "center" },
   labelRow: { position: "absolute", top: -8, left: 0, right: 0, alignItems: "center" },
   label: { color: "rgba(255,255,255,0.92)", fontSize: 11.5, lineHeight: 15, fontWeight: "800", letterSpacing: 2, ...shadow },
-  hintPill: { marginTop: 12, backgroundColor: "rgba(0,0,0,0.38)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, maxWidth: "88%" },
+  below: { alignSelf: "stretch", alignItems: "center", marginTop: 8, gap: 6 },
+  hintPill: { backgroundColor: "rgba(0,0,0,0.42)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, maxWidth: "88%" },
   hint: { color: "rgba(255,255,255,0.95)", fontSize: 12.5, fontWeight: "600", textAlign: "center" },
 });

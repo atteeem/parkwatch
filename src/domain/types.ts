@@ -165,6 +165,12 @@ export type ReportDraft = {
    * MVP: centralized mock detection; later OCR + citizen confirmation.
    */
   vehicle?: VehicleInfo;
+  /**
+   * Draft-only, UI context: the body type the citizen picked so the camera can
+   * draw a matching framing outline. Never sent with the report and never used
+   * for any decision.
+   */
+  guideVehicleType?: "GENERIC" | "SEDAN" | "SUV" | "HATCHBACK" | "PICKUP" | "SPORT" | "UTILITY";
 };
 
 export type ReportPriority = "NORMAL" | "MEDIUM" | "HIGH";
