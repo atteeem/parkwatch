@@ -16,6 +16,8 @@ export type DispatchHandlerDeps = {
   secret: string | null;
   store: PushStore | null;
   transport: PushTransport;
+  /** Which server credential the function found (a name, never the value). */
+  credentialSource?: string;
   log?: (fields: Record<string, unknown>) => void;
 };
 
@@ -32,12 +34,14 @@ export function sameSecret(a: string, b: string): boolean {
 
 export async function handlePushDispatch(req: Request, deps: DispatchHandlerDeps): Promise<Response> {
   if (req.method !== "POST") return json(405, { error: "METHOD_NOT_ALLOWED" });
-  if (!deps.secret || deps.secret.length < 32 || !deps.store) return json(503, { error: "NOT_CONFIGURED" });
+  if (!deps.secret || deps.secret.length < 32) return json(503, { error: "NOT_CONFIGURED" });
   const given = req.headers.get(DISPATCH_SECRET_HEADER) ?? "";
   if (!sameSecret(given, deps.secret)) return json(401, { error: "UNAUTHENTICATED" });
+  // Only an authenticated caller learns that the server credential is missing.
+  if (!deps.store) return json(503, { error: "NOT_CONFIGURED", credential: deps.credentialSource ?? "none" });
   try {
     const summary: DispatchSummary = await runPushDispatch({ store: deps.store, transport: deps.transport, log: deps.log });
-    return json(200, summary);
+    return json(200, { ...summary, credential: deps.credentialSource ?? "unknown" });
   } catch {
     deps.log?.({ fn: "push-dispatch", error: "DISPATCH_FAILED" });
     return json(500, { error: "DISPATCH_FAILED" });

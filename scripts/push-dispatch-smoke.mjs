@@ -42,6 +42,6 @@ out({
   status: res.status,
   without_secret_status: unauth.status,
   // Counts and short codes only.
-  summary: body && typeof body === "object" ? Object.fromEntries(Object.entries(body).filter(([k]) => ["claimed", "messages", "sent", "retrying", "failed", "noDevice", "receiptsChecked", "errors", "error"].includes(k))) : null,
+  summary: body && typeof body === "object" ? Object.fromEntries(Object.entries(body).filter(([k]) => ["claimed", "messages", "sent", "retrying", "failed", "noDevice", "receiptsChecked", "errors", "error", "credential"].includes(k))) : null,
 });
 process.exit(res.ok ? 0 : 1);

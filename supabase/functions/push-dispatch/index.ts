@@ -12,7 +12,8 @@
 // Secrets (`supabase secrets set`, never in the app or Git):
 //   PUSH_DISPATCH_SECRET   random, >= 32 characters (also stored for the caller)
 //   EXPO_ACCESS_TOKEN      optional, only if Expo "enhanced push security" is on
-// Provided by Supabase automatically: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+// Provided by Supabase automatically: SUPABASE_URL and SUPABASE_SECRET_KEYS
+// (current key system; legacy projects: SUPABASE_SERVICE_ROLE_KEY).
 // The service credential is used only server-side for the push_* RPCs, which
 // are executable by the service role only.
 
@@ -26,7 +27,23 @@ declare const Deno: {
 };
 
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+/**
+ * The server credential for the push_* RPCs. Current key system: the project's
+ * secret key "default" from SUPABASE_SECRET_KEYS (JSON dictionary); legacy
+ * projects: SUPABASE_SERVICE_ROLE_KEY. Only the SOURCE name is ever reported.
+ */
+function serverCredential(): { key: string; source: "secret_keys.default" | "legacy_service_role" | "none" } {
+  try {
+    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}") as Record<string, unknown>;
+    if (typeof keys.default === "string" && keys.default) return { key: keys.default, source: "secret_keys.default" };
+  } catch {
+    // fall through
+  }
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return legacy ? { key: legacy, source: "legacy_service_role" } : { key: "", source: "none" };
+}
+const { key: SERVICE_KEY, source: CREDENTIAL_SOURCE } = serverCredential();
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   // New-style secret keys are not JWTs: send them as apikey only.
@@ -58,6 +75,7 @@ Deno.serve((req) =>
     secret: Deno.env.get("PUSH_DISPATCH_SECRET") ?? null,
     store,
     transport,
+    credentialSource: CREDENTIAL_SOURCE,
     // Counts and short codes only.
     log: (f) => console.log(JSON.stringify(f)),
   })
