@@ -350,6 +350,12 @@ git-ignored `cloud-qa-results.local.json`. Result at the end of T8.5: **26/26 pa
 - Test account passwords for a real project are never written to the repository
   (smoke test variables are passed in the shell).
 
+## Edge Functions
+
+`recognize-plate` (Citizen plate scan) - see `docs/PLATE_RECOGNITION.md` for the
+provider secret (`PLATE_RECOGNIZER_API_TOKEN`), deployment commands and privacy
+notes. Not deployed yet; without the secret the app keeps manual plate entry.
+
 ## Current limitations
 
 - **Verified on a real Supabase development project (T8.5: QA suite 26/26, smoke 26/26);
