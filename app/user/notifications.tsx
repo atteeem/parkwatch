@@ -10,6 +10,7 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { usePagedList, useApp } from "../../src/context/AppContext";
 import { ListFooter, listSettledEmpty, useCoreRefreshControl } from "../../src/components/CoreDataGate";
 import { EmptyFromCopy } from "../../src/components/EmptyState";
+import { PushEducationCard } from "../../src/push/PushEducationCard";
 import { CITIZEN_NOTIFICATIONS_EMPTY } from "../../src/presentation/emptyStates";
 import { NotifKind } from "../../src/data/mockNotifications";
 import { citizenNotificationTarget } from "../../src/navigation/notificationTargets";
@@ -51,6 +52,7 @@ export default function UserNotifications() {
         <Text style={typography.screenSubtitle}>Stay updated with your reports and earnings</Text>
       </View>
       <ScrollView refreshControl={refreshControl} contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20 }}>
+        <PushEducationCard audience="citizen" style={{ marginBottom: 18 }} />
         {listSettledEmpty(list) && <EmptyFromCopy copy={CITIZEN_NOTIFICATIONS_EMPTY} />}
         {groups.map((group) => (
           <View key={group} style={{ marginBottom: 18 }}>

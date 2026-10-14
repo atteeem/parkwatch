@@ -26,6 +26,8 @@ type AuthContextValue = {
   signUp(displayName: string, email: string, password: string): Promise<AuthResult<SignUpOutcome>>;
   signOut(): Promise<void>;
   refreshProfile(): Promise<void>;
+  /** Run cleanup while the session is still valid at sign-out (bounded; never blocks it). */
+  onBeforeSignOut(hook: () => Promise<unknown>): () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -59,6 +61,7 @@ export function AuthProvider({ children, store: injected }: { children: React.Re
       signUp: store.signUp,
       signOut: store.signOut,
       refreshProfile: store.refreshAccess,
+      onBeforeSignOut: store.onBeforeSignOut,
     }),
     [state, store]
   );

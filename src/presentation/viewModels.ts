@@ -286,6 +286,8 @@ const KIND_BY_TYPE: Record<Exclude<DomainNotification["type"], "SYSTEM">, NotifK
   CASE_ACCEPTED: "info",
   PARKING_CHARGE_ISSUED: "success",
   CASE_CLOSED_WITHOUT_CHARGE: "pending",
+  CASE_ASSIGNED: "flag",
+  CASE_ASSIGNMENT_REMOVED: "info",
 };
 
 const NOTIF_KINDS: NotifKind[] = ["success", "pending", "info", "error", "gift", "bell", "flag", "duplicate", "calendar"];
@@ -327,6 +329,13 @@ function notificationCopy(n: DomainNotification, state: ParkWatchState): { title
         title: "Case Closed Without Charge",
         body: `Case ${ref} closed without charge.` + (officerCase?.outcome ? `\n${outcomeLabel(officerCase.outcome.code)}` : ""),
       };
+    case "CASE_ASSIGNED": {
+      const report = state.reports.find((r) => r.id === n.reportId);
+      return { title: "New case assigned", body: `A supervisor assigned case ${ref} to you.` + (report ? `
+${violationLabel(report.violationId)}` : "") };
+    }
+    case "CASE_ASSIGNMENT_REMOVED":
+      return { title: "Case moved", body: `Case ${ref} is no longer assigned to you.` };
     case "SYSTEM":
       return { title: n.title ?? "", body: n.body ?? "" };
   }

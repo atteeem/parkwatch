@@ -10,6 +10,7 @@ import { BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
 import { SettingsRow } from "../../src/components/SettingsRow";
+import { PushSettingsRow } from "../../src/push/PushSettingsRow";
 
 function SectionLabel({ text }: { text: string }) {
   return <Text style={styles.sectionLabel}>{text}</Text>;
@@ -43,7 +44,7 @@ export default function Settings() {
 
         <SectionLabel text="NOTIFICATIONS" />
         <Card noPadding>
-          <SettingsRow icon="notifications" title="Push Notifications" subtitle="Not available yet · updates appear in Notifications" unavailable />
+          <PushSettingsRow />
           <View style={styles.divider} />
           <SettingsRow icon="mail" title="Email Notifications" unavailable />
         </Card>

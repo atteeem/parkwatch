@@ -55,6 +55,8 @@ export function officerNotificationTarget(
 ): NotificationTarget | null {
   const id = n.caseId;
   if (!id) return null;
+  // The case was moved to another officer: informational only (nothing to act on).
+  if (n.type === "CASE_ASSIGNMENT_REMOVED") return null;
   if (!(caseExists(id) || (serverScoped && UUID.test(id)))) return null;
   if (n.type === "PARKING_CHARGE_ISSUED" || n.type === "CASE_CLOSED_WITHOUT_CHARGE") {
     return { pathname: "/officer/inspection-completed", params: { id, from: "notifications" } };

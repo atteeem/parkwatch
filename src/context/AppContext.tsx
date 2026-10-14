@@ -27,6 +27,8 @@ import { AdminApi } from "../admin/adminTypes";
 import { createLocalAdmin } from "../admin/localAdmin";
 import { createAdminOperations } from "../backend/admin/adminOperations";
 import { createPlateRecognizer, PlateRecognizer } from "../backend/plate/plateRecognitionClient";
+import { createPushDeviceApi } from "../backend/push/pushDevicesClient";
+import type { PushDeviceApi } from "../push/pushTypes";
 import { useAuth } from "../auth/AuthContext";
 import {
   createCoreBackendStore,
@@ -229,6 +231,12 @@ type AppContextValue = {
    * proposes a plate; the citizen always confirms or types it.
    */
   plateRecognizer: PlateRecognizer | null;
+  /**
+   * T9.2 push registration for THIS device (null = no push: local demo, no
+   * backend, or not a signed-in citizen/officer). The server binds every
+   * registration to the signed-in user.
+   */
+  pushDevices: PushDeviceApi | null;
 };
 
 export type ListItem<T extends AppListSpec> = T extends { kind: "citizenReports" }
@@ -303,7 +311,7 @@ function buildValue(args: {
   citizenProfile: ReporterDisplayProfile;
   actions: CoreActions;
   lists: ListAccess;
-  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin" | "plateRecognizer">;
+  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin" | "plateRecognizer" | "pushDevices">;
 }): AppContextValue {
   const { core, parking, citizenId, officerId, parkingOwnerId, derived } = args;
   const { now, officerCases } = derived;
@@ -414,6 +422,7 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         // LOCAL_DEMO console: the complete local store (demo convenience, not security).
         admin: sessionRole === "admin" ? createLocalAdmin(() => state) : null,
         plateRecognizer: null,
+        pushDevices: null,
       },
       lists: {
         getList,
@@ -594,6 +603,11 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     const client = getSupabaseClient();
     return client.ok ? createPlateRecognizer(client.value) : null;
   }, [role, userId]);
+  const pushDevices = useMemo<PushDeviceApi | null>(() => {
+    if ((role !== "citizen" && role !== "officer") || !userId) return null;
+    const client = getSupabaseClient();
+    return client.ok ? createPushDeviceApi(client.value) : null;
+  }, [role, userId]);
   const subscribe = useCallback((l: () => void) => (store ? store.subscribe(l) : () => undefined), [store]);
   const version = useSyncExternalStore(subscribe, () => store?.getVersion() ?? -1, () => store?.getVersion() ?? -1);
   const parking = useLocalStore();
@@ -648,6 +662,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         resetDemoData: noRefresh,
         admin: adminApi,
         plateRecognizer,
+        pushDevices,
       },
       lists: {
         getList,
@@ -709,7 +724,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         markOfficerNotificationsRead: markRead,
       },
     });
-  }, [version, parking, store, userId, role, displayName, adminApi]);
+  }, [version, parking, store, userId, role, displayName, adminApi, plateRecognizer, pushDevices]);
 
   const refreshEvidenceUrl = useCallback(async (url: string) => (store ? store.refreshSignedUrl(url) : false), [store]);
 

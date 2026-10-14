@@ -19,13 +19,23 @@ export type AuthStore = {
   signIn(email: string, password: string): Promise<AuthResult<void>>;
   signUp(displayName: string, email: string, password: string): Promise<AuthResult<SignUpOutcome>>;
   signOut(): Promise<void>;
+  /**
+   * Work that must run with the session still valid when the user signs out
+   * (e.g. stop push notifications to this device). Each hook is bounded by
+   * BEFORE_SIGN_OUT_TIMEOUT_MS and can never prevent the sign-out.
+   */
+  onBeforeSignOut(hook: () => Promise<unknown>): () => void;
   /** Re-read profile + memberships from the server (e.g. when the app returns to the foreground). */
   refreshAccess(): Promise<void>;
 };
 
+/** Upper bound for each before-sign-out hook. */
+export const BEFORE_SIGN_OUT_TIMEOUT_MS = 3000;
+
 export function createAuthStore(mode: AuthMode, service: AuthService | null): AuthStore {
   let state: AuthState = mode === "LOCAL_DEMO" ? { mode: "LOCAL_DEMO", status: "backend-not-configured" } : { mode: "BACKEND", status: "loading" };
   const listeners = new Set<() => void>();
+  const beforeSignOut = new Set<() => Promise<unknown>>();
   let unsubscribe: (() => void) | null = null;
   // Only the newest access load may write (ignores stale responses).
   let loadSeq = 0;
@@ -124,9 +134,19 @@ export function createAuthStore(mode: AuthMode, service: AuthService | null): Au
       return r;
     },
 
+    onBeforeSignOut(hook) {
+      beforeSignOut.add(hook);
+      return () => beforeSignOut.delete(hook);
+    },
+
     async signOut() {
+      const hooks = [...beforeSignOut];
       // Drop the trusted identity first so no protected screen stays usable.
       dropIdentity();
+      // The session itself is still valid until service.signOut(): bounded, best-effort cleanup.
+      await Promise.allSettled(
+        hooks.map((h) => Promise.race([Promise.resolve().then(h), new Promise((resolve) => setTimeout(resolve, BEFORE_SIGN_OUT_TIMEOUT_MS))]))
+      );
       if (service) await service.signOut();
     },
 

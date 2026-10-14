@@ -8,6 +8,7 @@ import { radius, shadow, BOTTOM_NAV_HEIGHT } from "../../src/constants/spacing";
 import { OfficerBottomNav } from "../../src/components/OfficerBottomNav";
 import { Card } from "../../src/components/Card";
 import { SettingsRow } from "../../src/components/SettingsRow";
+import { PushSettingsRow } from "../../src/push/PushSettingsRow";
 import { DemoTools } from "../../src/components/DemoTools";
 import { useApp } from "../../src/context/AppContext";
 import { useAuth } from "../../src/auth/AuthContext";
@@ -143,6 +144,8 @@ export default function OfficerProfile() {
             }
             onPress={() => router.push("/officer/notifications")}
           />
+          <View style={styles.divider} />
+          <PushSettingsRow />
           <View style={styles.divider} />
           <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
           <View style={styles.divider} />

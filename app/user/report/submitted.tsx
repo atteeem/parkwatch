@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../src/constants/colors";
 import { radius } from "../../../src/constants/spacing";
 import { GreenButton } from "../../../src/components/GreenButton";
+import { PushEducationCard } from "../../../src/push/PushEducationCard";
 import { Card } from "../../../src/components/Card";
 import { StatusChip } from "../../../src/components/StatusChip";
 import { useApp, useReportDetailLoad } from "../../../src/context/AppContext";
@@ -113,6 +114,8 @@ export default function ReportSubmitted() {
           </View>
         </View>
         </FadeIn>
+
+        <PushEducationCard audience="citizen" style={{ width: "100%", marginTop: 16 }} />
 
         <View style={{ width: "100%", marginTop: "auto", gap: 10 }}>
           <GreenButton label="View My Reports" onPress={() => router.replace("/user/reports")} />

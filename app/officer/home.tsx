@@ -23,6 +23,7 @@ import { AnimatedPressable } from "../../src/components/motion/AnimatedPressable
 import { OFFICER_HOME_NO_ACTIVE, OFFICER_HOME_NO_NEW } from "../../src/presentation/emptyStates";
 import { sortQueue, withDistances } from "../../src/presentation/officerViews";
 import { UnreadBadge } from "../../src/components/UnreadBadge";
+import { PushEducationCard } from "../../src/push/PushEducationCard";
 import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function OfficerHome() {
@@ -67,6 +68,8 @@ export default function OfficerHome() {
             </Pressable>
           </View>
         </View>
+
+        <PushEducationCard audience="officer" style={{ marginTop: 16 }} />
 
         <View style={styles.statsRow}>
           <Text style={styles.statChip}>

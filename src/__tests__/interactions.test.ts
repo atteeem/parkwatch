@@ -133,7 +133,9 @@ describe("settings / profile rows are honest", () => {
 
   it("Citizen Settings: every account/notification/theme row is unavailable; only info pages open", () => {
     const f = "app/user/settings.tsx";
-    unavailable(f, ["Personal Information", "Password", "Identity Verification", "Push Notifications", "Email Notifications", "Dark Mode", "Language", "Delete Account"]);
+    unavailable(f, ["Personal Information", "Password", "Identity Verification", "Email Notifications", "Dark Mode", "Language", "Delete Account"]);
+    // T9.2: push is real where the build supports it; the row states the truth (see PushSettingsRow).
+    expect(read(f)).toMatch(/<PushSettingsRow \/>/);
     opens(f, "Privacy & Data", "/user/info/privacy-data");
     opens(f, "Help Center", "/user/info/help");
     opens(f, "About App", "/user/info/about");

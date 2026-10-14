@@ -353,6 +353,10 @@ export type NotificationType =
   | "CASE_ACCEPTED"
   | "PARKING_CHARGE_ISSUED"
   | "CASE_CLOSED_WITHOUT_CHARGE"
+  /** A supervisor assigned the case to this officer (T9.2). */
+  | "CASE_ASSIGNED"
+  /** A supervisor moved the case away from this officer (reassigned / back to the queue). */
+  | "CASE_ASSIGNMENT_REMOVED"
   /** Free-form/system messages from seed data (title/body provided). */
   | "SYSTEM";
 
