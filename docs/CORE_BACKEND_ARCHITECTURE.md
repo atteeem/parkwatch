@@ -54,6 +54,18 @@ assignment as a parameter. Rule failures are raised as `CODE: message`.
   response followed by a retry still finds the report. A retaken officer
   photo replaces its slot and the old object is removed.
 
+## T9.2 push notifications and supervisor assignment
+
+- Push: `notifications` stays the one notification domain; a trigger queues
+  `REPORT_VERIFIED`, `REPORT_REJECTED` and `CASE_ASSIGNED` into `push_outbox`
+  (one row per notification), and the `push-dispatch` Edge Function (service role,
+  shared secret) delivers through Expo. The outcome table above is unchanged: the
+  four non-citizen outcomes create no citizen notification, so nothing is pushed.
+  Details: `docs/PUSH_NOTIFICATIONS.md`.
+- Supervisor assign / reassign / return to queue (NEW and not-started ASSIGNED
+  cases only, versioned, audited) and "needs attention": `docs/OPERATIONS_CONSOLE.md`.
+- Not applied to the development project yet (local verification only).
+
 ## T9.0 operations console (read-only)
 
 - `admin_*` SECURITY DEFINER functions (search_path pinned, anon/PUBLIC revoked)

@@ -8,6 +8,8 @@
 
 import {
   appendNotificationOnce,
+  assignmentVersionOf,
+  AssignmentChange,
   attachOfficerEvidence,
   ChecklistKey,
   completeCaseWithOutcome,
@@ -39,6 +41,8 @@ import {
   setChecklistItem,
   setInspectionNotes,
   simulatePlateScan,
+  supervisorAssign,
+  supervisorReturnToQueue,
   transitionCase,
   VehicleInfo,
 } from "../domain";
@@ -468,4 +472,51 @@ export function endCitizenParking(
   input: { citizenId: string; at: IsoTimestamp }
 ): CommandResult<{ sessionId: string }> {
   return updateActiveSession(state, input.citizenId, (s) => parking.endParking(s, input.at));
+}
+
+// ---------------------------------------------------------------------------
+// Supervisor (operations console, T9.2): assign / reassign / return to queue.
+// Rules live in domain/caseLifecycle; officer eligibility is checked by the
+// caller (it knows the organization's active officers). Notifications use the
+// same idempotency keys as the server (one per assignment version).
+
+const supervisorActor = (id: string) => ({ role: "SUPERVISOR" as const, accountId: id });
+
+function applyAssignment(state: ParkWatchState, r: AssignmentChange, at: IsoTimestamp): ParkWatchState {
+  const c = r.case;
+  const v = assignmentVersionOf(c);
+  let next = replaceCase(state, c);
+  if (c.assignedOfficerId) {
+    const key = `CASE_ASSIGNED:${c.id}:${v}`;
+    next = addNotification(next, { id: key, idempotencyKey: key, recipient: { role: "OFFICER", accountId: c.assignedOfficerId }, type: "CASE_ASSIGNED", createdAt: at, reportId: c.reportId, caseId: c.id });
+  }
+  if (r.previousOfficerId) {
+    const key = `CASE_ASSIGNMENT_REMOVED:${c.id}:${v}`;
+    next = addNotification(next, { id: key, idempotencyKey: key, recipient: { role: "OFFICER", accountId: r.previousOfficerId }, type: "CASE_ASSIGNMENT_REMOVED", createdAt: at, reportId: c.reportId, caseId: c.id });
+  }
+  return next;
+}
+
+export function supervisorAssignCase(
+  state: ParkWatchState,
+  input: { caseId: string; officerId: string; expectedVersion: number; supervisorId: string; at: IsoTimestamp } & Sourced
+): CommandResult<{ changed: boolean; assignmentVersion: number }> {
+  const found = findCase(state, input.caseId);
+  if (!found.ok) return found;
+  const r = supervisorAssign(found.value, input.officerId, input.expectedVersion, { at: input.at, actor: supervisorActor(input.supervisorId), source: srcOf(input) });
+  if (!r.ok) return r;
+  const value = { changed: r.value.changed, assignmentVersion: assignmentVersionOf(r.value.case) };
+  return done(r.value.changed ? applyAssignment(state, r.value, input.at) : state, value);
+}
+
+export function supervisorUnassignCase(
+  state: ParkWatchState,
+  input: { caseId: string; expectedVersion: number; supervisorId: string; at: IsoTimestamp } & Sourced
+): CommandResult<{ changed: boolean; assignmentVersion: number }> {
+  const found = findCase(state, input.caseId);
+  if (!found.ok) return found;
+  const r = supervisorReturnToQueue(found.value, input.expectedVersion, { at: input.at, actor: supervisorActor(input.supervisorId), source: srcOf(input) });
+  if (!r.ok) return r;
+  const value = { changed: r.value.changed, assignmentVersion: assignmentVersionOf(r.value.case) };
+  return done(r.value.changed ? applyAssignment(state, r.value, input.at) : state, value);
 }

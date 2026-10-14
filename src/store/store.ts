@@ -114,6 +114,14 @@ export function createParkWatchStore(options: StoreOptions) {
     acceptCase: (caseId: string, officerId: string) =>
       run((s) => commands.acceptCase(s, { caseId, officerId, at: now() })),
 
+    /** Operations console (T9.2): assign / reassign a case that has not been started. */
+    supervisorAssignCase: (caseId: string, officerId: string, expectedVersion: number, supervisorId: string) =>
+      run((s) => commands.supervisorAssignCase(s, { caseId, officerId, expectedVersion, supervisorId, at: now() })),
+
+    /** Operations console (T9.2): return an assigned, not started case to the queue. */
+    supervisorUnassignCase: (caseId: string, expectedVersion: number, supervisorId: string) =>
+      run((s) => commands.supervisorUnassignCase(s, { caseId, expectedVersion, supervisorId, at: now() })),
+
     startEnRoute: (caseId: string, officerId: string) =>
       run((s) => commands.startEnRoute(s, { caseId, officerId, at: now() })),
 

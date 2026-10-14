@@ -73,6 +73,9 @@ const EVENT_LABEL: Record<string, string> = {
   REPORT_STATUS_RESOLVED: "Report status changed",
   CASE_CREATED: "Case created",
   CASE_ACCEPTED: "Case accepted",
+  CASE_ASSIGNED: "Case assigned by supervisor",
+  CASE_REASSIGNED: "Case reassigned",
+  CASE_UNASSIGNED: "Case returned to the queue",
   CASE_STATUS_CHANGED: "Case status changed",
   EN_ROUTE_STARTED: "En route",
   INSPECTION_STARTED: "Inspection started",
@@ -108,7 +111,12 @@ const OFFICER_PHOTO_TEXT: Record<string, string> = {
 
 /** Short, safe summary of audit metadata (no paths, tokens, URLs or ids; codes made readable). */
 export function auditDetails(metadata: Record<string, unknown>): string {
-  return Object.entries(metadata)
+  // Assignment events (T9.2): one readable officer part first ("officer Olli → Oona").
+  const from = typeof metadata.from_officer === "string" ? metadata.from_officer : undefined;
+  const to = typeof metadata.to_officer === "string" ? metadata.to_officer : undefined;
+  const officer = from && to ? `officer ${from} → ${to}` : to ? `officer ${to}` : from ? `officer ${from} removed` : null;
+  const rest = Object.entries(metadata)
+    .filter(([k]) => k !== "from_officer" && k !== "to_officer")
     .filter(([k, v]) => !METADATA_HIDDEN.test(k) && v !== null && v !== undefined && typeof v !== "object")
     .map(([k, v]) => {
       const val = String(v);
@@ -123,8 +131,9 @@ export function auditDetails(metadata: Record<string, unknown>): string {
       if (k === "via") return `via ${val.replace(/_/g, " ")}`;
       if (k === "to" || k === "from") return `${k} ${(CASE_STATUS_LABEL as Record<string, string>)[val] ?? (REPORT_STATUS_LABEL as Record<string, string>)[val] ?? val}`;
       return `${k.replace(/_/g, " ")} ${val}`;
-    })
-    .join(" · ");
+    });
+  // Officer NAMES only (the server replaces assignment ids with names before they leave the database).
+  return [...(officer ? [officer] : []), ...rest].join(" · ");
 }
 
 // ---------------------------------------------------------------------------

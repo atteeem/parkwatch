@@ -1,8 +1,11 @@
 // Operations console, LOCAL_DEMO implementation (T9.0). Computed from the
 // COMPLETE local store (one demo organization), with the same filters,
-// ordering and paging rules as the server functions. Read-only.
+// ordering and paging rules as the server functions. Read-only except the
+// T9.2 assignment actions, which go through the local store's commands
+// (same rules as the server functions). Demo convenience, not security.
 
-import { CaseStatus, EnforcementOutcomeCode, ok, OfficerCase, Report, RewardLedgerEntry } from "../domain";
+import { assignmentVersionOf, CaseStatus, EnforcementOutcomeCode, fail, ok, OfficerCase, Report, Result, RewardLedgerEntry } from "../domain";
+import { DEFAULT_ATTENTION_THRESHOLDS, needsAttention, statusSince } from "./attention";
 import type { ParkWatchState } from "../store/state";
 import { DEV_CITIZEN_ID, DEV_OFFICER_ID } from "../store/session";
 import { DEMO_OFFICER_ACCOUNT } from "../store/demoAccounts";
@@ -11,6 +14,7 @@ import {
   ADMIN_AUDIT_PAGE_SIZE,
   ADMIN_PAGE_SIZE,
   AdminApi,
+  AdminAssignableOfficer,
   AdminAuditEvent,
   AdminAuditFilter,
   AdminCaseDetail,
@@ -26,6 +30,7 @@ import {
   AdminRewardFilter,
   AdminRewardRow,
   AdminRewardSummary,
+  AssignmentResult,
   RewardState,
 } from "./adminTypes";
 
@@ -48,7 +53,20 @@ export function citizenRef(citizenId: string): string {
   return `C-${h.toString(16).toUpperCase().padStart(8, "0")}`;
 }
 
-const officerName = (id: string | undefined) => (id === DEV_OFFICER_ID ? DEMO_OFFICER_ACCOUNT.fullName : id === LOCAL_DEMO_SUPERVISOR_ID ? "Demo supervisor" : undefined);
+/** A second demo officer (console assignment demo only; nobody signs in as them). */
+export const LOCAL_DEMO_SECOND_OFFICER_ID = "officer-demo-2";
+export const LOCAL_DEMO_SECOND_OFFICER_NAME = "Aino Korhonen";
+/** Active officers of the demo organization (who a case can be assigned to). */
+export const LOCAL_DEMO_OFFICER_IDS: readonly string[] = [DEV_OFFICER_ID, LOCAL_DEMO_SECOND_OFFICER_ID];
+
+const officerName = (id: string | undefined) =>
+  id === DEV_OFFICER_ID
+    ? DEMO_OFFICER_ACCOUNT.fullName
+    : id === LOCAL_DEMO_SECOND_OFFICER_ID
+      ? LOCAL_DEMO_SECOND_OFFICER_NAME
+      : id === LOCAL_DEMO_SUPERVISOR_ID
+        ? "Demo supervisor"
+        : undefined;
 
 /** One reward per report from its ledger entries; never a sum over rows. */
 export function rewardStateOf(ledger: readonly RewardLedgerEntry[], reportId: string): RewardState {
@@ -117,7 +135,7 @@ export function reportRows(s: ParkWatchState, f: AdminReportFilter): AdminReport
     });
 }
 
-export function caseRows(s: ParkWatchState, f: AdminCaseFilter): AdminCaseRow[] {
+export function caseRows(s: ParkWatchState, f: AdminCaseFilter, now: Date = new Date()): AdminCaseRow[] {
   const report = new Map(s.reports.map((r) => [r.id, r]));
   return s.cases
     .filter((c) => {
@@ -129,7 +147,8 @@ export function caseRows(s: ParkWatchState, f: AdminCaseFilter): AdminCaseRow[] 
         (!f.outcome || c.outcome?.code === f.outcome) &&
         (!f.priority || c.priority === f.priority) &&
         (!(f.from || f.to) || inRange(c.createdAt, f.from, f.to)) &&
-        matchesSearch(f.search, Number(r.id), r.vehicle?.plate.normalized)
+        matchesSearch(f.search, Number(r.id), r.vehicle?.plate.normalized) &&
+        (f.attention === undefined || attentionOf(c, now).needsAttention === f.attention)
       );
     })
     .sort(byNewest((c) => c.createdAt))
@@ -150,8 +169,15 @@ export function caseRows(s: ParkWatchState, f: AdminCaseFilter): AdminCaseRow[] 
         outcomeCode: c.outcome?.code,
         decidedAt: c.outcome?.decidedAt,
         parkingChargeCents: c.outcome?.code === "CHARGE_ISSUED" ? c.outcome.chargeAmountCents : undefined,
+        ...attentionOf(c, now),
       };
     });
+}
+
+/** Same rule as the server (thresholds = the migration defaults). */
+export function attentionOf(c: OfficerCase, now: Date): { statusSince?: string; needsAttention: boolean } {
+  const since = statusSince(c.status, timeline(c));
+  return { statusSince: since ?? undefined, needsAttention: needsAttention(c.status, since, now) };
 }
 
 /** History of one report and its case, outcome and reward (newest last). */
@@ -183,9 +209,28 @@ export function auditFor(s: ParkWatchState, reportIds?: ReadonlySet<string>): Ad
         actorLabel: label(e.actor.role, e.actor.accountId),
         source: e.source,
         entityType: "officer_case",
-        eventType: e.type === "CREATED" ? "CASE_CREATED" : "CASE_STATUS_CHANGED",
+        eventType:
+          e.type === "CREATED"
+            ? "CASE_CREATED"
+            : e.type === "ASSIGNMENT_CHANGED"
+              ? e.to === "NEW"
+                ? "CASE_UNASSIGNED"
+                : e.fromOfficerId
+                  ? "CASE_REASSIGNED"
+                  : "CASE_ASSIGNED"
+              : "CASE_STATUS_CHANGED",
         publicNumber: num,
-        metadata: e.type === "STATUS_CHANGED" ? { from: e.from, to: e.to } : {},
+        metadata:
+          e.type === "ASSIGNMENT_CHANGED"
+            ? {
+                from: e.from,
+                to: e.to,
+                ...(e.fromOfficerId ? { from_officer: officerName(e.fromOfficerId) ?? "Officer" } : {}),
+                ...(e.toOfficerId ? { to_officer: officerName(e.toOfficerId) ?? "Officer" } : {}),
+              }
+            : e.type === "STATUS_CHANGED"
+              ? { from: e.from, to: e.to }
+              : {},
       })
     );
     if (c?.outcome) {
@@ -272,7 +317,7 @@ export function reportDetail(s: ParkWatchState, publicNumber: number): AdminRepo
   };
 }
 
-export function caseDetail(s: ParkWatchState, caseId: string): AdminCaseDetail | null {
+export function caseDetail(s: ParkWatchState, caseId: string, now: Date = new Date()): AdminCaseDetail | null {
   const c = s.cases.find((x) => x.id === caseId);
   const r = c && s.reports.find((x) => x.id === c.reportId);
   if (!c || !r) return null;
@@ -283,6 +328,9 @@ export function caseDetail(s: ParkWatchState, caseId: string): AdminCaseDetail |
     status: c.status,
     priority: c.priority,
     assignedOfficerName: officerName(c.assignedOfficerId),
+    assignedOfficerId: c.assignedOfficerId,
+    assignmentVersion: assignmentVersionOf(c),
+    attention: { ...attentionOf(c, now), thresholdMinutes: c.status === "COMPLETED" ? undefined : DEFAULT_ATTENTION_THRESHOLDS[c.status] },
     timeline: timeline(c),
     report: {
       id: r.id,
@@ -362,6 +410,7 @@ export function overview(s: ParkWatchState, now: Date): AdminOverview {
     casesEnRoute: count(["EN_ROUTE"]),
     casesOnSite: count(["ON_SITE", "INSPECTION"]),
     casesHighPriorityOpen: open.filter((c) => c.priority === "HIGH").length,
+    casesNeedingAttention: open.filter((c) => attentionOf(c, now).needsAttention).length,
     completedToday: outcomes.filter((o) => since(o.decidedAt, today)).length,
     chargesToday: outcomes.filter((o) => since(o.decidedAt, today) && o.code === "CHARGE_ISSUED").length,
     rejectedToday: outcomes.filter((o) => since(o.decidedAt, today) && o.code === "REPORT_REJECTED").length,
@@ -390,6 +439,7 @@ export function localOfficers(s: ParkWatchState, now: Date): AdminOfficer[] {
   });
   return [
     { userId: DEV_OFFICER_ID, displayName: DEMO_OFFICER_ACCOUNT.fullName, profileRole: "OFFICER", memberRole: "OFFICER", active: true, organizationName: LOCAL_DEMO_ORG, ...stats(DEV_OFFICER_ID) },
+    { userId: LOCAL_DEMO_SECOND_OFFICER_ID, displayName: LOCAL_DEMO_SECOND_OFFICER_NAME, profileRole: "OFFICER", memberRole: "OFFICER", active: true, organizationName: LOCAL_DEMO_ORG, ...stats(LOCAL_DEMO_SECOND_OFFICER_ID) },
     { userId: LOCAL_DEMO_SUPERVISOR_ID, displayName: "Demo supervisor", profileRole: "SUPERVISOR", memberRole: "SUPERVISOR", active: true, organizationName: LOCAL_DEMO_ORG, ...stats(LOCAL_DEMO_SUPERVISOR_ID) },
   ];
 }
@@ -409,18 +459,42 @@ export function auditRows(s: ParkWatchState, f: AdminAuditFilter): AdminAuditEve
     .sort(byNewest((e) => e.createdAt));
 }
 
+export function assignableOfficers(s: ParkWatchState, caseId: string): AdminAssignableOfficer[] | null {
+  const c = s.cases.find((x) => x.id === caseId);
+  if (!c) return null;
+  return LOCAL_DEMO_OFFICER_IDS.map((id) => ({
+    userId: id,
+    displayName: officerName(id),
+    activeCases: s.cases.filter((x) => x.assignedOfficerId === id && x.status !== "COMPLETED").length,
+    isCurrent: c.assignedOfficerId === id,
+  }));
+}
+
+/** The local store's assignment commands (LOCAL_DEMO only). */
+export type LocalAssignmentActions = {
+  assign(caseId: string, officerId: string, expectedVersion: number, supervisorId: string): Result<AssignmentResult>;
+  unassign(caseId: string, expectedVersion: number, supervisorId: string): Result<AssignmentResult>;
+};
+
 /** LOCAL_DEMO console over the complete local store (the demo citizen is never named). */
-export function createLocalAdmin(getState: () => ParkWatchState, now: () => Date = () => new Date()): AdminApi {
+export function createLocalAdmin(getState: () => ParkWatchState, now: () => Date = () => new Date(), actions?: LocalAssignmentActions): AdminApi {
   void DEV_CITIZEN_ID;
   return {
     whoami: async () => ok({ role: "SUPERVISOR", displayName: "Demo supervisor", organizations: [{ id: "demo-org", name: LOCAL_DEMO_ORG, memberRole: "SUPERVISOR" }] }),
     overview: async () => ok(overview(getState(), now())),
     pageReports: async (f, offset) => ok(paginate(reportRows(getState(), f), offset, ADMIN_PAGE_SIZE)),
     getReport: async (n) => ok(reportDetail(getState(), n)),
-    pageCases: async (f, offset) => ok(paginate(caseRows(getState(), f), offset, ADMIN_PAGE_SIZE)),
-    getCase: async (id) => ok(caseDetail(getState(), id)),
+    pageCases: async (f, offset) => ok(paginate(caseRows(getState(), f, now()), offset, ADMIN_PAGE_SIZE)),
+    getCase: async (id) => ok(caseDetail(getState(), id, now())),
     listOfficers: async () => ok(localOfficers(getState(), now())),
     pageRewards: async (f, offset) => ok({ ...paginate(rewardRows(getState(), f), offset, ADMIN_PAGE_SIZE), summary: rewardSummary(getState()) }),
     pageAudit: async (f, offset) => ok(paginate(auditRows(getState(), f), offset, ADMIN_AUDIT_PAGE_SIZE)),
+    listAssignableOfficers: async (caseId) => ok(assignableOfficers(getState(), caseId)),
+    assignCase: async (caseId, officerId, expectedVersion) => {
+      if (!actions) return fail("NOT_AVAILABLE", "NOT_AVAILABLE");
+      if (!LOCAL_DEMO_OFFICER_IDS.includes(officerId)) return fail("INVALID_OFFICER", "INVALID_OFFICER");
+      return actions.assign(caseId, officerId, expectedVersion, LOCAL_DEMO_SUPERVISOR_ID);
+    },
+    unassignCase: async (caseId, expectedVersion) => (actions ? actions.unassign(caseId, expectedVersion, LOCAL_DEMO_SUPERVISOR_ID) : fail("NOT_AVAILABLE", "NOT_AVAILABLE")),
   };
 }

@@ -142,3 +142,66 @@ function applyStatus(c: OfficerCase, to: CaseStatus, ctx: CaseEventContext, assi
     events: [...c.events, { type: "STATUS_CHANGED", at: ctx.at, from: c.status, to, actor: ctx.actor, source: ctx.source }],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Supervisor assignment (T9.2). Same rules as admin_assign_case /
+// admin_unassign_case on the server:
+//   assign   NEW -> ASSIGNED; reassign ASSIGNED (not started) -> ASSIGNED (other officer)
+//   return   ASSIGNED -> NEW
+// A started case (EN_ROUTE / ON_SITE / INSPECTION) is never moved by a
+// supervisor; COMPLETED is final. `expectedVersion` is the assignmentVersion
+// the supervisor's screen showed: anything newer is STALE_ASSIGNMENT. Repeating
+// the same successful request returns changed=false.
+// Whether the officer is eligible (active officer of the organization) is
+// checked by the caller, which knows the memberships.
+
+export type AssignmentChange = { case: OfficerCase; changed: boolean; previousOfficerId?: string };
+
+export const assignmentVersionOf = (c: Pick<OfficerCase, "assignmentVersion">) => c.assignmentVersion ?? 0;
+
+export function supervisorAssign(c: OfficerCase, officerId: string, expectedVersion: number, ctx: CaseEventContext): Result<AssignmentChange> {
+  const version = assignmentVersionOf(c);
+  if (c.status === "ASSIGNED" && c.assignedOfficerId === officerId && version === expectedVersion + 1) return ok({ case: c, changed: false });
+  if (c.status === "COMPLETED") return fail("ALREADY_COMPLETED", `Case ${c.id} is already completed.`);
+  if (version !== expectedVersion) return fail("STALE_ASSIGNMENT", `Case ${c.id} changed since it was loaded.`);
+  if (c.status !== "NEW" && c.status !== "ASSIGNED") return fail("NOT_ASSIGNABLE", `Case ${c.id} has been started by the officer.`);
+  if (c.assignedOfficerId === officerId) return ok({ case: c, changed: false });
+  const previousOfficerId = c.assignedOfficerId;
+  return ok({
+    changed: true,
+    previousOfficerId,
+    case: {
+      ...c,
+      status: "ASSIGNED",
+      assignedOfficerId: officerId,
+      assignmentVersion: version + 1,
+      statusTimestamps: { ...c.statusTimestamps, ASSIGNED: ctx.at },
+      events: [
+        ...c.events,
+        { type: "ASSIGNMENT_CHANGED", at: ctx.at, from: c.status, to: "ASSIGNED", actor: ctx.actor, source: ctx.source, fromOfficerId: previousOfficerId, toOfficerId: officerId },
+      ],
+    },
+  });
+}
+
+export function supervisorReturnToQueue(c: OfficerCase, expectedVersion: number, ctx: CaseEventContext): Result<AssignmentChange> {
+  const version = assignmentVersionOf(c);
+  if (c.status === "NEW" && !c.assignedOfficerId && (version === expectedVersion || version === expectedVersion + 1)) return ok({ case: c, changed: false });
+  if (c.status === "COMPLETED") return fail("ALREADY_COMPLETED", `Case ${c.id} is already completed.`);
+  if (version !== expectedVersion) return fail("STALE_ASSIGNMENT", `Case ${c.id} changed since it was loaded.`);
+  if (c.status !== "ASSIGNED") return fail("NOT_ASSIGNABLE", `Only an assigned case that has not been started can return to the queue.`);
+  const previousOfficerId = c.assignedOfficerId;
+  const { ASSIGNED: _cleared, ...timestamps } = c.statusTimestamps;
+  return ok({
+    changed: true,
+    previousOfficerId,
+    case: {
+      ...c,
+      status: "NEW",
+      assignedOfficerId: undefined,
+      assignmentVersion: version + 1,
+      statusTimestamps: timestamps,
+      events: [...c.events, { type: "ASSIGNMENT_CHANGED", at: ctx.at, from: "ASSIGNED", to: "NEW", actor: ctx.actor, source: ctx.source, fromOfficerId: previousOfficerId }],
+    },
+  });
+}

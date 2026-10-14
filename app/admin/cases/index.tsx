@@ -19,6 +19,7 @@ import {
   violationLabel,
 } from "../../../src/admin/adminViews";
 import type { AdminCaseFilter } from "../../../src/admin/adminTypes";
+import { formatElapsed } from "../../../src/admin/attention";
 import type { CaseStatus, EnforcementOutcomeCode, ReportPriority } from "../../../src/domain";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -27,7 +28,7 @@ const pick = <T extends string>(v: string | undefined, allowed: readonly T[]): T
 // Officer cases of the organization. Server-side filters and paging.
 export default function AdminCases() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ status?: string; priority?: string; outcome?: string; date?: string; officer?: string }>();
+  const params = useLocalSearchParams<{ status?: string; priority?: string; outcome?: string; date?: string; officer?: string; attention?: string }>();
   const { admin } = useApp();
   const [status, setStatus] = useState<CaseStatus | undefined>(pick(one(params.status), CASE_STATUSES));
   // Only a filter value: the server still limits results to the caller's organization.
@@ -36,10 +37,12 @@ export default function AdminCases() {
   const [priority, setPriority] = useState<ReportPriority | undefined>(pick(one(params.priority), PRIORITIES));
   const [date, setDate] = useState<DatePreset>(pick(one(params.date), ["today", "7d", "30d"] as const) ?? "all");
   const [search, setSearch] = useState("");
+  // "Needs attention": open cases longer than their threshold in the current status (server-computed).
+  const [attention, setAttention] = useState<boolean | undefined>(one(params.attention) === "1" ? true : undefined);
   const officers = useAdminLoad(() => admin!.listOfficers(), "officers");
 
-  const filter: AdminCaseFilter = { status, officerId, outcome, priority, search: search || undefined, ...dateRange(date, new Date()) };
-  const key = JSON.stringify({ status, officerId, outcome, priority, date, search });
+  const filter: AdminCaseFilter = { status, officerId, outcome, priority, attention, search: search || undefined, ...dateRange(date, new Date()) };
+  const key = JSON.stringify({ status, officerId, outcome, priority, date, search, attention });
   const p = useAdminPaged((offset) => admin!.pageCases(filter, offset), key);
   const officerOptions =
     officers.phase === "ready"
@@ -52,6 +55,12 @@ export default function AdminCases() {
         <SearchBox placeholder="Report number or plate" value={search} onSubmit={setSearch} />
         <FilterChips label="Status" value={status} onChange={setStatus} options={CASE_STATUSES.map((s) => ({ value: s, label: CASE_STATUS_LABEL[s] }))} />
         <FilterChips label="Outcome" value={outcome} onChange={setOutcome} options={OUTCOME_CODES.map((c) => ({ value: c, label: outcomeText(c) }))} />
+        <FilterChips
+          label="Attention"
+          value={attention ? "needs" : undefined}
+          onChange={(x) => setAttention(x ? true : undefined)}
+          options={[{ value: "needs" as const, label: "Needs attention" }]}
+        />
         <FilterChips label="Priority" value={priority} onChange={setPriority} options={PRIORITIES.map((s) => ({ value: s, label: PRIORITY_LABEL[s] }))} />
         {officerOptions.length ? <FilterChips label="Assigned officer" value={officerId} onChange={setOfficerId} options={officerOptions} /> : null}
         <FilterChips
@@ -83,6 +92,7 @@ export default function AdminCases() {
               <View style={styles.colTags}>
                 <Pill text={CASE_STATUS_LABEL[c.status]} tone={c.status === "COMPLETED" ? "neutral" : c.status === "NEW" ? "amber" : "blue"} />
                 {c.priority === "HIGH" ? <Pill text="High priority" tone="red" /> : null}
+                {c.needsAttention && c.statusSince ? <Pill text={`Needs attention · ${formatElapsed(c.statusSince, new Date())}`} tone="amber" /> : null}
               </View>
               <View style={styles.colSide}>
                 <Text style={adminStyles.muted} numberOfLines={1}>
@@ -106,6 +116,6 @@ export default function AdminCases() {
 const styles = StyleSheet.create({
   colNum: { width: 140 },
   colMain: { flex: 1, minWidth: 160 },
-  colTags: { gap: 4, alignItems: "flex-start", width: 120 },
+  colTags: { gap: 4, alignItems: "flex-start", width: 170 },
   colSide: { width: 220 },
 });

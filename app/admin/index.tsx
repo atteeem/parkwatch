@@ -47,6 +47,7 @@ function OverviewBody({ o, go }: { o: AdminOverview; go: (path: string) => void 
         <StatTile label="En route" value={o.casesEnRoute} onPress={() => go("/admin/cases?status=EN_ROUTE")} />
         <StatTile label="On site / inspection" value={o.casesOnSite} onPress={() => go("/admin/cases?status=INSPECTION")} />
         <StatTile label="High priority open" value={o.casesHighPriorityOpen} onPress={() => go("/admin/cases?priority=HIGH")} />
+        <StatTile label="Needs attention" value={o.casesNeedingAttention} hint="Longer than usual in the current step" onPress={() => go("/admin/cases?attention=1")} />
       </View>
 
       <Text style={styles.group}>Decided today</Text>

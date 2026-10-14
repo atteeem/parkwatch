@@ -37,7 +37,11 @@ export type DomainErrorCode =
   | "NOT_AVAILABLE"
   // The connection dropped and the server state could not be re-checked.
   | "RESULT_UNKNOWN"
-  | "INVALID_DATA";
+  | "INVALID_DATA"
+  // Supervisor case assignment (T9.2).
+  | "STALE_ASSIGNMENT"
+  | "NOT_ASSIGNABLE"
+  | "INVALID_OFFICER";
 
 export type DomainError = { code: DomainErrorCode; message: string };
 

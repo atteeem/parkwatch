@@ -73,6 +73,12 @@ export function describeDomainError(error: DomainError | { code: string; message
       return { kind: "BANNER", message: "The ParkWatch server is not configured in this build." };
     case "NOT_AVAILABLE":
       return { kind: "BANNER", message: "This isn't available yet." };
+    case "STALE_ASSIGNMENT":
+      return { kind: "BANNER", message: "This case changed since you opened it. It has been reloaded - check it and try again." };
+    case "NOT_ASSIGNABLE":
+      return { kind: "BANNER", message: "The officer has already started this case, so it can't be moved from the console." };
+    case "INVALID_OFFICER":
+      return { kind: "BANNER", message: "Choose an active officer of this organization." };
     default:
       return { kind: "BANNER", message: GENERIC };
   }

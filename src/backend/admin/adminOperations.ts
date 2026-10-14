@@ -18,6 +18,7 @@ import {
   ADMIN_AUDIT_PAGE_SIZE,
   ADMIN_PAGE_SIZE,
   AdminApi,
+  AdminAssignableOfficer,
   AdminAuditEvent,
   AdminCaseDetail,
   AdminCaseRow,
@@ -119,7 +120,21 @@ export const caseRowFrom = (r: J): AdminCaseRow => {
     decidedAt: str(r.decided_at),
     // A parking charge amount only ever accompanies CHARGE_ISSUED.
     parkingChargeCents: outcomeCode === "CHARGE_ISSUED" ? optNum(r.parking_charge_amount_cents) : undefined,
+    statusSince: str(r.status_since),
+    needsAttention: r.needs_attention === true,
   };
+};
+
+export const assignableOfficerFrom = (o: J): AdminAssignableOfficer => ({
+  userId: reqStr(o.user_id, "user_id"),
+  displayName: str(o.display_name),
+  activeCases: count(o.active_cases, "active_cases"),
+  isCurrent: o.is_current === true,
+});
+
+const assignmentFrom = (v: unknown) => {
+  const j = reqObj(v, "assignment");
+  return { changed: j.changed === true, assignmentVersion: count(j.assignment_version, "assignment_version") };
 };
 
 export const auditFrom = (a: J): AdminAuditEvent => ({
@@ -235,6 +250,9 @@ export function caseDetailFrom(j: J, signedCitizen: Record<string, string>, sign
     status: oneOf(c.status, CASE_STATUSES, "case.status"),
     priority: oneOf(c.priority, PRIORITIES, "case.priority"),
     assignedOfficerName: str(c.assigned_officer_name),
+    assignedOfficerId: str(c.assigned_officer_id),
+    assignmentVersion: count(c.assignment_version ?? 0, "case.assignment_version"),
+    attention: { statusSince: str(c.status_since), needsAttention: c.needs_attention === true, thresholdMinutes: optNum(c.attention_minutes) },
     timeline: timeline(c),
     report: {
       id: reqStr(r.id, "report.id"),
@@ -359,6 +377,7 @@ export function createAdminOperations(
           casesEnRoute: c("cases_en_route"),
           casesOnSite: c("cases_on_site"),
           casesHighPriorityOpen: c("cases_high_priority_open"),
+          casesNeedingAttention: c("cases_needing_attention"),
           completedToday: c("completed_today"),
           chargesToday: c("charges_today"),
           rejectedToday: c("rejected_today"),
@@ -407,6 +426,7 @@ export function createAdminOperations(
         p_search: n(f.search?.trim()),
         p_offset: offset,
         p_limit: ADMIN_PAGE_SIZE,
+        p_attention: f.attention === undefined ? null : f.attention,
       });
       return r.ok ? parse(() => pageFrom(r.value, caseRowFrom)) : r;
     },
@@ -451,6 +471,22 @@ export function createAdminOperations(
           },
         };
       });
+    },
+    async listAssignableOfficers(caseId) {
+      if (!isUuid(caseId)) return ok(null);
+      const r = await rpc("admin_list_assignable_officers", { p_case_id: caseId });
+      if (!r.ok) return r;
+      return r.value === null ? ok(null) : parse(() => objs(r.value, "officers").map(assignableOfficerFrom));
+    },
+    async assignCase(caseId, officerId, expectedVersion) {
+      if (!isUuid(caseId) || !isUuid(officerId)) return fail("NOT_FOUND", "NOT_FOUND");
+      const r = await rpc("admin_assign_case", { p_case_id: caseId, p_officer_id: officerId, p_expected_version: expectedVersion });
+      return r.ok ? parse(() => assignmentFrom(r.value)) : r;
+    },
+    async unassignCase(caseId, expectedVersion) {
+      if (!isUuid(caseId)) return fail("NOT_FOUND", "NOT_FOUND");
+      const r = await rpc("admin_unassign_case", { p_case_id: caseId, p_expected_version: expectedVersion });
+      return r.ok ? parse(() => assignmentFrom(r.value)) : r;
     },
     async pageAudit(f, offset) {
       const r = await rpc("admin_page_audit", {

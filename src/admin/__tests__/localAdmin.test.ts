@@ -278,10 +278,11 @@ describe("route guards for /admin", () => {
     }
   });
 
-  it("the console API is read-only (no write methods)", () => {
+  it("the console API writes nothing except the two T9.2 assignment actions", () => {
     const types = read("src/admin/adminTypes.ts");
     const api = types.slice(types.indexOf("export type AdminApi"));
-    expect(api).not.toMatch(/\b(set|update|assign|reassign|delete|create|complete|accept|approve|pay|withdraw)\w*\(/i);
+    const writes = [...api.matchAll(/\b((?:set|update|assign|unassign|reassign|delete|create|complete|accept|approve|pay|withdraw)\w*)\(/gi)].map((m) => m[1]);
+    expect(writes.sort()).toEqual(["assignCase", "unassignCase"]);
     expect(read("src/backend/admin/adminOperations.ts")).not.toMatch(/\.from\(|\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
   });
 });

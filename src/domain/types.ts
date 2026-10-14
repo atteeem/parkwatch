@@ -19,7 +19,8 @@ export type GeoPoint = { latitude: number; longitude: number; accuracyMeters?: n
 // ---------------------------------------------------------------------------
 // Audit: who did something (actor) vs how it entered the system (source)
 
-export type ActorRole = "CITIZEN" | "OFFICER" | "SYSTEM";
+/** SUPERVISOR: operations console actions (T9.2 case assignment). */
+export type ActorRole = "CITIZEN" | "OFFICER" | "SUPERVISOR" | "SYSTEM";
 
 /** Identity of whoever caused an event. accountId is a stable id, never a display name. */
 export type Actor = { role: ActorRole; accountId: string };
@@ -254,12 +255,15 @@ export type EnforcementOutcome = {
 export type CaseStatus = "NEW" | "ASSIGNED" | "EN_ROUTE" | "ON_SITE" | "INSPECTION" | "COMPLETED";
 
 export type CaseEvent = {
-  type: "CREATED" | "STATUS_CHANGED";
+  /** ASSIGNMENT_CHANGED: a supervisor assigned / reassigned / returned the case to the queue (T9.2). */
+  type: "CREATED" | "STATUS_CHANGED" | "ASSIGNMENT_CHANGED";
   at: IsoTimestamp;
   from?: CaseStatus;
   to: CaseStatus;
   actor: Actor;
   source: EventSource;
+  fromOfficerId?: string;
+  toOfficerId?: string;
 };
 
 export type OfficerCase = {
@@ -273,8 +277,14 @@ export type OfficerCase = {
   distanceMeters?: number;
   assignedOfficerId?: string;
   createdAt: IsoTimestamp;
-  /** First time the case entered each status. */
+  /**
+   * First time the case entered each status. ASSIGNED is the time of the
+   * CURRENT assignment (a supervisor reassignment resets it; a return to the
+   * queue clears it), as on the server.
+   */
   statusTimestamps: Partial<Record<CaseStatus, IsoTimestamp>>;
+  /** Increases with every supervisor assignment change (stale-screen protection, T9.2). Absent = 0. */
+  assignmentVersion?: number;
   outcome?: EnforcementOutcome;
   completedAt?: IsoTimestamp;
   /** Append-only audit trail. */

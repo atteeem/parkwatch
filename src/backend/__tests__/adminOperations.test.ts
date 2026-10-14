@@ -35,7 +35,7 @@ function fakeStorage(readable: string[]) {
 const ALLOWED_ARGS = new Set([
   "p_time_zone", "p_status", "p_priority", "p_case_state", "p_from", "p_to", "p_search", "p_offset", "p_limit",
   "p_public_number", "p_case_id", "p_officer", "p_outcome", "p_month_start", "p_entry_type", "p_state",
-  "p_actor_role", "p_entity_type", "p_event_type", "p_ref",
+  "p_actor_role", "p_entity_type", "p_event_type", "p_ref", "p_attention",
 ]);
 /** Identity/scope must come from auth.uid() on the server, never from the client. */
 const IDENTITY_ARG = /^p_(user|user_id|citizen|citizen_id|org|organization|organization_id|jurisdiction|jurisdiction_id|role|caller|account|member)/;

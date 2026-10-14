@@ -420,7 +420,13 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         capabilities: { withdrawals: true, demoTools: true },
         resetDemoData,
         // LOCAL_DEMO console: the complete local store (demo convenience, not security).
-        admin: sessionRole === "admin" ? createLocalAdmin(() => state) : null,
+        admin:
+          sessionRole === "admin"
+            ? createLocalAdmin(() => appStore.getSnapshot() ?? state, undefined, {
+                assign: (caseId, officerId, version, supervisorId) => appStore.supervisorAssignCase(caseId, officerId, version, supervisorId),
+                unassign: (caseId, version, supervisorId) => appStore.supervisorUnassignCase(caseId, version, supervisorId),
+              })
+            : null,
         plateRecognizer: null,
         pushDevices: null,
       },

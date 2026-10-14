@@ -108,7 +108,8 @@ describe("migrations", () => {
   });
 
   it("officer access is never based on profiles.role", () => {
-    const policies = allSql.split(/create policy/i).slice(1).join("\n");
+    // Each policy statement only (up to its terminating semicolon), not the SQL that follows it.
+    const policies = allSql.split(/create policy/i).slice(1).map((c) => c.split(";")[0]).join("\n");
     expect(policies).not.toMatch(/role\s*=\s*'OFFICER'/i);
     expect(allSql).toMatch(/organization_members/);
   });

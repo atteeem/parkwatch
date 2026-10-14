@@ -1,6 +1,6 @@
 # Operations console (T9.0)
 
-A web-first, **read-only** console for an enforcement organization's supervisors
+A web-first oversight console (read-only except the T9.2 case assignment actions) for an enforcement organization's supervisors
 and administrators to oversee the Citizen → Officer workflow during a pilot. It is
 part of the same Expo Router app under `/admin` (desktop layout with a sidebar;
 a scrolling tab bar on tablet/phone widths).
@@ -71,12 +71,42 @@ and is shown through 1-hour signed URLs).
   (e.g. `case_id`), account ids, storage paths, URLs, tokens and any future key
   are dropped. The UI formats amounts as euros (e.g. "Parking charge · €60.00").
 
-## Read-only
+## Supervisor actions (T9.2)
 
-T9.0 adds no management actions. Reassigning cases or changing priority would need
-proper authorization and concurrency rules on the server (and an audit trail of
-supervisor actions); they were deliberately left out. Memberships are managed with
-admin tooling, not in the console.
+The console is read-only except three case assignment actions (migration
+`20261014000003_t92_case_assignment.sql`), all server-checked, organization-scoped
+and audited:
+
+| Action | Allowed when | Effect |
+| --- | --- | --- |
+| Assign | case is NEW | NEW -> ASSIGNED to an active OFFICER of the case's organization; the officer gets an in-app notification + push |
+| Reassign | case is ASSIGNED and not started | another active officer; the new officer is notified + pushed, the previous officer gets an in-app update only |
+| Return to queue | case is ASSIGNED and not started | ASSIGNED -> NEW; the previous officer gets an in-app update |
+
+* **Not supported** once the officer has started (EN_ROUTE / ON_SITE / INSPECTION):
+  the officer is travelling or holds evidence, and moving the case would invent a
+  lifecycle transition. The console says so; contact the officer directly.
+  COMPLETED is final.
+* **Concurrency**: every write locks the case and requires the `assignment_version`
+  the screen showed; a stale screen gets "This case changed since you opened it"
+  and reloads. Repeating a successful request is a no-op (no second notification,
+  push or audit row). If an officer accepts a NEW case at the same moment, whichever
+  commits first wins and the other is refused.
+* **Audit**: `CASE_ASSIGNED` / `CASE_REASSIGNED` / `CASE_UNASSIGNED` with the actor
+  (SUPERVISOR/ADMIN), from/to status and from/to officer ids. The console shows
+  officer **names** only (the server replaces the ids; the T9.0 allow-list still applies).
+* No citizen notification is created by any assignment action.
+* `assigned_at` is the time of the CURRENT assignment (reset on reassign, cleared on return).
+* Memberships, priorities and outcomes are still not managed in the console.
+
+## Needs attention (T9.2)
+
+An open case that has been in its current status longer than a threshold is
+marked **Needs attention** with the elapsed time (case list, case detail, overview
+tile, "Attention" filter). Lifecycle timestamps only - no location or tracking, no
+automatic reassignment. Thresholds (minutes) are server settings in `app_settings`
+(defaults: NEW 30, ASSIGNED 20, EN_ROUTE 45, ON_SITE 20, INSPECTION 30), mirrored
+for the local demo in `src/admin/attention.ts` (a test keeps them equal).
 
 ## Pagination and filtering
 
@@ -104,7 +134,7 @@ sign in as `supervisor@example.test` / `admin@example.test` (organization A) or
 
 Payment processing, payouts, bank accounts, parking-operator or municipality
 integrations, automatic/AI enforcement, employee tracking, fraud scoring, push
-infrastructure, supervisor write actions.
+infrastructure beyond T9.2 push (docs/PUSH_NOTIFICATIONS.md), workforce scheduling, automatic reassignment.
 
 ## Access refresh and evidence URLs
 

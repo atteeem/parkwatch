@@ -19,7 +19,8 @@ import {
 } from "../../../src/admin/adminViews";
 import { EvidenceThumbnails } from "../../../src/components/EvidenceGallery";
 import { LiveMap } from "../../../src/components/map/LiveMap";
-import type { AdminCaseDetail } from "../../../src/admin/adminTypes";
+import type { AdminApi, AdminCaseDetail } from "../../../src/admin/adminTypes";
+import { CaseAssignmentPanel } from "../../../src/admin/CaseAssignmentPanel";
 
 const CHECK_LABEL: Record<string, string> = {
   vehiclePresent: "Vehicle present",
@@ -47,14 +48,14 @@ export default function AdminCaseDetailScreen() {
       ) : (
         // An expired photo URL re-loads this case once (fresh signed URLs, same scope).
         <AdminEvidenceRefresh urls={[...load.data.citizenEvidence, ...load.data.officerEvidence].map((e) => e.uri)} refresh={load.refresh}>
-          <CaseBody d={load.data} openReport={(n) => router.push(`/admin/reports/${n}` as never)} />
+          <CaseBody d={load.data} admin={admin!} onChanged={load.refresh} openReport={(n) => router.push(`/admin/reports/${n}` as never)} />
         </AdminEvidenceRefresh>
       )}
     </AdminPage>
   );
 }
 
-function CaseBody({ d, openReport }: { d: AdminCaseDetail; openReport: (n: number) => void }) {
+function CaseBody({ d, admin, onChanged, openReport }: { d: AdminCaseDetail; admin: AdminApi; onChanged: () => Promise<void>; openReport: (n: number) => void }) {
   const t = d.timeline;
   return (
     <>
@@ -63,6 +64,11 @@ function CaseBody({ d, openReport }: { d: AdminCaseDetail; openReport: (n: numbe
         <Pill text={`Priority: ${PRIORITY_LABEL[d.priority]}`} tone={d.priority === "HIGH" ? "red" : "neutral"} />
         <Pill text={`Citizen status: ${REPORT_STATUS_LABEL[d.report.status]}`} tone={d.report.status === "VERIFIED" ? "green" : d.report.status === "REJECTED" ? "red" : "amber"} />
         <Pill text={`Reward: ${REWARD_STATE_LABEL[d.rewardState]}`} />
+        {d.attention.needsAttention ? <Pill text="Needs attention" tone="amber" /> : null}
+      </View>
+
+      <View style={styles.columns}>
+        <CaseAssignmentPanel d={d} admin={admin} onChanged={onChanged} />
       </View>
 
       <View style={styles.columns}>

@@ -1,5 +1,7 @@
-// Operations console (T9.0) data contract. READ-ONLY oversight for active
-// SUPERVISOR/ADMIN members, scoped to their own organization(s).
+// Operations console (T9.0) data contract: oversight for active
+// SUPERVISOR/ADMIN members, scoped to their own organization(s). Read-only
+// except the T9.2 pilot actions: assign / reassign / return a case that the
+// officer has not started yet (server-checked, versioned, audited).
 //
 // Both implementations return these shapes:
 //   * BACKEND: server functions admin_* (scope derived from auth.uid()),
@@ -38,6 +40,8 @@ export type AdminOverview = {
   /** ON_SITE + INSPECTION */
   casesOnSite: number;
   casesHighPriorityOpen: number;
+  /** Open cases longer than their threshold in the current status (T9.2). */
+  casesNeedingAttention: number;
   completedToday: number;
   chargesToday: number;
   rejectedToday: number;
@@ -141,6 +145,8 @@ export type AdminCaseFilter = {
   from?: string;
   to?: string;
   search?: string;
+  /** true = only cases that need attention (T9.2). */
+  attention?: boolean;
 };
 
 export type AdminCaseRow = {
@@ -158,6 +164,9 @@ export type AdminCaseRow = {
   outcomeCode?: EnforcementOutcomeCode;
   decidedAt?: string;
   parkingChargeCents?: number;
+  /** When the case entered its current status (open cases only). */
+  statusSince?: string;
+  needsAttention: boolean;
 };
 
 export type AdminCheck = { key: string; answer: boolean | null; answeredAt?: string };
@@ -167,6 +176,11 @@ export type AdminCaseDetail = {
   status: CaseStatus;
   priority: ReportPriority;
   assignedOfficerName?: string;
+  /** Used only to mark the current officer in the picker; never shown as text. */
+  assignedOfficerId?: string;
+  /** Sent back with an assignment change: a newer version on the server means the screen is stale. */
+  assignmentVersion: number;
+  attention: { statusSince?: string; needsAttention: boolean; thresholdMinutes?: number };
   timeline: AdminCaseTimeline;
   report: {
     id: string;
@@ -202,6 +216,11 @@ export type AdminOfficer = {
   completedThisMonth: number;
 };
 
+/** An officer a case can be assigned to (active OFFICER of the case's organization). */
+export type AdminAssignableOfficer = { userId: string; displayName?: string; activeCases: number; isCurrent: boolean };
+
+export type AssignmentResult = { changed: boolean; assignmentVersion: number };
+
 export type AdminRewardFilter = { entryType?: RewardEntryType; state?: Exclude<RewardState, "NONE">; search?: string; from?: string; to?: string };
 
 export type AdminRewardRow = {
@@ -224,7 +243,7 @@ export type AdminRewardSummary = {
 
 export type AdminAuditFilter = { actorRole?: ActorRole; entityType?: AuditEntityType; eventType?: string; ref?: string; from?: string; to?: string };
 
-/** The console's data access. Every call is read-only. */
+/** The console's data access. Read-only, except the three assignment actions. */
 export type AdminApi = {
   whoami(): Promise<Result<AdminIdentity>>;
   overview(): Promise<Result<AdminOverview>>;
@@ -236,4 +255,10 @@ export type AdminApi = {
   listOfficers(): Promise<Result<AdminOfficer[]>>;
   pageRewards(filter: AdminRewardFilter, offset: number): Promise<Result<AdminPage<AdminRewardRow> & { summary: AdminRewardSummary }>>;
   pageAudit(filter: AdminAuditFilter, offset: number): Promise<Result<AdminPage<AdminAuditEvent>>>;
+  /** null = case not found / outside the caller's organization. */
+  listAssignableOfficers(caseId: string): Promise<Result<AdminAssignableOfficer[] | null>>;
+  /** NEW -> ASSIGNED, or reassign an ASSIGNED case that has not been started. */
+  assignCase(caseId: string, officerId: string, expectedVersion: number): Promise<Result<AssignmentResult>>;
+  /** ASSIGNED (not started) -> NEW. */
+  unassignCase(caseId: string, expectedVersion: number): Promise<Result<AssignmentResult>>;
 };

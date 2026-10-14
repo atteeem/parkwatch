@@ -15,7 +15,7 @@ export { ADMIN_NAV, activeAdminNav };
 
 export const WIDE_BREAKPOINT = 900;
 
-/** Console frame: navigation + organization context. Content is read-only oversight. */
+/** Console frame: navigation + organization context. Oversight; the only writes are case assignment (T9.2). */
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const wide = width >= WIDE_BREAKPOINT;
@@ -54,7 +54,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {org ? <Text style={styles.org} numberOfLines={2}>{org}</Text> : null}
       <View style={{ flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
         {role ? <Text style={styles.badge}>{role}</Text> : null}
-        <Text style={[styles.badge, styles.badgeRo]}>Read-only</Text>
+        <Text style={[styles.badge, styles.badgeRo]}>Oversight · assignment</Text>
         {dataSource === "LOCAL_DEMO" ? <Text style={[styles.badge, styles.badgeDemo]}>Local demo</Text> : null}
       </View>
     </View>

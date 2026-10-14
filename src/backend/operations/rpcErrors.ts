@@ -17,6 +17,9 @@ const SERVER_RULE_CODES: readonly DomainErrorCode[] = [
   "INVALID_DRAFT",
   "EVIDENCE_NOT_UPLOADED",
   "NO_JURISDICTION",
+  "STALE_ASSIGNMENT",
+  "NOT_ASSIGNABLE",
+  "INVALID_OFFICER",
 ];
 
 /** Only the fields we read from a supabase-js / PostgREST / Storage error. */
