@@ -96,9 +96,15 @@ reportId | caseId}`; the screen loads the record through the normal access check
 
 * Remote push does **not** work in Expo Go on Android (SDK 53+). Real QA needs a
   development build (EAS Build) for Android and/or iOS.
-* `app.json` has no EAS `projectId` yet; `getExpoPushTokenAsync` needs it
-  (`npx eas init` adds `extra.eas.projectId`). Without it the app shows
-  "Not available in this app build" and keeps in-app notifications.
+* EAS project `@atteem/parkwatch-mvp` (`extra.eas.projectId` in `app.json`).
+  Variants (`app.config.ts`, `APP_VARIANT` set by `eas.json` profiles):
+  `development` -> `com.atteem.parkwatch.dev` (dev client, scheme `parkwatch-dev`),
+  `preview` / `production` -> `com.atteem.parkwatch`. Same name and branding.
+* EAS environment variables: `development` and `preview` hold the development
+  Supabase URL and publishable key (public client config); `production` is empty
+  until a production Supabase project exists. `.env` is never uploaded to EAS.
+* Android FCM client config: EAS file variable `GOOGLE_SERVICES_JSON` (or a
+  git-ignored local `google-services.json`); never committed.
 * Android: FCM V1 credentials uploaded to EAS (Firebase project +
   `google-services.json`). iOS: paid Apple Developer account, APNs key via EAS.
 * Android channel `parkwatch-updates` is created before the permission prompt.

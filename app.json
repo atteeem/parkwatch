@@ -79,6 +79,13 @@
           "enableBackgroundRemoteNotifications": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "831ad7de-ac34-410d-936d-ea6a43614f9f"
+      }
+    },
+    "owner": "atteem"
   }
 }

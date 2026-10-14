@@ -29,3 +29,14 @@ cloud-qa-results.local.json
 cloud-qa-t87-t90-results.local.json
 # Supabase CLI local state (project ref, version cache)
 supabase/.temp/
+
+# Firebase / Apple push client configs (provided to EAS as file env vars; never committed)
+google-services.json
+GoogleService-Info.plist
+# EAS / signing credentials
+credentials.json
+*.p8
+*.p12
+*.jks
+*.keystore
+*.mobileprovision
