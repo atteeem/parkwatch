@@ -21,6 +21,8 @@
 // T9.0 console: supervisor@example.test, admin@example.test (organization A),
 // inactive-supervisor@example.test, other-supervisor@example.test (organization B).
 // POST /__mock/membership {"email":..., "active": false} flips a membership.
+// POST /__mock/age-case {"report": 100004, "minutes": 90} ages a case (T9.2 "needs attention" QA).
+// POST /__mock/push-outbox lists the pushes the sender WOULD send (no tokens; nothing is sent).
 
 import http from "node:http";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -182,6 +184,29 @@ const server = http.createServer(async (req, res) => {
       const u = users.get(String(json(raw).email ?? "").toLowerCase());
       if (u) u.confirmed = true;
       return send(res, u ? 200 : 404, { ok: !!u });
+    }
+    // T9.2 QA: move a case's lifecycle timestamps back so "needs attention" can be seen.
+    if (p === "/__mock/age-case") {
+      const body = json(raw);
+      const minutes = Math.max(0, Math.min(10_000, Number(body.minutes) || 0));
+      const r = await asAdmin((db) =>
+        db.query(
+          `update public.officer_cases c set created_at = c.created_at - make_interval(mins => $2::int), assigned_at = c.assigned_at - make_interval(mins => $2::int),
+             en_route_at = c.en_route_at - make_interval(mins => $2::int), on_site_at = c.on_site_at - make_interval(mins => $2::int),
+             inspection_started_at = c.inspection_started_at - make_interval(mins => $2::int)
+           from public.reports r where r.id = c.report_id and r.public_report_number = $1::bigint returning c.id`,
+          [Number(body.report), minutes]
+        )
+      );
+      return send(res, r.rows.length ? 200 : 404, { ok: r.rows.length > 0 });
+    }
+    // T9.2 QA: what the trusted sender WOULD push (types, recipients' emails, status) - never tokens. Nothing is sent.
+    if (p === "/__mock/push-outbox") {
+      const r = await asAdmin((db) =>
+        db.query(`select n.type::text type, o.status, o.attempts, o.recipient_id from public.push_outbox o join public.notifications n on n.id = o.notification_id order by o.created_at`)
+      );
+      const email = (id) => [...users.values()].find((u) => u.id === id)?.email ?? "unknown";
+      return send(res, 200, { pushes: r.rows.map((x) => ({ type: x.type, to: email(x.recipient_id), status: x.status, attempts: x.attempts })) });
     }
 
     // ---- Storage: signed download (the token is the authorization)
