@@ -16,7 +16,7 @@ import {
 } from "../vehicleGuideGeometry";
 import { CameraGuideKind, guideFrame, guideFrameInArea, guideIsCompact, GUIDE_RESERVED_ABOVE, GUIDE_RESERVED_BELOW, GUIDE_RESERVED_BELOW_COMPACT, GUIDE_VIEW } from "../cameraGuides";
 import { INITIAL_LEVEL, LEVEL_ENTER_DEG, LEVEL_EXIT_DEG, LEVEL_MESSAGE, levelReducer, LevelState, tiltFromGravity, UPRIGHT_EXIT_DEG } from "../deviceLevel";
-import { PLATE_ASPECT, PLATE_SCAN_NOTE, plateFieldValue, sanitizePlateInput } from "../plateEntry";
+import { PLATE_ASPECT, plateFieldValue, sanitizePlateInput } from "../plateEntry";
 import { draftReducer, newDraftState } from "../reportDraft";
 import { MVP_MOCK_DETECTED_VEHICLE } from "../../domain";
 
@@ -177,11 +177,11 @@ describe("plate entry", () => {
     for (const f of ["src/backend/core/coreBackendStore.ts", "src/backend/operations/coreOperations.ts", "src/store/commands.ts"]) expect(read(f)).not.toMatch(/guideVehicleType/);
   });
 
-  it("no fake recognition: the scanner says reading is not available and claims nothing", () => {
-    expect(PLATE_SCAN_NOTE).toMatch(/isn't available yet/);
-    const ui = read("src/components/plate/PlateScanner.tsx") + read("src/components/plate/PlateEntryCard.tsx") + read("src/presentation/plateEntry.ts");
+  it("no overclaiming: no AI / detection wording, the old 'not available yet' note is gone, manual entry stays", () => {
+    const ui = read("src/components/plate/PlateScanner.tsx") + read("src/components/plate/PlateEntryCard.tsx") + read("src/presentation/plateEntry.ts") + read("src/presentation/plateScanFlow.ts");
     expect(ui).toMatch(/Enter manually/);
-    expect(ui).not.toMatch(/Plate detected|plate (was )?recogni[sz]ed|\bOCR success|\bAI\b|automatically (read|detect|recogni)/i);
+    expect(ui).not.toMatch(/isn't available yet/);
+    expect(ui).not.toMatch(/Plate detected|\bOCR success|\bAI\b|automatically (fills|accepted|submitted)/i);
   });
 });
 

@@ -5,16 +5,18 @@ import { colors } from "../../constants/colors";
 import { radius } from "../../constants/spacing";
 import { Card } from "../Card";
 import { useReportDraft } from "../../context/ReportContext";
+import { useApp } from "../../context/AppContext";
 import { plateFieldValue, sanitizePlateInput } from "../../presentation/plateEntry";
 import { PlateScanner } from "./PlateScanner";
 
 /**
- * Licence plate on Add Details: a plain text field (always available) and a
- * "Scan registration plate" view to frame and read the plate. The citizen
- * types the plate either way; nothing is recognised automatically.
+ * Licence plate on Add Details: a plain text field (always available) and
+ * "Scan registration plate". A scan only proposes a plate; it goes into the
+ * report when the citizen confirms it, edits it or types it.
  */
 export function PlateEntryCard() {
   const { draft, setPlate } = useReportDraft();
+  const { plateRecognizer } = useApp();
   const [text, setText] = useState(plateFieldValue(draft));
   const [scanning, setScanning] = useState(false);
   const input = useRef<TextInput>(null);
@@ -51,10 +53,13 @@ export function PlateEntryCard() {
         <Ionicons name="scan-outline" size={18} color={colors.greenDark} />
         <Text style={styles.scanLabel}>Scan registration plate</Text>
       </Pressable>
-      <Text style={styles.help}>Type the plate as it appears on the vehicle. The scanner helps you frame it; you still type it.</Text>
+      <Text style={styles.help}>
+        {plateRecognizer ? "Scan reads the plate for you to check and confirm. You can always type or correct it." : "Type the plate as it appears on the vehicle."}
+      </Text>
       <PlateScanner
         visible={scanning}
         initialPlate={text}
+        recognize={plateRecognizer}
         onUsePlate={(p) => {
           change(p);
           setScanning(false);

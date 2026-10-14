@@ -154,25 +154,22 @@ describe("VehicleTypePicker", () => {
   });
 });
 
-describe("PlateScanner", () => {
-  it("plate-shaped target, instruction, honest note, typing and Enter manually", () => {
+describe("PlateScanner without recognition (local demo / no backend)", () => {
+  it("plate-shaped target, instruction, a plain note, and typing works", () => {
     const onUse = jest.fn();
-    const onManual = jest.fn();
     let r!: TestRenderer.ReactTestRenderer;
     act(() => {
-      r = TestRenderer.create(withSafeArea(<PlateScanner visible initialPlate="" onUsePlate={onUse} onEnterManually={onManual} onClose={jest.fn()} />));
+      r = TestRenderer.create(withSafeArea(<PlateScanner visible initialPlate="" recognize={null} onUsePlate={onUse} onEnterManually={jest.fn()} onClose={jest.fn()} />));
     });
     const t = texts(r);
     expect(t).toContain(PLATE_SCAN_INSTRUCTION);
-    expect(t.join(" ")).toMatch(/Automatic plate reading isn't available yet/);
-    expect(t.join(" ")).not.toMatch(/detected|recogni/i);
+    expect(t.join(" ")).toMatch(/Plate reading needs a connection to ParkWatch/);
+    expect(t.join(" ")).not.toMatch(/detected|Scan plate|isn't available yet/i);
     expect(byTestId(r, "plate-target").length).toBeGreaterThan(0);
     const input = r.root.find((n) => n.props.accessibilityLabel === "Licence plate" && typeof n.props.onChangeText === "function");
     act(() => input.props.onChangeText("xyz-9"));
-    act(() => r.root.find((n) => n.props.accessibilityRole === "button" && texts({ root: n } as never).includes("Use this plate")).props.onPress());
+    act(() => r.root.find((n) => n.props.accessibilityLabel === "Use this plate" && typeof n.props.onPress === "function").props.onPress());
     expect(onUse).toHaveBeenCalledWith("XYZ-9");
-    act(() => r.root.find((n) => n.props.accessibilityRole === "button" && texts({ root: n } as never).includes("Enter manually")).props.onPress());
-    expect(onManual).toHaveBeenCalled();
   });
 
   it("the target is wide like a registration plate and fits small phones", () => {

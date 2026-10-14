@@ -1,6 +1,5 @@
-// Citizen licence-plate entry (pure). The plate is TYPED by the citizen; the
-// scanner view only helps them frame and read it. There is no automatic plate
-// recognition (OCR) in ParkWatch yet.
+// Citizen licence-plate entry (pure). Whatever recognition proposes, the plate
+// in the report is the one the citizen typed or confirmed.
 
 import type { ReportDraft } from "../domain";
 
@@ -23,5 +22,3 @@ export const plateFieldValue = (draft: ReportDraft): string => (draft.vehicle?.s
 /** Licence-plate shape used by the scanner frame (EU / Finnish plate is 520 x 110 mm). */
 export const PLATE_ASPECT = 520 / 110;
 
-/** Plain-language status of plate reading, shown in the scanner. */
-export const PLATE_SCAN_NOTE = "Automatic plate reading isn't available yet. Line the plate up in the frame and type it below.";

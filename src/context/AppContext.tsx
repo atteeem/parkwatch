@@ -26,6 +26,7 @@ import { deviceTimeZone, localMonthlyStats, MonthlyStats } from "../presentation
 import { AdminApi } from "../admin/adminTypes";
 import { createLocalAdmin } from "../admin/localAdmin";
 import { createAdminOperations } from "../backend/admin/adminOperations";
+import { createPlateRecognizer, PlateRecognizer } from "../backend/plate/plateRecognitionClient";
 import { useAuth } from "../auth/AuthContext";
 import {
   createCoreBackendStore,
@@ -222,6 +223,12 @@ type AppContextValue = {
    * the dev console role). The server scopes every call to the caller's organization.
    */
   admin: AdminApi | null;
+  /**
+   * Citizen licence-plate recognition through ParkWatch's server (null = not
+   * available: local demo, no backend, or not a signed-in citizen). It only
+   * proposes a plate; the citizen always confirms or types it.
+   */
+  plateRecognizer: PlateRecognizer | null;
 };
 
 export type ListItem<T extends AppListSpec> = T extends { kind: "citizenReports" }
@@ -296,7 +303,7 @@ function buildValue(args: {
   citizenProfile: ReporterDisplayProfile;
   actions: CoreActions;
   lists: ListAccess;
-  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin">;
+  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin" | "plateRecognizer">;
 }): AppContextValue {
   const { core, parking, citizenId, officerId, parkingOwnerId, derived } = args;
   const { now, officerCases } = derived;
@@ -406,6 +413,7 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
         resetDemoData,
         // LOCAL_DEMO console: the complete local store (demo convenience, not security).
         admin: sessionRole === "admin" ? createLocalAdmin(() => state) : null,
+        plateRecognizer: null,
       },
       lists: {
         getList,
@@ -581,6 +589,11 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     if (!client.ok) return null;
     return createAdminOperations(client.value, createEvidenceStorage(client.value), { timeZone: deviceTimeZone, onUnauthenticated, onForbidden: onConsoleForbidden });
   }, [role, userId, onUnauthenticated, onConsoleForbidden]);
+  const plateRecognizer = useMemo<PlateRecognizer | null>(() => {
+    if (role !== "citizen" || !userId) return null;
+    const client = getSupabaseClient();
+    return client.ok ? createPlateRecognizer(client.value) : null;
+  }, [role, userId]);
   const subscribe = useCallback((l: () => void) => (store ? store.subscribe(l) : () => undefined), [store]);
   const version = useSyncExternalStore(subscribe, () => store?.getVersion() ?? -1, () => store?.getVersion() ?? -1);
   const parking = useLocalStore();
@@ -634,6 +647,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         capabilities: { withdrawals: false, demoTools: false },
         resetDemoData: noRefresh,
         admin: adminApi,
+        plateRecognizer,
       },
       lists: {
         getList,
