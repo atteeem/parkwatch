@@ -81,6 +81,10 @@ describe("sign-out runs push cleanup while the session is still valid", () => {
       loadAccess: async () => ({ ok: true, value: { profile: { id: "u1", role: "CITIZEN", displayName: "" }, memberships: [] } }),
       ensureProfile: async () => ({ ok: true, value: { id: "u1", role: "CITIZEN", displayName: "" } }),
       watchAppState: () => () => undefined,
+      requestPasswordReset: async () => ({ ok: true, value: undefined }),
+      completePasswordReset: async () => ({ ok: true, value: undefined }),
+      updatePassword: async () => ({ ok: true, value: undefined }),
+      requestAccountDeletion: async () => ({ ok: true, value: undefined }),
     };
   }
 

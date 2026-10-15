@@ -125,7 +125,7 @@ const PRIVACY_DATA: InfoPage = {
     {
       heading: "Deleting data",
       paragraphs: [
-        "Deleting your account from inside the app is not available yet. Full details on data handling will be in the Privacy Policy, which is still a draft.",
+        "You can close your account in Settings → Delete Account. Your name, profile picture, notifications and push registrations are removed at once; reports you already sent stay with the enforcement organization without your name, because they are records of enforcement decisions. Full details will be in the Privacy Policy, which is still a draft.",
       ],
     },
   ],

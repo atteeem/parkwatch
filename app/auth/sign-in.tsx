@@ -51,6 +51,10 @@ export default function SignIn() {
           <AuthField label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" error={errors.email} />
           <AuthField label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secure autoCapitalize="none" autoComplete="password" textContentType="password" error={errors.password} onSubmitEditing={submit} />
 
+          <Pressable onPress={() => router.push("/auth/forgot-password")} hitSlop={10} accessibilityRole="link" style={{ alignSelf: "flex-end", marginTop: -4, marginBottom: 6 }}>
+            <Text style={styles.link}>Forgot password?</Text>
+          </Pressable>
+
           <GreenButton label={busy ? "Signing in…" : "Sign In"} loading={busy} trailingIcon={null} onPress={submit} style={{ marginTop: 8 }} />
 
           <View style={styles.switchRow}>

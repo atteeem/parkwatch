@@ -142,6 +142,12 @@ export default function OfficerProfile() {
           />
           <View style={styles.divider} />
           <PushSettingsRow />
+          {me.source !== "DEMO" ? (
+            <>
+              <View style={styles.divider} />
+              <SettingsRow icon="lock-closed" title="Password" subtitle="Change your password" onPress={() => router.push("/officer/change-password")} />
+            </>
+          ) : null}
           <View style={styles.divider} />
           <SettingsRow icon="help-circle" title="Help & Support" subtitle="How the officer app works" onPress={() => router.push("/officer/info/officer-help")} />
           <View style={styles.divider} />

@@ -8,7 +8,7 @@ import { backendOk, BackendResult, mapBackendError, RawBackendError } from "../r
 import { getSupabaseClient } from "../supabase";
 import { ClientProvider } from "./base";
 
-type ProfileRow = { id: string; role: ProfileRole; display_name: string };
+type ProfileRow = { id: string; role: ProfileRole; display_name: string; deletion_requested_at?: string | null };
 type MembershipRow = {
   organization_id: string;
   member_role: Membership["memberRole"];
@@ -25,7 +25,16 @@ export interface ProfileRepository {
   ensureMyProfile(): Promise<BackendResult<TrustedProfile>>;
 }
 
-const toProfile = (r: ProfileRow): TrustedProfile => ({ id: r.id, role: r.role, displayName: r.display_name ?? "" });
+const toProfile = (r: ProfileRow): TrustedProfile => ({
+  id: r.id,
+  role: r.role,
+  displayName: r.display_name ?? "",
+  ...(r.deletion_requested_at ? { deletionRequested: true } : {}),
+});
+
+/** A database without the T9.3 account-deletion migration has no deletion_requested_at column. */
+const missingColumn = (e: { code?: string | null; message?: string | null } | null) =>
+  !!e && (e.code === "42703" || e.code === "PGRST204" || /deletion_requested_at/.test(String(e.message ?? "")));
 
 export function createProfileRepository(provider: ClientProvider = getSupabaseClient): ProfileRepository {
   return {
@@ -33,7 +42,8 @@ export function createProfileRepository(provider: ClientProvider = getSupabaseCl
       const c = provider();
       if (!c.ok) return c;
       try {
-        const p = await c.value.from("profiles").select("id, role, display_name").eq("id", userId).maybeSingle();
+        let p = await c.value.from("profiles").select("id, role, display_name, deletion_requested_at").eq("id", userId).maybeSingle();
+        if (p.error && missingColumn(p.error as RawBackendError)) p = await c.value.from("profiles").select("id, role, display_name").eq("id", userId).maybeSingle();
         if (p.error) return { ok: false, error: mapBackendError(p.error as RawBackendError, p.status) };
         const m = await c.value
           .from("organization_members")

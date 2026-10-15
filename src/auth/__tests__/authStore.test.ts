@@ -52,6 +52,15 @@ function fakeService(server: Server) {
       return { ok: true, value: server.profiles[id]! };
     },
     watchAppState: () => () => {},
+    requestPasswordReset: async () => ({ ok: true, value: undefined }),
+    completePasswordReset: async () => ({ ok: true, value: undefined }),
+    updatePassword: async () => ({ ok: true, value: undefined }),
+    requestAccountDeletion: async () => {
+      const id = server.sessionUser?.id;
+      if (!id || server.profiles[id]?.role !== "CITIZEN") return { ok: false, error: authError("FORBIDDEN") };
+      server.profiles[id] = { ...server.profiles[id]!, displayName: "", deletionRequested: true };
+      return { ok: true, value: undefined };
+    },
   };
   return { service, emit: (e: AuthEvent, u: AuthUser | null) => listener?.(e, u) };
 }

@@ -28,6 +28,10 @@ type AuthContextValue = {
   refreshProfile(): Promise<void>;
   /** Run cleanup while the session is still valid at sign-out (bounded; never blocks it). */
   onBeforeSignOut(hook: () => Promise<unknown>): () => void;
+  requestPasswordReset(email: string, redirectTo: string): Promise<AuthResult<void>>;
+  completePasswordReset(link: { accessToken: string; refreshToken: string }, newPassword: string): Promise<AuthResult<void>>;
+  changePassword(newPassword: string): Promise<AuthResult<void>>;
+  closeAccount(): Promise<AuthResult<void>>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,6 +66,10 @@ export function AuthProvider({ children, store: injected }: { children: React.Re
       signOut: store.signOut,
       refreshProfile: store.refreshAccess,
       onBeforeSignOut: store.onBeforeSignOut,
+      requestPasswordReset: store.requestPasswordReset,
+      completePasswordReset: store.completePasswordReset,
+      changePassword: store.changePassword,
+      closeAccount: store.closeAccount,
     }),
     [state, store]
   );

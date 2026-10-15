@@ -76,13 +76,17 @@ describe("no secrets in logs or storage", () => {
           /AsyncStorage\.setItem\([^)]*(token|session|auth)/i.test(code(f)) ||
           code(f).split("\n").some((l) => /access_token|refresh_token/.test(l) && !/FORBIDDEN_KEYS/.test(l))
       )
-      .map(rel);
-    expect(hits).toEqual([]);
+      .map(rel)
+      .sort();
+    // T9.3 password reset: the emailed link's tokens are parsed and handed to a
+    // non-persisting client IN MEMORY in exactly these two files - never stored.
+    expect(hits).toEqual(["src/auth/authErrors.ts", "src/auth/authService.ts"]);
+    for (const f of hits) expect([f, /AsyncStorage|localStorage|setItem/.test(code(path.join(ROOT, f)))]).toEqual([f, false]);
   });
 
-  it("password state exists only on the sign-in and sign-up screens", () => {
+  it("password state exists only on the account screens (sign in/up, reset, change)", () => {
     const hits = source.filter((f) => /useState[^;\n]*\(\s*""\s*\)/.test(code(f)) && /\[\s*password\b/.test(code(f))).map(rel).sort();
-    expect(hits).toEqual(["app/auth/sign-in.tsx", "app/auth/sign-up.tsx"]);
+    expect(hits).toEqual(["app/auth/reset-password.tsx", "app/auth/sign-in.tsx", "app/auth/sign-up.tsx", "src/auth/AccountScreens.tsx"]);
   });
 });
 

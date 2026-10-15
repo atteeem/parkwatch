@@ -38,6 +38,13 @@ export function accountStatusCopy(state: AuthState): AccountStatusCopy {
         body: "This account doesn't have an active supervisor or administrator membership. Ask your organization's administrator to activate it.",
         canRetry: true,
       };
+    case "ACCOUNT_CLOSED":
+      return {
+        icon: "alert-circle-outline",
+        title: "This account has been closed",
+        body: "You closed this ParkWatch account. Your personal details have been removed; reports you sent stay with the enforcement organization without your name. To use ParkWatch again, create a new account.",
+        canRetry: false,
+      };
     case "PROFILE_INVALID":
       return {
         icon: "alert-circle-outline",

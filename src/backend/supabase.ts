@@ -50,6 +50,22 @@ export function getSupabaseClient(): BackendResult<SupabaseClient> {
   return backendOk(client);
 }
 
+/**
+ * A one-off client that never stores, refreshes or broadcasts a session.
+ * Used to finish a password reset from an emailed link without signing the
+ * app in with that link's session (T9.3).
+ */
+export function createEphemeralClient(): BackendResult<SupabaseClient> {
+  const config = readBackendConfig();
+  if (!config.configured) return notConfigured();
+  return backendOk(
+    createClient(config.url, config.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "parkwatch-ephemeral" },
+      global: { fetch: withTimeout() },
+    })
+  );
+}
+
 /** Tests only: forget the cached client. */
 export function __resetSupabaseClientForTests(): void {
   client = null;

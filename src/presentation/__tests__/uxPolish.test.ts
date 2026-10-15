@@ -245,7 +245,8 @@ describe("informational pages", () => {
     // Where withdrawals / push / deletion are mentioned, they are described as unavailable.
     expect(text(INFO_PAGES.about)).toMatch(/Push notifications work in the installed app once you turn them on/);
     expect(text(INFO_PAGES.about)).toMatch(/Email notifications are not available/);
-    expect(text(INFO_PAGES["privacy-data"])).toMatch(/Deleting your account from inside the app is not available yet/);
+    expect(text(INFO_PAGES["privacy-data"])).toMatch(/You can close your account in Settings/);
+    expect(text(INFO_PAGES["privacy-data"])).toMatch(/stay with the enforcement organization without your name/);
   });
 
   it("Help outcomes match the citizen outcome rules (other closures leave status unchanged, no notification)", () => {

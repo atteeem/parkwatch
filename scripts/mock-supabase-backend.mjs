@@ -23,6 +23,7 @@
 // POST /__mock/membership {"email":..., "active": false} flips a membership.
 // POST /__mock/age-case {"report": 100004, "minutes": 90} ages a case (T9.2 "needs attention" QA).
 // POST /__mock/push-outbox lists the pushes the sender WOULD send (no tokens; nothing is sent).
+// GET /__mock/last-recovery-link?email=... returns the last password-reset link "emailed" (T9.3).
 
 import http from "node:http";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -36,6 +37,7 @@ const { asUser, asAdmin } = await createStubDatabase();
 
 // --- seed (admin side) ------------------------------------------------------
 const users = new Map(); // email -> { id, email, password, confirmed, user_metadata }
+const recoveryLinks = new Map(); // email -> last password-reset link (mock inbox, T9.3)
 const tokens = new Map(); // token -> user id
 const objects = new Map(); // "bucket/name" -> { bytes, contentType }
 const signedTokens = new Map(); // token -> { key, exp }
@@ -166,9 +168,35 @@ const server = http.createServer(async (req, res) => {
       tokens.delete((req.headers.authorization ?? "").replace(/^Bearer /, ""));
       return send(res, 204);
     }
+    if (p === "/auth/v1/user" && req.method === "PUT") {
+      const u = userFromAuth(req);
+      if (!u) return authErr(res, 401, "bad_jwt", "invalid JWT");
+      const body = json(raw);
+      if (body.password !== undefined) {
+        if (String(body.password).length < 8) return authErr(res, 422, "weak_password", "Password should be at least 8 characters.");
+        if (body.password === u.password) return authErr(res, 422, "same_password", "New password should be different from the old password.");
+        u.password = String(body.password);
+      }
+      return send(res, 200, publicUser(u));
+    }
     if (p === "/auth/v1/user") {
       const u = userFromAuth(req);
       return u ? send(res, 200, publicUser(u)) : authErr(res, 401, "bad_jwt", "invalid JWT");
+    }
+    // Password reset (T9.3). The "email" goes to a mock inbox: GET /__mock/last-recovery-link?email=...
+    if (p === "/auth/v1/recover") {
+      const body = json(raw);
+      const u = users.get(String(body.email ?? "").toLowerCase());
+      if (u) {
+        const s = session(u);
+        const to = url.searchParams.get("redirect_to") ?? "parkwatch://auth/reset-password";
+        recoveryLinks.set(u.email, `${to}#access_token=${s.access_token}&refresh_token=${s.refresh_token}&expires_in=3600&token_type=bearer&type=recovery`);
+      }
+      return send(res, 200, {}); // same answer whether or not the account exists
+    }
+    if (p === "/__mock/last-recovery-link") {
+      const link = recoveryLinks.get(String(url.searchParams.get("email") ?? "").toLowerCase());
+      return send(res, link ? 200 : 404, { link: link ?? null });
     }
 
     // ---- Mock admin (test tooling only)
@@ -230,7 +258,9 @@ const server = http.createServer(async (req, res) => {
 
     // ---- REST reads used by role resolution (as the user: RLS applies)
     if (p === "/rest/v1/profiles" && req.method === "GET") {
-      const rows = (await asUser(me.id, (db) => db.query(`select id, role, display_name from public.profiles where id = $1`, [me.id]))).rows;
+      // T9.3: the account-deletion marker is returned when selected (as PostgREST does).
+      const withDeletion = /deletion_requested_at/.test(url.searchParams.get("select") ?? "");
+      const rows = (await asUser(me.id, (db) => db.query(`select id, role, display_name${withDeletion ? ", deletion_requested_at" : ""} from public.profiles where id = $1`, [me.id]))).rows;
       return send(res, 200, wantsObject(req) ? rows[0] ?? null : rows);
     }
     if (p === "/rest/v1/organization_members" && req.method === "GET") {

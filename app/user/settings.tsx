@@ -11,6 +11,7 @@ import { UserBottomNav } from "../../src/components/UserBottomNav";
 import { Card } from "../../src/components/Card";
 import { SettingsRow } from "../../src/components/SettingsRow";
 import { PushSettingsRow } from "../../src/push/PushSettingsRow";
+import { useAuth } from "../../src/auth/AuthContext";
 
 function SectionLabel({ text }: { text: string }) {
   return <Text style={styles.sectionLabel}>{text}</Text>;
@@ -20,6 +21,7 @@ function SectionLabel({ text }: { text: string }) {
 // yet, so those rows are shown as unavailable (dimmed, not pressable, no
 // switches) instead of controls that would pretend to change something.
 export default function Settings() {
+  const backend = useAuth().mode === "BACKEND";
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
@@ -35,7 +37,11 @@ export default function Settings() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20, gap: 6 }}>
         <SectionLabel text="ACCOUNT" />
         <Card noPadding>
-          <SettingsRow icon="lock-closed" title="Password" subtitle="Changing it in the app is not available yet" unavailable />
+          {backend ? (
+            <SettingsRow icon="lock-closed" title="Password" subtitle="Change your password" onPress={() => router.push("/user/change-password")} />
+          ) : (
+            <SettingsRow icon="lock-closed" title="Password" subtitle="Not used in the demo" unavailable />
+          )}
         </Card>
 
         <SectionLabel text="NOTIFICATIONS" />
@@ -52,7 +58,11 @@ export default function Settings() {
         <Card noPadding>
           <SettingsRow icon="shield" title="Privacy & Data" subtitle="What the app stores" onPress={() => router.push("/user/info/privacy-data")} />
           <View style={styles.divider} />
-          <SettingsRow icon="trash" title="Delete Account" subtitle="Not available in the app yet" unavailable />
+          {backend ? (
+            <SettingsRow icon="trash" title="Delete Account" subtitle="Close your account and remove your personal details" destructive onPress={() => router.push("/user/delete-account")} />
+          ) : (
+            <SettingsRow icon="trash" title="Delete Account" subtitle="Not available in the demo" unavailable />
+          )}
         </Card>
 
         <SectionLabel text="ABOUT" />

@@ -133,7 +133,9 @@ describe("settings / profile rows are honest", () => {
 
   it("Citizen Settings: every account/notification/theme row is unavailable; only info pages open", () => {
     const f = "app/user/settings.tsx";
-    unavailable(f, ["Password", "Delete Account"]);
+    // T9.3: Password and Delete Account are real when signed in to the server; honest "not in the demo" rows otherwise.
+    expect(read(f)).toMatch(/title="Password" subtitle="Change your password" onPress=\{\(\) => router\.push\("\/user\/change-password"\)\}/);
+    expect(read(f)).toMatch(/title="Delete Account" subtitle="Not available in the demo" unavailable/);
     for (const t of ["Personal Information","Identity Verification","Email Notifications","Dark Mode"]) expect([t, openingTags(read(f), "SettingsRow").some((x) => x.includes(`title="${t}"`))]).toEqual([t, false]); // T9.3: purely-future rows removed
     expect(row(f, "Language")).not.toMatch(/onPress=|unavailable/);
     // T9.2: push is real where the build supports it; the row states the truth (see PushSettingsRow).

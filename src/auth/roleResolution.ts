@@ -18,6 +18,7 @@ export function isProfileRole(v: unknown): v is ProfileRole {
  */
 export function resolveAccess(profile: TrustedProfile | null, memberships: readonly Membership[]): ResolvedAccess {
   if (!profile || !isProfileRole(profile.role)) return { kind: "PROFILE_INVALID" };
+  if (profile.deletionRequested) return { kind: "ACCOUNT_CLOSED" };
   switch (profile.role) {
     case "CITIZEN":
       return { kind: "CITIZEN" };

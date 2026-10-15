@@ -23,7 +23,7 @@ P0 = blocks install / demo / use. P1 = must fix before a real pilot. P2 = can fo
 | 8 | No production backend | Release | EAS `production` environment is empty on purpose (a production build would run the local demo) | Create the production Supabase project, apply migrations in order, deploy functions, set EAS production variables | Yes |
 | 9 | Terms of Service and Privacy Policy are drafts | Legal | Labelled "Draft" in the app | Final legal texts | Yes |
 | 10 | Plate Recognizer data processing | Plate scan | Provider processes plate crops in the USA | Confirm DPA/retention or choose an EU/on-premise option before production | Yes |
-| 11 | Password-based real-cloud regression suite not re-run after T9.2 | QA | Database-level real-cloud QA passed (135/135) | `$env:PARKWATCH_RUN_CLOUD_QA = "1"; npm.cmd run test:cloud-qa` | Yes (runs with test passwords) |
+| 11 | ~~Password-based real-cloud regression suite not re-run after T9.2~~ | QA | **DONE 2026-10-15** (run by Atte on the development project after T9.2): `realCloud.cloudqa.ts` PASS, `t87t90.cloudqa.ts` PASS - 2/2 suites, 51 passed, 1 skipped, 0 failures. Together with the T9.2 database QA (135/135) and anonymous REST checks (6/6). | Re-run only after backend changes | - |
 
 ## P2 - can follow the pilot
 

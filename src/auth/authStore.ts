@@ -27,6 +27,14 @@ export type AuthStore = {
   onBeforeSignOut(hook: () => Promise<unknown>): () => void;
   /** Re-read profile + memberships from the server (e.g. when the app returns to the foreground). */
   refreshAccess(): Promise<void>;
+  /** Signed out: email a reset link (neutral result whether or not the email has an account). */
+  requestPasswordReset(email: string, redirectTo: string): Promise<AuthResult<void>>;
+  /** From a reset link: set the new password; the app stays signed out (sign in with the new password). */
+  completePasswordReset(link: { accessToken: string; refreshToken: string }, newPassword: string): Promise<AuthResult<void>>;
+  /** Signed in: change the password. */
+  changePassword(newPassword: string): Promise<AuthResult<void>>;
+  /** Signed-in citizen: close the account, then sign out. */
+  closeAccount(): Promise<AuthResult<void>>;
 };
 
 /** Upper bound for each before-sign-out hook. */
@@ -75,6 +83,19 @@ export function createAuthStore(mode: AuthMode, service: AuthService | null): Au
     const same = state.status === "authenticated" && state.user.id === user.id;
     if (!same) set({ mode: "BACKEND", status: "authenticated", user, profile: null, access: null });
     return loadAccessFor(user);
+  }
+
+  // A plain function (not a method): AuthContext hands the store's functions to
+  // screens unbound, so nothing here may rely on `this`.
+  async function signOut() {
+    const hooks = [...beforeSignOut];
+    // Drop the trusted identity first so no protected screen stays usable.
+    dropIdentity();
+    // The session itself is still valid until service.signOut(): bounded, best-effort cleanup.
+    await Promise.allSettled(
+      hooks.map((h) => Promise.race([Promise.resolve().then(h), new Promise((resolve) => setTimeout(resolve, BEFORE_SIGN_OUT_TIMEOUT_MS))]))
+    );
+    if (service) await service.signOut();
   }
 
   function dropIdentity(notice?: string) {
@@ -139,15 +160,31 @@ export function createAuthStore(mode: AuthMode, service: AuthService | null): Au
       return () => beforeSignOut.delete(hook);
     },
 
-    async signOut() {
-      const hooks = [...beforeSignOut];
-      // Drop the trusted identity first so no protected screen stays usable.
-      dropIdentity();
-      // The session itself is still valid until service.signOut(): bounded, best-effort cleanup.
-      await Promise.allSettled(
-        hooks.map((h) => Promise.race([Promise.resolve().then(h), new Promise((resolve) => setTimeout(resolve, BEFORE_SIGN_OUT_TIMEOUT_MS))]))
-      );
-      if (service) await service.signOut();
+    signOut,
+
+    async requestPasswordReset(email, redirectTo) {
+      if (!service) return { ok: false, error: authError("BACKEND_NOT_CONFIGURED") };
+      return service.requestPasswordReset(email, redirectTo);
+    },
+
+    async completePasswordReset(link, newPassword) {
+      if (!service) return { ok: false, error: authError("BACKEND_NOT_CONFIGURED") };
+      return service.completePasswordReset(link, newPassword);
+    },
+
+    async changePassword(newPassword) {
+      if (!service) return { ok: false, error: authError("BACKEND_NOT_CONFIGURED") };
+      if (state.status !== "authenticated") return { ok: false, error: authError("INVALID_CREDENTIALS") };
+      return service.updatePassword(newPassword);
+    },
+
+    async closeAccount() {
+      if (!service) return { ok: false, error: authError("BACKEND_NOT_CONFIGURED") };
+      if (state.status !== "authenticated") return { ok: false, error: authError("INVALID_CREDENTIALS") };
+      const r = await service.requestAccountDeletion();
+      if (!r.ok) return r;
+      await signOut();
+      return { ok: true, value: undefined };
     },
 
     async refreshAccess() {

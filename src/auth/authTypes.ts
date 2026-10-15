@@ -12,7 +12,13 @@ export type AuthMode = "BACKEND" | "LOCAL_DEMO";
 /** Base account role as stored server-side in profiles.role. */
 export type ProfileRole = "CITIZEN" | "OFFICER" | "SUPERVISOR" | "ADMIN";
 
-export type TrustedProfile = { id: string; role: ProfileRole; displayName: string };
+export type TrustedProfile = {
+  id: string;
+  role: ProfileRole;
+  displayName: string;
+  /** The citizen closed this account (T9.3); nothing but the status screen is shown. */
+  deletionRequested?: boolean;
+};
 
 export type Membership = {
   organizationId: string;
@@ -38,7 +44,9 @@ export type ResolvedAccess =
   | { kind: "STAFF_NOT_AUTHORIZED"; role: "SUPERVISOR" | "ADMIN" }
   /** Officer profile without an active membership (or the reverse). */
   | { kind: "OFFICER_NOT_AUTHORIZED" }
-  | { kind: "PROFILE_INVALID" };
+  | { kind: "PROFILE_INVALID" }
+  /** The account was closed by its owner (T9.3). */
+  | { kind: "ACCOUNT_CLOSED" };
 
 export type AuthErrorCode =
   | "INVALID_CREDENTIALS"
@@ -51,6 +59,11 @@ export type AuthErrorCode =
   | "ACCOUNT_DISABLED"
   | "FORBIDDEN"
   | "RATE_LIMITED"
+  /** Password reset link expired, already used or malformed (T9.3). */
+  | "RESET_LINK_INVALID"
+  /** The project requires a recent sign-in to change the password. */
+  | "REAUTH_REQUIRED"
+  | "SAME_PASSWORD"
   | "UNKNOWN_AUTH_ERROR";
 
 export type AuthError = { code: AuthErrorCode; message: string };
