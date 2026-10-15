@@ -41,8 +41,18 @@ Safety rails:
 
 ## Pending on the development project
 
-* Migration `20261015000001_account_deletion.sql` (T9.3) is **not applied**. Until it is,
-  the app works as before (profile loading falls back) but **Delete Account fails**
-  with a generic error. Apply it the same way as the T9.2 migrations (one transaction
-  with its `schema_migrations` row), after approval.
-* Password reset needs the redirect URLs above in the development project's Auth settings.
+* Migration `20261015000001_account_deletion.sql` (T9.3) is **not applied** (approved
+  2026-10-15; checked not present, dependencies present). Until it is, the app works as
+  before (profile loading falls back) but **Delete Account fails** with a generic error.
+  Apply, then run the rolled-back QA (dry run on PGlite: `node scripts/run-t93-cloud-qa-local.mjs`, 30/30):
+
+  ```bash
+  npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t93-apply-dev.sql
+  npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t93-cloud-qa.sql
+  ```
+
+  The QA closes only a temporary citizen created inside its transaction and ends with
+  `T93QA_RESULT {...}` (an error by design - that is what rolls everything back).
+  Rollback: `supabase/rollback/20261015_account_deletion_rollback.sql`.
+* Password reset needs the redirect URLs above in the development project's Auth settings
+  (Dashboard → Authentication → URL Configuration → Redirect URLs; add, do not remove existing).

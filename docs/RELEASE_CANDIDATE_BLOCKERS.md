@@ -1,6 +1,9 @@
 # Release candidate blockers
 
 Status as of T9.3 (branch `t9.3-release-candidate-hardening`, 2026-10-15).
+**Release-candidate freeze (2026-10-15):** no new features. Only P0/P1 bugs,
+security/privacy issues, real-device issues and build/signing issues are fixed.
+
 P0 = blocks install / demo / use. P1 = must fix before a real pilot. P2 = can follow the pilot.
 "Atte" = needs Atte's account or a decision outside the code.
 
@@ -19,7 +22,7 @@ P0 = blocks install / demo / use. P1 = must fix before a real pilot. P2 = can fo
 | # | Issue | Flow | Status | Recommended fix | Atte? |
 | --- | --- | --- | --- | --- | --- |
 | 6 | Password reset / change | Auth | **Implemented in T9.3** and tested against the local mock: "Forgot password?" on sign-in, neutral email request, reset screen (link session never adopted by the app), Change Password for citizens and staff | Add the redirect URLs `parkwatch-dev://auth/reset-password` / `parkwatch://auth/reset-password` in Supabase Auth settings; configure the email sender (SMTP) for production | Yes (Auth settings) |
-| 7 | Account deletion | Settings | **Implemented in T9.3** (closure + de-linking per `docs/DATA_RETENTION.md`; citizen accounts only) and tested against the local mock. Migration `20261015000001_account_deletion.sql` is **not applied** to the development project, so Delete Account fails there until it is | Approve and apply the migration; operator step to erase the auth identity (DATA_RETENTION.md) | Yes (approval) |
+| 7 | Account deletion | Settings | **Implemented in T9.3** (closure + de-linking per `docs/DATA_RETENTION.md`; citizen accounts only) and tested against the local mock. Migration `20261015000001_account_deletion.sql` is approved but **not yet applied** to the development project (the agent's tool permissions blocked the write), so Delete Account fails there until it is. Ready-to-run apply file and a rolled-back 30-check cloud QA (30/30 on PGlite) - commands in ENVIRONMENTS.md | Run `scripts/sql/t93-apply-dev.sql`, then `scripts/sql/t93-cloud-qa.sql`; operator step to erase the auth identity (DATA_RETENTION.md) | Yes (run the apply) |
 | 8 | No production backend | Release | EAS `production` environment is empty on purpose. **T9.3:** the build now refuses a `preview`/`production` profile without Supabase variables (or with a secret key), so it cannot silently ship the local demo. Steps in `docs/ENVIRONMENTS.md` | Create the production Supabase project, apply migrations in order, deploy functions, set EAS production variables | Yes |
 | 9 | Terms of Service and Privacy Policy are drafts | Legal | **T9.3:** fuller drafts covering what the app actually does (data stored, plate-crop processing in the USA, account closure, no payments); public pages `/legal/terms` and `/legal/privacy` linked from sign-up; each page lists what must be added before launch | Final legal texts (controller identity, contact, retention periods, processors, governing law) | Yes |
 | 10 | Plate Recognizer data processing | Plate scan | Provider processes plate crops in the USA | Confirm DPA/retention or choose an EU/on-premise option before production | Yes |
