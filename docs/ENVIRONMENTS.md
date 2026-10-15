@@ -57,5 +57,6 @@ Safety rails:
   The QA closes only a temporary citizen created inside its transaction and ends with
   `T93QA_RESULT {...}` (an error by design - that is what rolls everything back).
   Rollback: `supabase/rollback/20261015_account_deletion_rollback.sql`.
-* Password reset needs the redirect URLs above in the development project's Auth settings
-  (Dashboard → Authentication → URL Configuration → Redirect URLs; add, do not remove existing).
+* Password-reset redirect URLs **configured** in the development project (2026-10-15, by Atte):
+  `parkwatch-dev://auth/reset-password` and `parkwatch://auth/reset-password`. Do not change them.
+  Real reset deep-link QA is pending the development build on a phone (RELEASE_CHECKLIST.md).

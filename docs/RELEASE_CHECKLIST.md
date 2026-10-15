@@ -17,7 +17,7 @@ Tick in order. "Atte" = needs Atte's account or device.
 - [ ] Database QA: `npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t92-cloud-qa.sql` (rolls back)
 - [ ] Atte: password-based regression `test:cloud-qa` after backend changes (last: 2026-10-15, 51 passed / 1 skipped)
 - [ ] `push-dispatch` deployed; one cron job; `PARKWATCH_RUN_PUSH_QA=1 node scripts/push-dispatch-smoke.mjs` -> 200 / 401
-- [ ] Auth redirect URLs for password reset (ENVIRONMENTS.md)
+- [x] Auth redirect URLs for password reset (development project, 2026-10-15; do not change)
 
 ## Builds (Atte)
 
