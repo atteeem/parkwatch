@@ -118,3 +118,71 @@ describe("visual QA fixes", () => {
     for (const t of ["Identity Verification", "Referral Program"]) expect([t, read("app/user/profile.tsx").includes(`title="${t}"`)]).toEqual([t, false]);
   });
 });
+
+describe("legal pages (pre-launch drafts)", () => {
+  const { INFO_PAGES } = require("../../content/infoPages");
+  const text = (p: { sections: { heading: string; paragraphs?: string[]; bullets?: string[] }[]; notice?: { text: string } }) =>
+    [p.notice?.text ?? "", ...p.sections.flatMap((s) => [s.heading, ...(s.paragraphs ?? []), ...(s.bullets ?? [])])].join("\n");
+
+  it("are labelled drafts and list exactly what must be added before launch", () => {
+    for (const id of ["terms", "privacy-policy"]) {
+      const p = INFO_PAGES[id];
+      expect(p.notice.label).toMatch(/Draft/);
+      expect(p.sections.some((s: { heading: string }) => s.heading === "To be added before launch")).toBe(true);
+    }
+    expect(text(INFO_PAGES["privacy-policy"])).toMatch(/data controller's legal name/);
+    expect(text(INFO_PAGES.terms)).toMatch(/legal name, business ID/);
+  });
+
+  it("the privacy draft describes what the system actually does", () => {
+    const t = text(INFO_PAGES["privacy-policy"]);
+    expect(t).toMatch(/Plate Recognizer, which processes images in the USA/);
+    expect(t).toMatch(/does not store that crop/);
+    expect(t).toMatch(/never tracked in the background/);
+    expect(t).toMatch(/pseudonymous reference/);
+    expect(t).toMatch(/Settings → Delete Account/);
+    expect(t).not.toMatch(/guarantee|always secure|never shared with anyone/i);
+  });
+
+  it("terms say parking previews take no payment and rewards are not paid out yet", () => {
+    const t = text(INFO_PAGES.terms);
+    expect(t).toMatch(/do not take payments and are not a valid parking permit/);
+    expect(t).toMatch(/Payouts of rewards are not available/);
+  });
+
+  it("sign-up links to PUBLIC legal pages (no sign-in needed)", () => {
+    const signUp = read("app/auth/sign-up.tsx");
+    expect(signUp).toMatch(/router\.push\("\/legal\/terms"\)/);
+    expect(signUp).toMatch(/router\.push\("\/legal\/privacy"\)/);
+    const { routeArea } = require("../../navigation/roleGuard");
+    expect(routeArea("/legal/terms")).toBe("neutral");
+    expect(fs.existsSync(path.join(ROOT, "app/legal/terms.tsx")) && fs.existsSync(path.join(ROOT, "app/legal/privacy.tsx"))).toBe(true);
+  });
+});
+
+describe("build environment guard (app.config.ts)", () => {
+  const { assertBuildEnvironment, APP_VARIANT } = require("../../../app.config");
+  const URL_ = "https://example.supabase.co";
+
+  it("refuses preview/production builds without backend config (no silent local demo)", () => {
+    for (const profile of ["preview", "production"]) {
+      expect(() => assertBuildEnvironment({ EAS_BUILD_PROFILE: profile })).toThrow(/needs EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY/);
+      expect(() => assertBuildEnvironment({ EAS_BUILD_PROFILE: profile, EXPO_PUBLIC_SUPABASE_URL: URL_, EXPO_PUBLIC_SUPABASE_ANON_KEY: "sb_secret_abc" })).toThrow(/publishable key/);
+      expect(() => assertBuildEnvironment({ EAS_BUILD_PROFILE: profile, EXPO_PUBLIC_SUPABASE_URL: URL_, EXPO_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_abc" })).not.toThrow();
+    }
+  });
+
+  it("development builds and local runs are not blocked (local demo stays possible)", () => {
+    expect(() => assertBuildEnvironment({ EAS_BUILD_PROFILE: "development" })).not.toThrow();
+    expect(() => assertBuildEnvironment({})).not.toThrow();
+    expect(APP_VARIANT).toBe("production"); // no APP_VARIANT in tests
+  });
+
+  it("eas.json keeps development and production separate", () => {
+    const eas = JSON.parse(read("eas.json"));
+    expect(eas.build.development).toMatchObject({ developmentClient: true, environment: "development", env: { APP_VARIANT: "development" } });
+    expect(eas.build.preview.environment).toBe("preview");
+    expect(eas.build.production).toMatchObject({ environment: "production", env: { APP_VARIANT: "production" } });
+    expect(JSON.stringify(eas)).not.toMatch(/supabase\.co|sb_publishable_|sb_secret_|EXPO_PUBLIC_SUPABASE/);
+  });
+});

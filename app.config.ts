@@ -22,7 +22,25 @@ const IDENTIFIER: Record<AppVariant, string> = {
   production: "com.atteem.parkwatch",
 };
 
+/**
+ * Release safety: a preview or production EAS build without a configured
+ * backend would silently run the local demo. Refuse to build it instead.
+ * (EAS sets EAS_BUILD_PROFILE when it evaluates this config.)
+ */
+export function assertBuildEnvironment(env: Record<string, string | undefined> = process.env): void {
+  const profile = env.EAS_BUILD_PROFILE;
+  if (profile !== "preview" && profile !== "production") return;
+  const missing = ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY"].filter((k) => !env[k]);
+  if (missing.length) {
+    throw new Error(`EAS profile "${profile}" needs ${missing.join(" and ")} in its EAS environment; refusing to build an app that would run the local demo.`);
+  }
+  if ((env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").startsWith("sb_secret_")) {
+    throw new Error("EXPO_PUBLIC_SUPABASE_ANON_KEY must be the publishable key, never a secret key.");
+  }
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => {
+  assertBuildEnvironment();
   const id = IDENTIFIER[APP_VARIANT];
   return {
     ...config,

@@ -14,7 +14,8 @@
     "mock:backend": "node scripts/mock-supabase-backend.mjs",
     "test:cloud-smoke": "node scripts/cloud-smoke.mjs",
     "test:cloud-qa": "jest --runInBand --testTimeout=60000 --testMatch \"**/__cloudqa__/**/*.cloudqa.ts\"",
-    "test:plate-provider": "jest --runInBand --testMatch \"**/__providerqa__/**/*.providerqa.ts\""
+    "test:plate-provider": "jest --runInBand --testMatch \"**/__providerqa__/**/*.providerqa.ts\"",
+    "e2e:mock": "node scripts/e2e-mock-workflow.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
