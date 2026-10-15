@@ -1,5 +1,6 @@
 import React from "react";
-import { Stack } from "expo-router";
+import { ErrorBoundaryProps, Stack, router } from "expo-router";
+import { AppErrorFallback } from "../src/components/AppErrorBoundary";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "../src/auth/AuthContext";
@@ -8,6 +9,23 @@ import { ReportProvider } from "../src/context/ReportContext";
 import { SessionProvider } from "../src/context/SessionContext";
 import { AvatarProvider } from "../src/auth/AvatarContext";
 import { PushNotificationsProvider } from "../src/push/PushNotificationsContext";
+
+// Unexpected render errors anywhere below: friendly fallback, never a stack trace.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <AppErrorFallback
+      error={error}
+      retry={retry}
+      onHome={() => {
+        try {
+          router.replace("/");
+        } catch {
+          void retry();
+        }
+      }}
+    />
+  );
+}
 
 // AuthProvider: identity (Supabase account in backend mode; nothing in local demo).
 // SessionProvider: what navigation may show for that identity.

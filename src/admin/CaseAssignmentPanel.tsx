@@ -27,11 +27,15 @@ export function CaseAssignmentPanel({ d, admin, onChanged }: { d: AdminCaseDetai
   const choices = officers.phase === "ready" && officers.data ? pickerOfficers(officers.data) : [];
   const canChange = opts.assign || opts.reassign;
 
+  // A second tap before the dialog re-renders as busy is ignored (the server is idempotent too).
+  const inFlight = useRef(false);
   const run = async () => {
-    if (!pending) return;
+    if (!pending || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     const r = pending.kind === "return" ? await admin.unassignCase(d.id, d.assignmentVersion) : await admin.assignCase(d.id, pending.officer.userId, d.assignmentVersion);
+    inFlight.current = false;
     setBusy(false);
     if (!r.ok) {
       setError(describeDomainError(r.error).message);

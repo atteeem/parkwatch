@@ -173,10 +173,11 @@ describe("settings / profile rows are honest", () => {
     expect(src.match(/router\.push\("\/user\/earnings\/history"\)/g)).toHaveLength(2);
   });
 
-  it("Release Case stays disabled (no EN_ROUTE -> NEW transition)", () => {
-    const tag = openingTags(read("app/officer/en-route.tsx"), "GreenButton").find((t) => t.includes('label="Release Case"'))!;
-    expect(tag).toMatch(/\bdisabled\b/);
-    expect(read("app/officer/en-route.tsx")).toMatch(/Returning a case to the queue is not available yet/);
+  it("En Route offers no release action (no EN_ROUTE -> NEW transition) and no dead placeholder button", () => {
+    const src = read("app/officer/en-route.tsx");
+    expect(openingTags(src, "GreenButton").some((t) => /Release Case/.test(t))).toBe(false);
+    expect(openingTags(src, "GreenButton").every((t) => !/^\S+\s+label="[^"]*"\s+(variant="gray"\s+)?(trailingIcon=\{null\}\s+)?(icon="[^"]*"\s+)?disabled\s*\/?>$/.test(t))).toBe(true);
+    expect(src).toMatch(/Contact your supervisor/);
   });
 });
 

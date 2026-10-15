@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -66,13 +66,17 @@ function WithdrawForm() {
   const amountCents = check.ok ? check.cents : 0;
   const shownAmount = check.ok ? formatEuros(amountCents) : "—";
 
+  // One request per visit: a second tap before the screen closes is ignored.
+  const requested = useRef(false);
   const confirm = () => {
-    confirmWithdrawal(amountText, {
+    if (requested.current) return;
+    const r = confirmWithdrawal(amountText, {
       validate: validateWithdrawal,
       withdraw,
       onSuccess: () => (router.canGoBack() ? router.back() : router.replace("/user/earnings")), // Earnings lists the new "Withdrawal requested" entry
       onError: setError, // refused: stay here with the reason
     });
+    if (r === "requested") requested.current = true;
   };
 
   return (

@@ -77,7 +77,7 @@ const ABOUT: InfoPage = {
         "Real withdrawals are not available. In the local demo, a simulated withdrawal request can be recorded, but no bank transfer is made.",
         "Payment methods and identity verification are not available yet.",
         "Parking sessions do not take payments.",
-        "Push and email notifications are not available; updates appear in the app's Notifications screen.",
+        "Push notifications work in the installed app once you turn them on; they never show photos, places or plates. Email notifications are not available. Every update also appears in the app's Notifications screen.",
       ],
     },
     {
@@ -200,7 +200,7 @@ const OFFICER_HELP: InfoPage = {
     {
       heading: "Cases and notifications",
       paragraphs: [
-        "Cases shows the reports you have handled. Notifications shows case updates inside the app; push notifications are not available yet.",
+        "Cases shows the reports you have handled. Notifications shows case updates inside the app. If you turn on push notifications, a supervisor's assignment also reaches your phone; the lock screen shows no case details.",
       ],
     },
     {

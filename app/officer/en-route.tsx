@@ -231,10 +231,9 @@ export default function EnRoute() {
             />
             <Text style={styles.subCaption}>The vehicle is no longer here</Text>
 
-            {/* TODO(dev): releasing a case back to the queue is not defined in the
-                domain lifecycle yet (EN_ROUTE -> NEW is not an allowed transition). */}
-            <GreenButton label="Release Case" variant="gray" trailingIcon={null} icon="close-circle" disabled />
-            <Text style={styles.subCaption}>Returning a case to the queue is not available yet</Text>
+            {/* A started case is never released back to the queue (EN_ROUTE -> NEW is not a
+                lifecycle transition, and supervisors only move cases that have not been started). */}
+            <Text style={styles.subCaption}>Can't continue with this case? Contact your supervisor.</Text>
           </>
         )}
       </ScrollView>

@@ -243,7 +243,8 @@ describe("informational pages", () => {
       for (const m of t.matchAll(/(\S+\s+\S+)\s+guarantee/gi)) expect([p.id, m[1]]).toEqual([p.id, "does not"]);
     }
     // Where withdrawals / push / deletion are mentioned, they are described as unavailable.
-    expect(text(INFO_PAGES.about)).toMatch(/Push and email notifications are not available/);
+    expect(text(INFO_PAGES.about)).toMatch(/Push notifications work in the installed app once you turn them on/);
+    expect(text(INFO_PAGES.about)).toMatch(/Email notifications are not available/);
     expect(text(INFO_PAGES["privacy-data"])).toMatch(/Deleting your account from inside the app is not available yet/);
   });
 

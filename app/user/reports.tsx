@@ -87,7 +87,7 @@ export default function MyReports() {
         </View>
       </ScrollView>
 
-      <Pressable style={styles.fab} onPress={startReport}>
+      <Pressable style={styles.fab} onPress={startReport} accessibilityRole="button" accessibilityLabel="New report">
         <Ionicons name="add" size={26} color="#06210F" />
       </Pressable>
 
