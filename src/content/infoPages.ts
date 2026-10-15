@@ -152,6 +152,24 @@ const TERMS: InfoPage = {
       heading: "Outcomes and rewards",
       paragraphs: [
         "Enforcement officers decide what happens to each report. Rewards depend on a report being verified and eligible; submitting a report does not guarantee a reward.",
+        "Payouts of rewards are not available in this version.",
+      ],
+    },
+    {
+      heading: "Parking in this version",
+      paragraphs: ["Parking sessions in the app are a preview. They do not take payments and are not a valid parking permit."],
+    },
+    {
+      heading: "Your account",
+      paragraphs: ["You can close your account at any time in Settings → Delete Account."],
+    },
+    {
+      heading: "To be added before launch",
+      bullets: [
+        "The service provider's legal name, business ID and contact details",
+        "Who may create an account (age and residence requirements)",
+        "Reward terms, including how payouts work",
+        "Liability, changes to the terms and governing law",
       ],
     },
   ],
@@ -167,12 +185,44 @@ const PRIVACY_POLICY: InfoPage = {
   },
   sections: [
     {
-      heading: "What the final policy will cover",
+      heading: "What ParkWatch stores",
       bullets: [
-        "Which data ParkWatch processes and why",
-        "Who can see report evidence",
-        "How long data is kept",
-        "How to request access to or deletion of your data",
+        "Your account: email address, name and an optional profile picture.",
+        "Your reports: front, side and rear photos, the reported location and address, the time, the vehicle's plate and your notes.",
+        "Rewards and notifications linked to your reports.",
+        "If you turn on push notifications: a device token so ParkWatch can reach your phone. Notifications never show photos, places or plates.",
+      ],
+    },
+    {
+      heading: "Plate scanning",
+      paragraphs: [
+        "If you scan a plate, a small cropped image of the plate is sent through ParkWatch's server to a plate-recognition provider (Plate Recognizer, which processes images in the USA) to read the characters. ParkWatch does not store that crop; you always confirm or type the plate yourself.",
+      ],
+    },
+    {
+      heading: "Who sees your reports",
+      paragraphs: [
+        "Enforcement officers and supervisors of the organization responsible for the area. They see you only as a pseudonymous reference, not your name or email. Other users never see your reports.",
+      ],
+    },
+    {
+      heading: "Location",
+      paragraphs: ["ParkWatch uses your location only while you use the map or create a report. It is never tracked in the background."],
+    },
+    {
+      heading: "Closing your account",
+      paragraphs: [
+        "In Settings → Delete Account. Your name, profile picture, notifications and push registrations are removed at once, and your email address and password are deleted afterwards. Reports you already sent stay with the enforcement organization without your name, because they are records of enforcement decisions.",
+      ],
+    },
+    {
+      heading: "To be added before launch",
+      bullets: [
+        "The data controller's legal name, business ID and contact details for privacy requests",
+        "The legal basis for each use of data",
+        "How long reports and other records are kept",
+        "International transfers (plate recognition) and the safeguards used",
+        "How to request access to, correction of or a copy of your data",
       ],
     },
   ],

@@ -11,7 +11,7 @@ import { FadeIn } from "./motion/FadeIn";
 import type { InfoPage } from "../content/infoPages";
 
 /** Read-only informational page (Help, About, Privacy & Data, draft legal pages). */
-export function InfoPageView({ page, fallbackHref }: { page: InfoPage; fallbackHref: "/user/profile" | "/officer/profile" }) {
+export function InfoPageView({ page, fallbackHref }: { page: InfoPage; fallbackHref: "/user/profile" | "/officer/profile" | "/" }) {
   const router = useRouter();
   const back = () => (router.canGoBack() ? router.back() : router.replace(fallbackHref));
 

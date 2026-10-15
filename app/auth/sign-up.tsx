@@ -80,6 +80,18 @@ export default function SignUp() {
           <AuthField label="Password" value={password} onChangeText={setPassword} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} secure autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" error={errors.password} />
           <AuthField label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat your password" secure autoCapitalize="none" autoComplete="new-password" textContentType="newPassword" error={errors.confirmPassword} onSubmitEditing={submit} />
 
+          <Text style={[styles.switchText, { marginTop: 4 }]}>
+            Before you sign up, read the{" "}
+            <Text style={styles.link} accessibilityRole="link" onPress={() => router.push("/legal/terms")}>
+              Terms of Service
+            </Text>{" "}
+            and{" "}
+            <Text style={styles.link} accessibilityRole="link" onPress={() => router.push("/legal/privacy")}>
+              Privacy Policy
+            </Text>{" "}
+            (pre-launch drafts).
+          </Text>
+
           <GreenButton label={busy ? "Creating account…" : "Create Account"} loading={busy} trailingIcon={null} onPress={submit} style={{ marginTop: 8 }} />
 
           <View style={styles.switchRow}>
