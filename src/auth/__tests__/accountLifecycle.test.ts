@@ -162,7 +162,7 @@ describe("screens and copy", () => {
   it("sign-in links to Forgot password; reset uses the app's own link and neutral wording", () => {
     expect(read("app/auth/sign-in.tsx")).toMatch(/router\.push\("\/auth\/forgot-password"\)/);
     const forgot = read("app/auth/forgot-password.tsx");
-    expect(forgot).toMatch(/Linking\.createURL\("\/auth\/reset-password"\)/);
+    expect(forgot).toMatch(/passwordResetRedirect\(/); // explicit allowed redirect, never the Site URL fallback
     expect(forgot).toMatch(/If an account exists for this email/);
     expect(read("app/auth/reset-password.tsx")).toMatch(/completePasswordReset\(link, password\)/);
   });

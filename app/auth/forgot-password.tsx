@@ -2,18 +2,20 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import * as Linking from "expo-linking";
+import Constants from "expo-constants";
 import { authScreenStyles } from "../../src/components/authScreenStyles";
 import { GreenButton } from "../../src/components/GreenButton";
 import { AuthField } from "../../src/components/AuthField";
 import { useAuth } from "../../src/auth/AuthContext";
 import { EmailForm, FormErrors, validateEmailOnly } from "../../src/auth/authErrors";
+import { passwordResetRedirect } from "../../src/auth/passwordResetRedirect";
 
 /** Same wording whether or not the email has an account (no account probing). */
 const RESET_SENT_COPY = "If an account exists for this email, we've sent a link to set a new password. Open it on this phone.";
 
 // Forgot password (signed out, backend mode). Emails a reset link that opens
-// /auth/reset-password in this app.
+// /auth/reset-password in this app (explicit redirect per app variant, see
+// passwordResetRedirect - never the Supabase Site URL fallback).
 export default function ForgotPassword() {
   const router = useRouter();
   const { requestPasswordReset } = useAuth();
@@ -30,7 +32,14 @@ export default function ForgotPassword() {
     setFormError(null);
     if (Object.keys(v).length) return;
     setBusy(true);
-    const r = await requestPasswordReset(email, Linking.createURL("/auth/reset-password"));
+    const r = await requestPasswordReset(
+      email,
+      passwordResetRedirect({
+        platform: Platform.OS,
+        appVariant: (Constants.expoConfig?.extra as { appVariant?: unknown } | undefined)?.appVariant,
+        webOrigin: Platform.OS === "web" && typeof window !== "undefined" ? window.location.origin : undefined,
+      })
+    );
     setBusy(false);
     if (r.ok) setSent(true);
     else setFormError(r.error.message);
