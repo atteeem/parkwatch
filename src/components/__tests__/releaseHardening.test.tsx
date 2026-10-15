@@ -94,3 +94,27 @@ describe("release copy and dead actions", () => {
     expect(read("app/user/reports.tsx")).toMatch(/style=\{styles\.fab\} onPress=\{startReport\} accessibilityRole="button" accessibilityLabel="New report"/);
   });
 });
+
+describe("visual QA fixes", () => {
+  it("officer greeting follows the device clock (not always 'Good morning')", () => {
+    const { greetingFor } = require("../../presentation/time");
+    expect(greetingFor(new Date(2026, 9, 15, 8, 0))).toBe("Good morning");
+    expect(greetingFor(new Date(2026, 9, 15, 13, 0))).toBe("Good afternoon");
+    expect(greetingFor(new Date(2026, 9, 15, 21, 0))).toBe("Good evening");
+    expect(greetingFor(new Date(2026, 9, 15, 2, 0))).toBe("Good evening");
+    expect(read("app/officer/home.tsx")).not.toMatch(/Good morning,/);
+  });
+
+  it("citizen home uses the citizen status word 'Verified' (not 'Accepted')", () => {
+    expect(read("app/user/home.tsx")).toMatch(/label="Verified" sublabel="This week"/);
+  });
+
+  it("settings and profiles show no purely-future dimmed rows; honest ones remain", () => {
+    const settings = read("app/user/settings.tsx");
+    for (const t of ["Personal Information", "Identity Verification", "Email Notifications", "Dark Mode"]) expect([t, settings.includes(`title="${t}"`)]).toEqual([t, false]);
+    expect(settings).toMatch(/title="Password"[^>]*unavailable/);
+    expect(settings).toMatch(/title="Delete Account"[^>]*unavailable/);
+    for (const t of ["Personal Information", "Equipment Status", "Dark Mode"]) expect([t, read("app/officer/profile.tsx").includes(`title="${t}"`)]).toEqual([t, false]);
+    for (const t of ["Identity Verification", "Referral Program"]) expect([t, read("app/user/profile.tsx").includes(`title="${t}"`)]).toEqual([t, false]);
+  });
+});

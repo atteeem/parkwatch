@@ -35,28 +35,17 @@ export default function Settings() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: BOTTOM_NAV_HEIGHT + 20, gap: 6 }}>
         <SectionLabel text="ACCOUNT" />
         <Card noPadding>
-          <SettingsRow icon="person" title="Personal Information" unavailable />
-          <View style={styles.divider} />
-          <SettingsRow icon="lock-closed" title="Password" unavailable />
-          <View style={styles.divider} />
-          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
+          <SettingsRow icon="lock-closed" title="Password" subtitle="Changing it in the app is not available yet" unavailable />
         </Card>
 
         <SectionLabel text="NOTIFICATIONS" />
         <Card noPadding>
           <PushSettingsRow />
-          <View style={styles.divider} />
-          <SettingsRow icon="mail" title="Email Notifications" unavailable />
-        </Card>
-
-        <SectionLabel text="APPEARANCE" />
-        <Card noPadding>
-          <SettingsRow icon="moon" title="Dark Mode" subtitle="Not available yet · light theme only" unavailable />
         </Card>
 
         <SectionLabel text="LANGUAGE" />
         <Card noPadding>
-          <SettingsRow icon="globe" title="Language" subtitle="English · other languages not available yet" unavailable />
+          <SettingsRow icon="globe" title="Language" subtitle="English" />
         </Card>
 
         <SectionLabel text="PRIVACY" />

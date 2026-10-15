@@ -24,6 +24,7 @@ import { OFFICER_HOME_NO_ACTIVE, OFFICER_HOME_NO_NEW } from "../../src/presentat
 import { sortQueue, withDistances } from "../../src/presentation/officerViews";
 import { UnreadBadge } from "../../src/components/UnreadBadge";
 import { PushEducationCard } from "../../src/push/PushEducationCard";
+import { greetingFor } from "../../src/presentation/time";
 import { notificationsA11yLabel } from "../../src/presentation/unreadBadge";
 
 export default function OfficerHome() {
@@ -54,7 +55,7 @@ export default function OfficerHome() {
             <Avatar name={me.fullName} size={52} />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.greeting}>Good morning,{"\n"}Officer {me.firstName}</Text>
+            <Text style={styles.greeting}>{greetingFor()},{"\n"}Officer {me.firstName}</Text>
             <Text style={styles.greetingSub}>Here's what's happening on your shift.</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 8 }}>

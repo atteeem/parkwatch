@@ -101,10 +101,6 @@ export default function UserProfile() {
           ) : (
             <SettingsRow icon="business" title="Payment Method" unavailable />
           )}
-          <View style={styles.divider} />
-          <SettingsRow icon="shield-checkmark" title="Identity Verification" unavailable />
-          <View style={styles.divider} />
-          <SettingsRow icon="gift" title="Referral Program" unavailable />
         </Card>
 
         <Text style={styles.sectionHeading}>App</Text>

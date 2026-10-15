@@ -152,7 +152,7 @@ export default function UserHome() {
           <Text style={typography.sectionHeading}>Statistics</Text>
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
             <StatCard icon="car" iconBg={colors.blueLight} iconColor={colors.blue} value={String(week.submitted)} label="Reports made" sublabel="This week" />
-            <StatCard icon="checkmark-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} value={String(week.verified)} label="Accepted" sublabel="This week" />
+            <StatCard icon="checkmark-circle" iconBg={colors.greenLight} iconColor={colors.greenDark} value={String(week.verified)} label="Verified" sublabel="This week" />
             <StatCard icon="logo-euro" iconBg={colors.amberLight} iconColor="#B47A00" value={weekEarned} label="Earned Rewards" sublabel="This week" />
           </View>
         </View>

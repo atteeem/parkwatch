@@ -120,7 +120,7 @@ describe("settings / profile rows are honest", () => {
     expect(payment).toHaveLength(2); // local-demo example row + signed-in unavailable row
     for (const t of payment) expect(t).not.toMatch(/onPress=/);
     expect(payment.filter((t) => /\bunavailable\b/.test(t))).toHaveLength(1);
-    unavailable(f, ["Identity Verification", "Referral Program"]);
+    for (const t of ["Identity Verification","Referral Program"]) expect([t, openingTags(read(f), "SettingsRow").some((x) => x.includes(`title="${t}"`))]).toEqual([t, false]); // T9.3: purely-future rows removed
     opens(f, "Help Center", "/user/info/help");
     opens(f, "About ParkWatch", "/user/info/about");
     opens(f, "Terms of Service", "/user/info/terms");
@@ -133,7 +133,9 @@ describe("settings / profile rows are honest", () => {
 
   it("Citizen Settings: every account/notification/theme row is unavailable; only info pages open", () => {
     const f = "app/user/settings.tsx";
-    unavailable(f, ["Personal Information", "Password", "Identity Verification", "Email Notifications", "Dark Mode", "Language", "Delete Account"]);
+    unavailable(f, ["Password", "Delete Account"]);
+    for (const t of ["Personal Information","Identity Verification","Email Notifications","Dark Mode"]) expect([t, openingTags(read(f), "SettingsRow").some((x) => x.includes(`title="${t}"`))]).toEqual([t, false]); // T9.3: purely-future rows removed
+    expect(row(f, "Language")).not.toMatch(/onPress=|unavailable/);
     // T9.2: push is real where the build supports it; the row states the truth (see PushSettingsRow).
     expect(read(f)).toMatch(/<PushSettingsRow \/>/);
     opens(f, "Privacy & Data", "/user/info/privacy-data");
@@ -146,7 +148,7 @@ describe("settings / profile rows are honest", () => {
     const f = "app/officer/profile.tsx";
     expect(row(f, "Notifications")).toMatch(/router\.push\("\/officer\/notifications"\)/);
     expect(row(f, "Case History")).toMatch(/router\.replace\("\/officer\/cases"\)/);
-    unavailable(f, ["Personal Information", "Equipment Status", "Dark Mode"]);
+    for (const t of ["Personal Information","Equipment Status","Dark Mode"]) expect([t, openingTags(read(f), "SettingsRow").some((x) => x.includes(`title="${t}"`))]).toEqual([t, false]); // T9.3: purely-future rows removed
     opens(f, "Monthly Statistics", "/officer/statistics");
     opens(f, "Help & Support", "/officer/info/officer-help");
     for (const t of ["Assigned District", "Work Vehicle"]) expect(row(f, t)).not.toMatch(/onPress=/);

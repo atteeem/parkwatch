@@ -59,3 +59,11 @@ export function formatNotificationTime(iso: string, now: Date): string {
   if (days < 7) return `${WEEKDAYS_SHORT[then.getDay()]} ${hhmm(then)}`;
   return `${MONTHS[then.getMonth()]} ${then.getDate()}`;
 }
+
+/** Time-of-day greeting for the device's local clock (officer home). */
+export function greetingFor(now: Date = new Date()): string {
+  const h = now.getHours();
+  if (h >= 5 && h < 12) return "Good morning";
+  if (h >= 12 && h < 18) return "Good afternoon";
+  return "Good evening";
+}
