@@ -18,10 +18,10 @@ P0 = blocks install / demo / use. P1 = must fix before a real pilot. P2 = can fo
 
 | # | Issue | Flow | Status | Recommended fix | Atte? |
 | --- | --- | --- | --- | --- | --- |
-| 6 | No "Forgot password" / password change | Auth | Sign-in has no reset link; Settings shows Password as not available | Supabase password-reset email + in-app reset screen; configure the auth email sender | Partly (email/SMTP settings) |
-| 7 | No in-app account deletion | Settings | Shown honestly as not available | Server function that deletes/anonymises the account per the data rules; required by Apple for apps with sign-up | Decision on data retention |
-| 8 | No production backend | Release | EAS `production` environment is empty on purpose (a production build would run the local demo) | Create the production Supabase project, apply migrations in order, deploy functions, set EAS production variables | Yes |
-| 9 | Terms of Service and Privacy Policy are drafts | Legal | Labelled "Draft" in the app | Final legal texts | Yes |
+| 6 | Password reset / change | Auth | **Implemented in T9.3** and tested against the local mock: "Forgot password?" on sign-in, neutral email request, reset screen (link session never adopted by the app), Change Password for citizens and staff | Add the redirect URLs `parkwatch-dev://auth/reset-password` / `parkwatch://auth/reset-password` in Supabase Auth settings; configure the email sender (SMTP) for production | Yes (Auth settings) |
+| 7 | Account deletion | Settings | **Implemented in T9.3** (closure + de-linking per `docs/DATA_RETENTION.md`; citizen accounts only) and tested against the local mock. Migration `20261015000001_account_deletion.sql` is **not applied** to the development project, so Delete Account fails there until it is | Approve and apply the migration; operator step to erase the auth identity (DATA_RETENTION.md) | Yes (approval) |
+| 8 | No production backend | Release | EAS `production` environment is empty on purpose. **T9.3:** the build now refuses a `preview`/`production` profile without Supabase variables (or with a secret key), so it cannot silently ship the local demo. Steps in `docs/ENVIRONMENTS.md` | Create the production Supabase project, apply migrations in order, deploy functions, set EAS production variables | Yes |
+| 9 | Terms of Service and Privacy Policy are drafts | Legal | **T9.3:** fuller drafts covering what the app actually does (data stored, plate-crop processing in the USA, account closure, no payments); public pages `/legal/terms` and `/legal/privacy` linked from sign-up; each page lists what must be added before launch | Final legal texts (controller identity, contact, retention periods, processors, governing law) | Yes |
 | 10 | Plate Recognizer data processing | Plate scan | Provider processes plate crops in the USA | Confirm DPA/retention or choose an EU/on-premise option before production | Yes |
 | 11 | ~~Password-based real-cloud regression suite not re-run after T9.2~~ | QA | **DONE 2026-10-15** (run by Atte on the development project after T9.2): `realCloud.cloudqa.ts` PASS, `t87t90.cloudqa.ts` PASS - 2/2 suites, 51 passed, 1 skipped, 0 failures. Together with the T9.2 database QA (135/135) and anonymous REST checks (6/6). | Re-run only after backend changes | - |
 
@@ -45,6 +45,11 @@ P0 = blocks install / demo / use. P1 = must fix before a real pilot. P2 = can fo
 * Settings and profiles: removed seven purely-future dimmed rows (kept the honest Password and Delete Account rows; Language shows "English").
 * Citizen home: "Verified" instead of "Accepted"; officer home greeting follows the time of day.
 * Reports "+" button has a screen-reader label.
+* Password reset and change, account deletion (see #6, #7).
+* Legal pages reachable before sign-up; release-build environment guard (see #8, #9).
+* `npm run e2e:mock`: the whole report → assignment → inspection → charge → reward →
+  notification → push-queue workflow against the local mock, including retries (8/8).
+* `docs/ENVIRONMENTS.md`, `docs/RELEASE_CHECKLIST.md`, demo options in `docs/DEMO_SCRIPT.md`.
 
 Audited and already in place (no change needed): no "fine" wording for the private
 parking charge; reward copy never promises €5; camera, location, plate-scan and push

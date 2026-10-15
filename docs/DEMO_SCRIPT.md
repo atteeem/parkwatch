@@ -1,4 +1,20 @@
-# ParkWatch investor demo (development/demo builds only)
+# ParkWatch investor demo
+
+## Which demo to run (T9.3)
+
+| Demo | Needs | Shows | Use when |
+| --- | --- | --- | --- |
+| **A. Live pilot demo** (recommended) | Android development build on 1-2 phones, laptop with the console, development Supabase, test accounts (citizen, officer, supervisor) | Real camera report with plate scan → supervisor assigns in the console → officer gets the push, inspects and issues the charge → citizen gets "Report verified" and €5 | The build and push are ready (RELEASE_CHECKLIST.md) |
+| **B. Laptop demo** | `npm run mock:backend`, `node scripts/mock-camera-steps.mjs pilot-data`, `node scripts/dev-web-backend.mjs`; mock accounts `*@example.test` / `mock-password-1` | Full workflow in the browser: citizen app, officer app (phone-sized window) and the console; `POST /__mock/age-case` shows "Needs attention" | No phone build yet, or no network |
+| **C. Single-phone local demo** (below) | Expo Go or a dev build without backend (`EXPO_NO_DOTENV=1`) | Both sides on one phone with fixed seed data; no plate recognition or push | Offline, quick walkthrough |
+
+Tips for A: create a fresh report during the demo rather than reusing old data;
+keep the console's "Needs attention" filter open to show oversight; push text on
+the lock screen is generic by design (no plate or address).
+
+---
+
+## C. Single-phone local demo (development/demo builds only)
 
 One phone, both sides of the product, one report object end to end.
 
