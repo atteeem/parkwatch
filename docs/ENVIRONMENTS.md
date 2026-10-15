@@ -41,10 +41,13 @@ Safety rails:
 
 ## Pending on the development project
 
-* Migration `20261015000001_account_deletion.sql` (T9.3) is **not applied** (approved
-  2026-10-15; checked not present, dependencies present). Until it is, the app works as
-  before (profile loading falls back) but **Delete Account fails** with a generic error.
-  Apply, then run the rolled-back QA (dry run on PGlite: `node scripts/run-t93-cloud-qa-local.mjs`, 30/30):
+* Migration `20261015000001_account_deletion.sql` (T9.3) is **applied** (2026-10-15, by Atte,
+  one transaction with its `schema_migrations` row). Confirmed afterwards: history row,
+  `profiles.deletion_requested_at`, `request_account_deletion` and the
+  `reports_refuse_closed_account` trigger exist. Real rolled-back QA: **30/30 passed, 0 failed**
+  (the error response is the intended `T93QA_RESULT` rollback). Do not re-apply; re-run the QA
+  only after a related backend change. How it was applied and tested (PGlite dry run:
+  `node scripts/run-t93-cloud-qa-local.mjs`):
 
   ```bash
   npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t93-apply-dev.sql
