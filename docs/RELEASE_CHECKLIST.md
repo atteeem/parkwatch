@@ -14,6 +14,7 @@ Tick in order. "Atte" = needs Atte's account or device.
 
 - [x] Migrations up to date (T9.2 applied; T9.3 account deletion applied 2026-10-15)
 - [x] Account-closure QA: `scripts/sql/t93-cloud-qa.sql` (rolls back) - 30/30 on 2026-10-15
+- [x] Username QA: `scripts/sql/t94-cloud-qa.sql` (rolls back) - 27/27 on 2026-10-18 (migration 20261018000001 applied)
 - [ ] Database QA: `npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t92-cloud-qa.sql` (rolls back)
 - [ ] Atte: password-based regression `test:cloud-qa` after backend changes (last: 2026-10-15, 51 passed / 1 skipped)
 - [ ] `push-dispatch` deployed; one cron job; `PARKWATCH_RUN_PUSH_QA=1 node scripts/push-dispatch-smoke.mjs` -> 200 / 401

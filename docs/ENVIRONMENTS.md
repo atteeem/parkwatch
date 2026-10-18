@@ -42,9 +42,11 @@ Safety rails:
 
 ## Pending on the development project
 
-* Migration `20261018000001_username.sql` (T9.4, citizen username) is **not applied** - waiting for
-  approval of the final plan. Until it is, the app works as before (profile loading falls back),
-  but saving a username fails with a generic error. When approved:
+* Migration `20261018000001_username.sql` (T9.4, citizen username) is **applied** (2026-10-18,
+  approved by Atte; one transaction with its `schema_migrations` row). Real rolled-back QA
+  `scripts/sql/t94-cloud-qa.sql`: **27/27 passed, 0 failed**; extra check: next_change_at is exactly
+  30 days after the change; nothing persisted (0 usernames, 0 USERNAME_CHANGED events afterwards).
+  Do not re-apply. How it was applied and tested:
 
   ```bash
   node scripts/check-apply-file.mjs 20261018000001 scripts/sql/t94-apply-dev.sql
