@@ -243,3 +243,38 @@ and the level indicator must all be re-checked on a phone.
 3. **Add the stability state machine, vehicle detection and the UX**, plus tests.
 4. **Add plate-presence detection** (text plus pattern), plus tests.
 5. **Sign detection:** none (the interface is ready).
+
+---
+
+## B (revised 2026-10-18): post-capture subject validation on expo-camera
+
+Atte decided: **no VisionCamera migration now.** The proven expo-camera flow stays, and
+the photo the user just took is checked on the phone.
+
+* **Technology:** `react-native-fast-tflite` (MIT, Nitro Modules). It runs a model on a
+  plain input buffer, with no VisionCamera needed, plus `react-native-nitro-modules`.
+  Image preparation:
+  1. the existing `expo-image-manipulator` makes the image upright and resizes it to 320x320;
+  2. `jpeg-js` (BSD-3, pure JS) decodes it to RGB bytes;
+  3. `model.run([buffer])` runs the model.
+* **Vehicle model:** EfficientDet-Lite0 int8 (COCO), 4.4 MB, 320x320. Google reports
+  37 ms on a Pixel 4 CPU. Vehicle classes: car, truck, bus, motorcycle. The licence is
+  Apache-2.0 per the MediaPipe/TF Hub model card, **to confirm from the model card**
+  before adding the file.
+* **Time per photo (mid-range Android, estimate):** resizing the full-resolution photo
+  takes ~200-500 ms and dominates; decoding ~20-60 ms; inference ~40-100 ms. **Total
+  ~0.3-0.7 s** of "Checking photo…". To measure on the test phone.
+* **Native build:** yes, **one new Android development build** (fast-tflite and Nitro are
+  native). Not Expo Go. iOS works in principle but is blocked by Apple Developer enrollment.
+* **When nothing is found:** "We couldn't detect a vehicle in this photo." [Retake]
+  [Use photo anyway]. If the model fails, can't load, or takes longer than 2 s, the photo
+  is accepted silently. The result is never stored or sent.
+* **Citizen plate scan:** already does this. Capture, then one Plate Recognizer call; on no
+  plausible plate it shows "Couldn't read the plate" with [Try again] and [Enter
+  manually]. The scan crop is not evidence, so "Use photo anyway" does not apply. No change
+  is needed beyond optional copy ("Retake").
+* **Officer licence-plate photo:** no on-device plate model exists in this stack
+  (COCO has no plate class). Reusing `recognize-plate` would send officer evidence to the
+  US provider (blocker #10, data processing agreement) and cost a call per case. **Defer.**
+  The officer's manual "Confirm plate" check stays the only plate decision.
+* **Parking sign:** deferred. It needs a custom model trained on licensed Finnish sign photos.
