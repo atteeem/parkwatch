@@ -178,6 +178,43 @@ describe("build environment guard (app.config.ts)", () => {
     expect(APP_VARIANT).toBe("production"); // no APP_VARIANT in tests
   });
 
+  it("Google Maps Android key: build-time only, wired into react-native-maps, never EXPO_PUBLIC_", () => {
+    const { mapsPlugin } = require("../../../app.config");
+    expect(mapsPlugin({ GOOGLE_MAPS_ANDROID_API_KEY: "test-maps-key" })).toEqual(["react-native-maps", { androidGoogleMapsApiKey: "test-maps-key" }]);
+    expect(mapsPlugin({})).toEqual(["react-native-maps", {}]);
+    expect(mapsPlugin({ EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY: "x" })).toEqual(["react-native-maps", {}]);
+    const config = read("app.config.ts");
+    // applied with withPlugins, not listed in `plugins`, so the key is not copied into the public app config
+    expect(config).toMatch(/return withPlugins\(\{[\s\S]*\}, \[mapsPlugin\(\)\]\);/);
+    expect(config).not.toMatch(/plugins: \[/);
+    expect(config).not.toMatch(/EXPO_PUBLIC_GOOGLE|EXPO_PUBLIC_MAPS/);
+    expect(read("app.json")).not.toMatch(/react-native-maps|googleMaps|API_KEY/); // single source: app.config.ts
+    // no key value in the repo: only the variable name appears in app config
+    expect(config).not.toMatch(/AIza[0-9A-Za-z_-]{20,}/);
+    expect(read("app.json")).not.toMatch(/AIza[0-9A-Za-z_-]{20,}/);
+    expect(read("eas.json")).not.toMatch(/AIza|GOOGLE_MAPS/);
+  });
+
+  it("Android development build on EAS fails clearly without the Maps key", () => {
+    const { assertMapsKey } = require("../../../app.config");
+    const server = { EAS_BUILD: "true", EAS_BUILD_PLATFORM: "android", EAS_BUILD_PROFILE: "development" };
+    expect(() => assertMapsKey(server)).toThrow(/needs GOOGLE_MAPS_ANDROID_API_KEY/);
+    expect(() => assertMapsKey({ ...server, GOOGLE_MAPS_ANDROID_API_KEY: "  " })).toThrow(/needs GOOGLE_MAPS_ANDROID_API_KEY/);
+    expect(() => assertMapsKey({ ...server, GOOGLE_MAPS_ANDROID_API_KEY: "test-maps-key" })).not.toThrow();
+    // not blocked: local runs / Expo Go, iOS, and the local eas-cli step (secret vars are server-only)
+    expect(() => assertMapsKey({})).not.toThrow();
+    expect(() => assertMapsKey({ ...server, EAS_BUILD_PLATFORM: "ios" })).not.toThrow();
+    expect(() => assertMapsKey({ EAS_BUILD_PLATFORM: "android", EAS_BUILD_PROFILE: "development" })).not.toThrow();
+    expect(read("app.config.ts")).toMatch(/assertBuildEnvironment\(\);\s+assertMapsKey\(\);/);
+  });
+
+  it("existing native config is preserved (Firebase/FCM, camera, location, audio, notifications)", () => {
+    const config = read("app.config.ts");
+    expect(config).toMatch(/googleServicesFile: GOOGLE_SERVICES_JSON/);
+    const plugins = JSON.parse(read("app.json")).expo.plugins.map((p: unknown) => (Array.isArray(p) ? p[0] : p));
+    for (const p of ["expo-camera", "expo-location", "expo-audio", "expo-notifications", "expo-image-picker", "expo-router"]) expect(plugins).toContain(p);
+  });
+
   it("eas.json keeps development and production separate", () => {
     const eas = JSON.parse(read("eas.json"));
     expect(eas.build.development).toMatchObject({ developmentClient: true, environment: "development", env: { APP_VARIANT: "development" } });

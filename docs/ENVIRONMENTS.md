@@ -6,6 +6,7 @@
 | How the app gets it | no `EXPO_PUBLIC_SUPABASE_*` (e.g. `EXPO_NO_DOTENV=1`) | local `.env` (Metro) or EAS env `development` | EAS env `preview` | EAS env `production` (empty) |
 | App id | n/a (Expo Go) | `com.atteem.parkwatch.dev` | `com.atteem.parkwatch` | `com.atteem.parkwatch` |
 | EAS build profile | - | `development` (dev client, APK) | `preview` (APK, internal) | `production` |
+| Google Maps (Android) | not needed (Expo Go) | EAS env var `GOOGLE_MAPS_ANDROID_API_KEY` (restricted to `com.atteem.parkwatch.dev` + build SHA-1); the Android development build refuses to build without it | needs a key for `com.atteem.parkwatch` | needs a key for `com.atteem.parkwatch` |
 | Push | unavailable | FCM: `GOOGLE_SERVICES_JSON` (development) | needs Firebase app `com.atteem.parkwatch` | needs production Firebase/APNs |
 
 Safety rails:
