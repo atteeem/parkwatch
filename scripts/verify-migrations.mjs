@@ -14,6 +14,7 @@ import { runT90 } from "./verify-t90.mjs";
 import { runT90Hardening } from "./verify-t90-hardening.mjs";
 import { runT92 } from "./verify-t92.mjs";
 import { runT93 } from "./verify-t93.mjs";
+import { runT94 } from "./verify-t94.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -348,6 +349,7 @@ await runT90({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT90Hardening({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT92({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 await runT93({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
+await runT94({ db, q, as, anon, ok, fails, expectRows, denied, U, org });
 
 const failed = results.filter((r) => !r.ok);
 console.log(JSON.stringify({ ok: failed.length === 0, total: results.length, failed: failed.length, results }, null, 2));
