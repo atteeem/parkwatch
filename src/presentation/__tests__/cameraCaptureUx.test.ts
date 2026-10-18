@@ -33,9 +33,13 @@ describe("vehicle-type guide geometry", () => {
         const d = vehicleDrawing(p, v);
         expect(d.outline.startsWith("M")).toBe(true);
         expect(d.outline.trim().endsWith("Z")).toBe(true);
-        expect(`${d.outline} ${d.details.join(" ")}`).not.toMatch(/NaN|undefined|Infinity/);
+        expect(`${d.outline} ${[...d.details, ...d.glass, ...d.lights].join(" ")}`).not.toMatch(/NaN|undefined|Infinity/);
         expect(d.details.length).toBeGreaterThan(2);
-        expect(d.details.length).toBeLessThan(12); // recognisable, not illustration art
+        // T9.4: richer automotive detail, still bounded so it stays a light camera guide
+        expect(d.details.length).toBeLessThanOrEqual(14);
+        expect(d.glass.length).toBeGreaterThanOrEqual(1);
+        expect(d.lights.length).toBeGreaterThanOrEqual(1);
+        for (const g of [...d.glass, ...d.lights]) expect(g.trim().startsWith("M")).toBe(true);
       }
       expect(vehicleDrawing(p, "SIDE").wheels).toHaveLength(2);
     }
