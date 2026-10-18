@@ -20,13 +20,16 @@ import { AvatarEditSheet } from "../../src/components/AvatarEditSheet";
 import { useMyAvatar } from "../../src/auth/AvatarContext";
 import { UnreadBadge } from "../../src/components/UnreadBadge";
 import { unreadBadgeText } from "../../src/presentation/unreadBadge";
+import { usernameRowSubtitle } from "../../src/auth/username";
 
 export default function UserProfile() {
   const router = useRouter();
   const { walletAvailable, citizenSummary, getEarnings } = useApp();
   // Server counts in backend mode (every report, not a loaded page).
   const stats = citizenStatsFromCounts(citizenSummary);
-  const me = displayIdentity(useAuth().state, "citizen");
+  const auth = useAuth().state;
+  const me = displayIdentity(auth, "citizen");
+  const profile = auth.mode === "BACKEND" && auth.status === "authenticated" ? auth.profile : null;
   const avatar = useMyAvatar();
   const [sheet, setSheet] = useState(false);
 
@@ -93,6 +96,13 @@ export default function UserProfile() {
 
         <Text style={styles.sectionHeading}>Account</Text>
         <Card noPadding>
+          {/* T9.4 public username (server-enforced 30-day cooldown); not used in the local demo. */}
+          {me.source === "DEMO" ? (
+            <SettingsRow icon="at" title="Username" subtitle="Not used in the demo" unavailable />
+          ) : (
+            <SettingsRow icon="at" iconBg={colors.blueLight} iconColor={colors.blue} title="Username" subtitle={usernameRowSubtitle(profile?.username, profile?.usernameChangedAt)} onPress={() => router.push("/user/username")} />
+          )}
+          <View style={styles.divider} />
           <SettingsRow icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
           <View style={styles.divider} />
           {/* Local demo: the example payout account (not editable). Signed in: payment methods don't exist yet. */}

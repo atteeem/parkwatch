@@ -61,6 +61,13 @@ function fakeService(server: Server) {
       server.profiles[id] = { ...server.profiles[id]!, displayName: "", deletionRequested: true };
       return { ok: true, value: undefined };
     },
+    setUsername: async (username: string) => {
+      const id = server.sessionUser?.id;
+      if (!id || server.profiles[id]?.role !== "CITIZEN") return { ok: false, error: authError("FORBIDDEN") };
+      const at = "2026-10-18T10:00:00.000Z";
+      server.profiles[id] = { ...server.profiles[id]!, username, usernameChangedAt: at };
+      return { ok: true, value: { kind: "CHANGED", username, nextChangeAt: "2026-11-17T10:00:00.000Z" } };
+    },
   };
   return { service, emit: (e: AuthEvent, u: AuthUser | null) => listener?.(e, u) };
 }

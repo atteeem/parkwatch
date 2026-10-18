@@ -73,6 +73,7 @@ describe("closed accounts", () => {
       completePasswordReset: async () => (calls.push("complete"), { ok: true, value: undefined }),
       updatePassword: async () => (calls.push("update"), { ok: true, value: undefined }),
       requestAccountDeletion: async () => (calls.push("delete"), { ok: true, value: undefined }),
+      setUsername: async () => ({ ok: true, value: { kind: "TAKEN" } }),
       ...over,
     };
     return { service, calls };
@@ -154,7 +155,11 @@ describe("profile repository works before and after the T9.3 migration", () => {
     const c = client(false, false);
     const r = await createProfileRepository(c.provider).getAccessData(USER.id);
     expect(r.ok && r.value.profile).toEqual({ id: USER.id, role: "CITIZEN", displayName: "" });
-    expect(c.selects.filter((s) => s.startsWith("profiles:"))).toEqual(["profiles:id, role, display_name, deletion_requested_at", "profiles:id, role, display_name"]);
+    expect(c.selects.filter((s) => s.startsWith("profiles:"))).toEqual([
+      "profiles:id, role, display_name, deletion_requested_at, username, username_changed_at", // T9.4
+      "profiles:id, role, display_name, deletion_requested_at",
+      "profiles:id, role, display_name",
+    ]);
   });
 });
 

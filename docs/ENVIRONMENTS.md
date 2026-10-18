@@ -42,6 +42,18 @@ Safety rails:
 
 ## Pending on the development project
 
+* Migration `20261018000001_username.sql` (T9.4, citizen username) is **not applied** - waiting for
+  approval of the final plan. Until it is, the app works as before (profile loading falls back),
+  but saving a username fails with a generic error. When approved:
+
+  ```bash
+  node scripts/check-apply-file.mjs 20261018000001 scripts/sql/t94-apply-dev.sql
+  npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t94-apply-dev.sql
+  npx supabase db query --linked --project-ref gmwssplqtjbrpvlvbjcs -f scripts/sql/t94-cloud-qa.sql
+  ```
+
+  The QA (27 checks, PGlite dry run `node scripts/run-t94-cloud-qa-local.mjs`) uses only temporary
+  citizens and rolls back. Rollback: `supabase/rollback/20261018_username_rollback.sql`.
 * Migration `20261015000001_account_deletion.sql` (T9.3) is **applied** (2026-10-15, by Atte,
   one transaction with its `schema_migrations` row). Confirmed afterwards: history row,
   `profiles.deletion_requested_at`, `request_account_deletion` and the

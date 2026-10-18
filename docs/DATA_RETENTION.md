@@ -12,6 +12,7 @@ Settings → Delete Account → type DELETE → confirm. Server function
 | Data | What happens | Why |
 | --- | --- | --- |
 | Display name | Cleared at once | Personal data |
+| Username (T9.4) | Cleared at once and freed for others; the audit log never held it (USERNAME_CHANGED events have no metadata) | Personal data |
 | Profile picture | Path cleared at once; the app deletes the image object | Personal data |
 | Notifications (in-app inbox) | Deleted at once (queued pushes go with them) | Personal data, no further purpose |
 | Push devices (tokens) | Deleted at once | Personal data, no further purpose |

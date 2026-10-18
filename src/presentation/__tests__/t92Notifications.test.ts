@@ -85,6 +85,7 @@ describe("sign-out runs push cleanup while the session is still valid", () => {
       completePasswordReset: async () => ({ ok: true, value: undefined }),
       updatePassword: async () => ({ ok: true, value: undefined }),
       requestAccountDeletion: async () => ({ ok: true, value: undefined }),
+      setUsername: async () => ({ ok: true, value: { kind: "TAKEN" } }),
     };
   }
 

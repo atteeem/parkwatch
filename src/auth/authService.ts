@@ -11,6 +11,7 @@ import { createProfileRepository, ProfileRepository } from "../backend/repositor
 import { createAvatarRepository } from "../backend/storage/avatarStorage";
 import { authError, mapAuthError, RawAuthError } from "./authErrors";
 import { AuthResult, AuthUser, Membership, SignUpOutcome, TrustedProfile } from "./authTypes";
+import { UsernameOutcome } from "./username";
 
 export type AuthEvent = "SIGNED_IN" | "SIGNED_OUT" | "TOKEN_REFRESHED" | "USER_UPDATED" | "INITIAL_SESSION" | "OTHER";
 
@@ -33,6 +34,8 @@ export interface AuthService {
   updatePassword(newPassword: string): Promise<AuthResult<void>>;
   /** Signed-in citizen: close the account (server function; see the T9.3 migration). */
   requestAccountDeletion(): Promise<AuthResult<void>>;
+  /** Signed-in citizen: set the public username (server rules + 30-day cooldown, T9.4). */
+  setUsername(username: string): Promise<AuthResult<UsernameOutcome>>;
 }
 
 type RawUser = { id: string; email?: string | null; identities?: unknown[] | null };
@@ -185,6 +188,12 @@ export function createSupabaseAuthService(profiles: ProfileRepository = createPr
       } catch (e) {
         return { ok: false, error: mapAuthError(e as RawAuthError) };
       }
+    },
+
+    async setUsername(username) {
+      const r = await profiles.setUsername(username);
+      if (r.ok) return r;
+      return { ok: false, error: authError(r.error.code === "FORBIDDEN" ? "FORBIDDEN" : r.error.code === "BACKEND_NOT_CONFIGURED" ? "BACKEND_NOT_CONFIGURED" : "UNKNOWN_AUTH_ERROR") };
     },
 
     watchAppState() {

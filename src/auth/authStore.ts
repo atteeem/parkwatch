@@ -9,6 +9,7 @@ import { authError } from "./authErrors";
 import { AuthService } from "./authService";
 import { AuthMode, AuthResult, AuthState, AuthUser, SignUpOutcome } from "./authTypes";
 import { resolveAccess } from "./roleResolution";
+import { UsernameOutcome } from "./username";
 
 export type AuthStore = {
   getState(): AuthState;
@@ -35,6 +36,8 @@ export type AuthStore = {
   changePassword(newPassword: string): Promise<AuthResult<void>>;
   /** Signed-in citizen: close the account, then sign out. */
   closeAccount(): Promise<AuthResult<void>>;
+  /** Signed-in citizen: set the username; on a change the profile is re-read from the server. */
+  setUsername(username: string): Promise<AuthResult<UsernameOutcome>>;
 };
 
 /** Upper bound for each before-sign-out hook. */
@@ -185,6 +188,15 @@ export function createAuthStore(mode: AuthMode, service: AuthService | null): Au
       if (!r.ok) return r;
       await signOut();
       return { ok: true, value: undefined };
+    },
+
+    async setUsername(username) {
+      if (!service) return { ok: false, error: authError("BACKEND_NOT_CONFIGURED") };
+      if (state.status !== "authenticated") return { ok: false, error: authError("INVALID_CREDENTIALS") };
+      const user = state.user;
+      const r = await service.setUsername(username);
+      if (r.ok && r.value.kind === "CHANGED") await loadAccessFor(user);
+      return r;
     },
 
     async refreshAccess() {

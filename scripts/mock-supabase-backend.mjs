@@ -258,9 +258,11 @@ const server = http.createServer(async (req, res) => {
 
     // ---- REST reads used by role resolution (as the user: RLS applies)
     if (p === "/rest/v1/profiles" && req.method === "GET") {
-      // T9.3: the account-deletion marker is returned when selected (as PostgREST does).
-      const withDeletion = /deletion_requested_at/.test(url.searchParams.get("select") ?? "");
-      const rows = (await asUser(me.id, (db) => db.query(`select id, role, display_name${withDeletion ? ", deletion_requested_at" : ""} from public.profiles where id = $1`, [me.id]))).rows;
+      // T9.3/T9.4: newer columns are returned when selected (as PostgREST does).
+      const sel = url.searchParams.get("select") ?? "";
+      const cols = sel.split(",").map((c) => c.trim());
+      const extra = ["deletion_requested_at", "username", "username_changed_at"].filter((c) => cols.includes(c));
+      const rows = (await asUser(me.id, (db) => db.query(`select id, role, display_name${extra.map((c) => ", " + c).join("")} from public.profiles where id = $1`, [me.id]))).rows;
       return send(res, 200, wantsObject(req) ? rows[0] ?? null : rows);
     }
     if (p === "/rest/v1/organization_members" && req.method === "GET") {

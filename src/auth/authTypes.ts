@@ -18,6 +18,10 @@ export type TrustedProfile = {
   displayName: string;
   /** The citizen closed this account (T9.3); nothing but the status screen is shown. */
   deletionRequested?: boolean;
+  /** T9.4 citizen public handle (lowercase); absent until chosen. */
+  username?: string;
+  /** Server time of the last username change (starts the 30-day cooldown). */
+  usernameChangedAt?: string;
 };
 
 export type Membership = {

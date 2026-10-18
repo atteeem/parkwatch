@@ -28,7 +28,7 @@ jest.mock("../../backend/supabase", () => ({
 // eslint-disable-next-line import/first
 import { createSupabaseAuthService } from "../authService";
 
-const noProfiles = { getAccessData: jest.fn(), ensureMyProfile: jest.fn() };
+const noProfiles = { getAccessData: jest.fn(), ensureMyProfile: jest.fn(), setUsername: jest.fn() };
 
 beforeEach(() => {
   calls.length = 0;

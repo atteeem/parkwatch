@@ -4,6 +4,7 @@ import { readBackendConfig } from "../backend/config";
 import { createSupabaseAuthService } from "./authService";
 import { AuthStore, createAuthStore } from "./authStore";
 import { AuthMode, AuthResult, AuthState, SignUpOutcome } from "./authTypes";
+import { UsernameOutcome } from "./username";
 
 /** BACKEND when Supabase is configured in this build; otherwise the local demo. */
 export function detectAuthMode(): AuthMode {
@@ -32,6 +33,7 @@ type AuthContextValue = {
   completePasswordReset(link: { accessToken: string; refreshToken: string }, newPassword: string): Promise<AuthResult<void>>;
   changePassword(newPassword: string): Promise<AuthResult<void>>;
   closeAccount(): Promise<AuthResult<void>>;
+  setUsername(username: string): Promise<AuthResult<UsernameOutcome>>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -70,6 +72,7 @@ export function AuthProvider({ children, store: injected }: { children: React.Re
       completePasswordReset: store.completePasswordReset,
       changePassword: store.changePassword,
       closeAccount: store.closeAccount,
+      setUsername: store.setUsername,
     }),
     [state, store]
   );
