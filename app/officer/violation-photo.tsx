@@ -35,6 +35,12 @@ const SLOT_ICON: Record<OfficerPhotoKey, keyof typeof Ionicons.glyphMap> = {
 // stays open; a failed upload stays on the same target with the error. Any
 // captured target can be tapped for a retake. Close / Done returns to the
 // inspection; saved photos are kept.
+/**
+ * T9.4 spike: post-capture vehicle check on the officer's Front and Rear photos only
+ * (framing assistance). Plate and Parking Sign photos are never vehicle-checked.
+ */
+const OFFICER_VEHICLE_CHECK_SLOTS: readonly OfficerPhotoKey[] = ["front", "rear"];
+
 export default function OfficerViolationPhoto() {
   const router = useRouter();
   const { id, target } = useLocalSearchParams<{ id: string; target?: string }>();
@@ -75,6 +81,7 @@ export default function OfficerViolationPhoto() {
     <View style={{ flex: 1 }}>
       <CameraCapture
         headerTitle="Officer Photos"
+        vehicleCheckSlots={OFFICER_VEHICLE_CHECK_SLOTS}
         instructionTitle={flow.error ? "Photo not saved" : complete && !flow.selected ? "Evidence complete" : "Capture Evidence"}
         instructionBody={instruction}
         slots={slots}

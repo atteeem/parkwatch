@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Linking, Platform, useWindowDimensions } from "react-native";
 import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,24 @@ import { CAMERA_EDUCATION } from "../presentation/permissionEducation";
 import { CameraGuideOverlay } from "./CameraGuideOverlay";
 import type { CameraGuideKind } from "../presentation/cameraGuides";
 import type { VehicleGuideProfile } from "../presentation/vehicleGuideGeometry";
+import { checkVehiclePhoto, formatTimings, VehicleCheckResult } from "../capture/vehicleCheck";
+import { getVehicleEngine, startFrameMonitor } from "../capture/tfliteVehicleEngine";
+
+/** T9.4 spike: post-capture vehicle check (capture assistance only - never an evidence decision). */
+export type VehicleChecker = (photoUri: string) => Promise<VehicleCheckResult>;
+export const defaultVehicleChecker: VehicleChecker = async (uri) => checkVehiclePhoto(uri, await getVehicleEngine(), { startFrameMonitor });
+export const VEHICLE_CHECK_COPY = {
+  checking: "Checking photo…",
+  detected: "Vehicle detected ✓",
+  notFoundTitle: "We couldn't detect a vehicle in this photo.",
+  notFoundBody: "Make sure the vehicle is in the frame, or use the photo if it shows the vehicle.",
+  retake: "Retake",
+  useAnyway: "Use photo anyway",
+};
+type CheckState =
+  | { phase: "checking" }
+  | { phase: "detected"; result: VehicleCheckResult }
+  | { phase: "notFound"; result: VehicleCheckResult; pending: { slot: string; uri: string; capturedAt: string } };
 
 export type CaptureSlot = { key: string; label: string; done: boolean; icon?: keyof typeof Ionicons.glyphMap };
 
@@ -37,6 +55,10 @@ type Props = {
   accessory?: React.ReactNode;
   /** Busy text shown on the shutter area while the parent saves (e.g. "Uploading…"). */
   busyLabel?: string;
+  /** T9.4 spike: slots whose photo gets the post-capture vehicle check (others: unchanged). */
+  vehicleCheckSlots?: readonly string[];
+  /** Injectable for tests; defaults to the on-device TFLite check (null engine = normal flow). */
+  vehicleChecker?: VehicleChecker;
 };
 
 export function CameraCapture({
@@ -55,6 +77,8 @@ export function CameraCapture({
   guideProfile,
   accessory,
   busyLabel,
+  vehicleCheckSlots,
+  vehicleChecker = defaultVehicleChecker,
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing] = useState<CameraType>("back");
@@ -68,6 +92,18 @@ export function CameraCapture({
   // Short phones: lower slot cards so the framing guide keeps a usable size.
   const shortScreen = useWindowDimensions().height < 700;
 
+  const [check, setCheck] = useState<CheckState | null>(null);
+  const mounted = useRef(true);
+  const wantsCheck = !!vehicleCheckSlots?.length;
+  useEffect(() => {
+    mounted.current = true;
+    // Load the model while the user frames the first shot (failures = normal flow).
+    if (wantsCheck && vehicleChecker === defaultVehicleChecker) void getVehicleEngine().then((e) => e?.prepare().catch(() => undefined));
+    return () => {
+      mounted.current = false;
+    };
+  }, [wantsCheck, vehicleChecker]);
+
   const activeSlot = slots.find((s) => s.key === activeSlotKey) ?? slots.find((s) => !s.done);
   const allDone = slots.every((s) => s.done);
 
@@ -78,14 +114,50 @@ export function CameraCapture({
     const outcome = await takePhotoSafely(() => cameraRef.current!.takePictureAsync({ quality: 0.6 }));
     // On failure: stay here, keep earlier photos, show the error. No fake image.
     if (outcome.ok) {
+      const slot = activeSlot.key;
+      if (vehicleCheckSlots?.includes(slot)) {
+        setCheck({ phase: "checking" });
+        let result: VehicleCheckResult;
+        try {
+          result = await vehicleChecker(outcome.uri);
+        } catch {
+          result = { kind: "UNAVAILABLE", reason: "ERROR" };
+        }
+        if (__DEV__) console.log("[vehicle-check]", result.kind, "best" in result && result.best ? `${result.best.label} ${result.best.score.toFixed(2)}` : "", formatTimings(result.timings));
+        if (!mounted.current) return;
+        if (result.kind === "NOT_FOUND") {
+          // Shutter stays locked; the user decides: Retake or Use photo anyway.
+          setCheck({ phase: "notFound", result, pending: { slot, uri: outcome.uri, capturedAt: outcome.capturedAt } });
+          return;
+        }
+        setCheck(result.kind === "FOUND" ? { phase: "detected", result } : null);
+      }
       try {
-        await onCapturePhoto(activeSlot.key, outcome.uri, outcome.capturedAt);
+        await onCapturePhoto(slot, outcome.uri, outcome.capturedAt);
       } finally {
-        setCapturing(false);
+        if (mounted.current) {
+          setCapturing(false);
+          setTimeout(() => mounted.current && setCheck((c) => (c?.phase === "detected" ? null : c)), 1200);
+        }
       }
     } else {
       setCapturing(false);
       setCaptureError(outcome.message);
+    }
+  };
+
+  const retake = () => {
+    setCheck(null);
+    setCapturing(false);
+  };
+  const useAnyway = async () => {
+    if (check?.phase !== "notFound") return;
+    const { slot, uri, capturedAt } = check.pending;
+    setCheck(null);
+    try {
+      await onCapturePhoto(slot, uri, capturedAt);
+    } finally {
+      if (mounted.current) setCapturing(false);
     }
   };
 
@@ -200,7 +272,35 @@ export function CameraCapture({
         })}
       </View>
 
-      {capturing && busyLabel ? <Text style={styles.busyLabel}>{busyLabel}</Text> : null}
+      {check?.phase === "checking" || check?.phase === "detected" ? (
+        <View style={styles.checkPillRow} accessibilityLiveRegion="polite" accessible accessibilityLabel={check.phase === "checking" ? VEHICLE_CHECK_COPY.checking : VEHICLE_CHECK_COPY.detected}>
+          <View style={[styles.checkPill, check.phase === "detected" && styles.checkPillOk]}>
+            <Text style={styles.checkPillText}>{check.phase === "checking" ? VEHICLE_CHECK_COPY.checking : VEHICLE_CHECK_COPY.detected}</Text>
+          </View>
+          {__DEV__ && check.phase === "detected" ? <Text style={styles.devTimings}>{formatTimings(check.result.timings)}</Text> : null}
+        </View>
+      ) : null}
+      {check?.phase === "notFound" ? (
+        <View style={styles.notFoundCard} accessibilityLiveRegion="polite">
+          <Text style={styles.notFoundTitle} accessibilityRole="alert">{VEHICLE_CHECK_COPY.notFoundTitle}</Text>
+          <Text style={styles.notFoundBody}>{VEHICLE_CHECK_COPY.notFoundBody}</Text>
+          <View style={styles.notFoundButtons}>
+            <Pressable style={[styles.notFoundBtn, styles.notFoundBtnPrimary]} onPress={retake} accessibilityRole="button" accessibilityLabel={VEHICLE_CHECK_COPY.retake}>
+              <Text style={styles.notFoundBtnPrimaryText}>{VEHICLE_CHECK_COPY.retake}</Text>
+            </Pressable>
+            <Pressable style={styles.notFoundBtn} onPress={() => void useAnyway()} accessibilityRole="button" accessibilityLabel={VEHICLE_CHECK_COPY.useAnyway}>
+              <Text style={styles.notFoundBtnText}>{VEHICLE_CHECK_COPY.useAnyway}</Text>
+            </Pressable>
+          </View>
+          {__DEV__ ? (
+            <Text style={styles.devTimings}>
+              {check.result.kind === "NOT_FOUND" && check.result.best ? `best ${check.result.best.label} ${check.result.best.score.toFixed(2)} · ` : ""}
+              {formatTimings(check.result.timings)}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+      {capturing && busyLabel && !check ? <Text style={styles.busyLabel}>{busyLabel}</Text> : null}
       <View style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
         <Pressable
           style={styles.sideControl}
@@ -286,6 +386,19 @@ const styles = StyleSheet.create({
   accessory: { marginTop: 8, marginHorizontal: 20, flexDirection: "row" },
 
   busyLabel: { color: "#fff", fontSize: 12.5, fontWeight: "700", textAlign: "center", marginBottom: 8 },
+  checkPillRow: { alignItems: "center", marginBottom: 8 },
+  checkPill: { backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
+  checkPillOk: { backgroundColor: "rgba(11,122,56,0.9)" },
+  checkPillText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  devTimings: { color: "#D8DDD9", fontSize: 10, marginTop: 4, textAlign: "center" },
+  notFoundCard: { marginHorizontal: 20, marginBottom: 10, backgroundColor: "rgba(0,0,0,0.78)", borderRadius: radius.card, padding: 14 },
+  notFoundTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  notFoundBody: { color: "#D8DDD9", fontSize: 12.5, marginTop: 4, lineHeight: 17 },
+  notFoundButtons: { flexDirection: "row", gap: 10, marginTop: 12 },
+  notFoundBtn: { flex: 1, borderRadius: radius.button, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)", paddingVertical: 11, alignItems: "center" },
+  notFoundBtnPrimary: { backgroundColor: colors.green, borderColor: colors.green },
+  notFoundBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  notFoundBtnPrimaryText: { color: "#06210F", fontWeight: "800", fontSize: 14 },
   slotsRow: {
     flexDirection: "row",
     gap: 10,

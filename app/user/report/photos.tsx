@@ -9,6 +9,9 @@ import { CITIZEN_CAMERA_GUIDE, CITIZEN_SHOT_INSTRUCTION } from "../../../src/pre
 import { haptics } from "../../../src/feedback/haptics";
 import { VehicleTypeChip, VehicleTypePicker } from "../../../src/components/cameraGuides/VehicleTypePicker";
 
+/** T9.4 spike: post-capture vehicle check on all three citizen photos (assistance only). */
+const CITIZEN_VEHICLE_CHECK_SLOTS = ["FRONT", "SIDE", "REAR"] as const;
+
 export default function ReportPhotos() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -28,6 +31,7 @@ export default function ReportPhotos() {
     <>
       <CameraCapture
         headerTitle="Report a Parking Violation"
+        vehicleCheckSlots={CITIZEN_VEHICLE_CHECK_SLOTS}
         stepper={<ReportStepper activeStep={1} />}
         instructionTitle="Take 3 Photos"
         instructionBody={
