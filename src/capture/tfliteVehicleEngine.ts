@@ -6,12 +6,14 @@
 //   -> jpeg-js decode (RGB, 320x320 only - never the original photo)
 //   -> uint8 tensor -> react-native-fast-tflite (CPU) -> efficientdet_lite0 int8
 //
-// Nothing is uploaded, logged (beyond timings) or stored. Native modules are
-// loaded lazily: on a build without react-native-fast-tflite (e.g. the
-// current release-candidate dev build or Expo Go) getVehicleEngine() returns
-// null and the camera works exactly as before.
+// Nothing is uploaded, logged (beyond timings) or stored. Before any detector
+// JavaScript is evaluated, nativeDetectorProbe checks (without throwing) that
+// the Nitro + TFLite native code is really in this binary. If not (Expo Go, an
+// older build, a broken native build) getVehicleEngine() returns null, the
+// reason is kept for the dev diagnostic, and the camera works as before.
 
 import type { OutputTensor, VehicleEngine } from "./vehicleCheck";
+import { DetectorStatus, guardedRequire, probeNativeDetector } from "./nativeDetectorProbe";
 
 export const MODEL_SIZE = 320;
 
@@ -23,28 +25,59 @@ type TfliteModelLike = {
 
 let enginePromise: Promise<VehicleEngine | null> | null = null;
 export let lastModelLoadMs: number | undefined;
+let status: DetectorStatus | null = null;
 
-/** One engine per app run; null when the native pieces are missing. */
+/** Why the detector is (un)available - for the dev diagnostic. null = not checked yet. */
+export function getVehicleDetectorStatus(): DetectorStatus | null {
+  return status;
+}
+
+/** One engine per app run; null when the native pieces are missing (never throws, never a red screen). */
 export function getVehicleEngine(): Promise<VehicleEngine | null> {
-  if (!enginePromise) enginePromise = createEngine().catch(() => null);
+  if (!enginePromise) {
+    enginePromise = createEngine().catch((e) => {
+      status = { ok: false, reason: "PROBE_ERROR", detail: String((e as Error)?.message ?? e).slice(0, 300) };
+      return null;
+    });
+  }
   return enginePromise;
 }
 
+function currentStatus(): DetectorStatus {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { TurboModuleRegistry } = require("react-native") as typeof import("react-native");
+  const Constants = (require("expo-constants") as { default: { executionEnvironment?: string } }).default;
+  const jsNitroVersion = (require("react-native-nitro-modules/package.json") as { version: string }).version;
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return probeNativeDetector({
+    executionEnvironment: Constants?.executionEnvironment,
+    getTurboModule: (name) => TurboModuleRegistry.get(name) as never,
+    getProxy: () => (globalThis as { NitroModulesProxy?: never }).NitroModulesProxy,
+    jsNitroVersion,
+  });
+}
+
 async function createEngine(): Promise<VehicleEngine | null> {
-  let tflite: { loadTensorflowModel: (src: number, delegates: string[]) => Promise<TfliteModelLike> };
-  let manipulatorMod: typeof import("expo-image-manipulator");
-  let fileMod: typeof import("expo-file-system");
-  let jpeg: { decode: (data: Uint8Array, opts: Record<string, unknown>) => { width: number; height: number; data: Uint8Array } };
-  try {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    tflite = require("react-native-fast-tflite");
-    manipulatorMod = require("expo-image-manipulator");
-    fileMod = require("expo-file-system");
-    jpeg = require("jpeg-js");
-    /* eslint-enable @typescript-eslint/no-require-imports */
-  } catch {
+  status = currentStatus();
+  if (!status.ok) {
+    if (__DEV__) console.warn(`[vehicle-check] detector unavailable: ${status.reason}${status.detail ? ` - ${status.detail}` : ""}`);
     return null;
   }
+  const errorUtils = (globalThis as { ErrorUtils?: Parameters<typeof guardedRequire>[1] }).ErrorUtils;
+  // Native side confirmed; evaluate the JS packages without risking a fatal red screen.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const t = guardedRequire(() => require("react-native-fast-tflite") as { loadTensorflowModel: (src: number, delegates: string[]) => Promise<TfliteModelLike> }, errorUtils);
+  if ("error" in t) {
+    status = { ok: false, reason: "JS_LOAD_FAILED", detail: t.error };
+    if (__DEV__) console.warn(`[vehicle-check] detector unavailable: JS_LOAD_FAILED - ${t.error}`);
+    return null;
+  }
+  const tflite = t.value;
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const manipulatorMod = require("expo-image-manipulator") as typeof import("expo-image-manipulator");
+  const fileMod = require("expo-file-system") as typeof import("expo-file-system");
+  const jpeg = require("jpeg-js") as { decode: (data: Uint8Array, opts: Record<string, unknown>) => { width: number; height: number; data: Uint8Array } };
+  /* eslint-enable @typescript-eslint/no-require-imports */
 
   let model: TfliteModelLike | null = null;
   let loading: Promise<TfliteModelLike> | null = null;

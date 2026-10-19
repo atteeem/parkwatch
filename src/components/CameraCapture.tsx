@@ -11,7 +11,8 @@ import { CameraGuideOverlay } from "./CameraGuideOverlay";
 import type { CameraGuideKind } from "../presentation/cameraGuides";
 import type { VehicleGuideProfile } from "../presentation/vehicleGuideGeometry";
 import { checkVehiclePhoto, formatTimings, VehicleCheckResult } from "../capture/vehicleCheck";
-import { getVehicleEngine, startFrameMonitor } from "../capture/tfliteVehicleEngine";
+import { getVehicleDetectorStatus, getVehicleEngine, startFrameMonitor } from "../capture/tfliteVehicleEngine";
+import { DETECTOR_UNAVAILABLE_COPY, DetectorStatus } from "../capture/nativeDetectorProbe";
 
 /** T9.4 spike: post-capture vehicle check (capture assistance only - never an evidence decision). */
 export type VehicleChecker = (photoUri: string) => Promise<VehicleCheckResult>;
@@ -93,12 +94,29 @@ export function CameraCapture({
   const shortScreen = useWindowDimensions().height < 700;
 
   const [check, setCheck] = useState<CheckState | null>(null);
+  // Dev builds only: why the on-device detector could not start (the camera works either way).
+  const [detectorIssue, setDetectorIssue] = useState<Extract<DetectorStatus, { ok: false }> | null>(null);
   const mounted = useRef(true);
   const wantsCheck = !!vehicleCheckSlots?.length;
   useEffect(() => {
     mounted.current = true;
     // Load the model while the user frames the first shot (failures = normal flow).
-    if (wantsCheck && vehicleChecker === defaultVehicleChecker) void getVehicleEngine().then((e) => e?.prepare().catch(() => undefined));
+    if (wantsCheck && vehicleChecker === defaultVehicleChecker) {
+      void getVehicleEngine()
+        .then(async (e) => {
+          if (!e) {
+            const st = getVehicleDetectorStatus();
+            if (mounted.current && st && !st.ok) setDetectorIssue(st);
+            return;
+          }
+          try {
+            await e.prepare();
+          } catch (err) {
+            if (mounted.current) setDetectorIssue({ ok: false, reason: "MODEL_LOAD_FAILED", detail: String((err as Error)?.message ?? err).slice(0, 200) });
+          }
+        })
+        .catch(() => undefined);
+    }
     return () => {
       mounted.current = false;
     };
@@ -272,6 +290,17 @@ export function CameraCapture({
         })}
       </View>
 
+      {__DEV__ && detectorIssue && !check ? (
+        <View style={styles.checkPillRow} accessible accessibilityLabel={DETECTOR_UNAVAILABLE_COPY}>
+          <View style={[styles.checkPill, styles.checkPillWarn]}>
+            <Text style={styles.checkPillText}>{DETECTOR_UNAVAILABLE_COPY}</Text>
+          </View>
+          <Text style={styles.devTimings} numberOfLines={3}>
+            {detectorIssue.reason}
+            {detectorIssue.detail ? ` · ${detectorIssue.detail}` : ""}
+          </Text>
+        </View>
+      ) : null}
       {check?.phase === "checking" || check?.phase === "detected" ? (
         <View style={styles.checkPillRow} accessibilityLiveRegion="polite" accessible accessibilityLabel={check.phase === "checking" ? VEHICLE_CHECK_COPY.checking : VEHICLE_CHECK_COPY.detected}>
           <View style={[styles.checkPill, check.phase === "detected" && styles.checkPillOk]}>
@@ -389,6 +418,7 @@ const styles = StyleSheet.create({
   checkPillRow: { alignItems: "center", marginBottom: 8 },
   checkPill: { backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
   checkPillOk: { backgroundColor: "rgba(11,122,56,0.9)" },
+  checkPillWarn: { backgroundColor: "rgba(120,90,10,0.85)" },
   checkPillText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   devTimings: { color: "#D8DDD9", fontSize: 10, marginTop: 4, textAlign: "center" },
   notFoundCard: { marginHorizontal: 20, marginBottom: 10, backgroundColor: "rgba(0,0,0,0.78)", borderRadius: radius.card, padding: 14 },
