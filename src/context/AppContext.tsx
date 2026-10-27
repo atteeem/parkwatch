@@ -28,6 +28,8 @@ import { createLocalAdmin } from "../admin/localAdmin";
 import { createAdminOperations } from "../backend/admin/adminOperations";
 import { createPlateRecognizer, PlateRecognizer } from "../backend/plate/plateRecognitionClient";
 import { createPushDeviceApi } from "../backend/push/pushDevicesClient";
+import { createModerationApi } from "../backend/moderation/moderationClient";
+import type { ModerationApi } from "../moderation/moderationTypes";
 import type { PushDeviceApi } from "../push/pushTypes";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -237,6 +239,12 @@ type AppContextValue = {
    * registration to the signed-in user.
    */
   pushDevices: PushDeviceApi | null;
+  /**
+   * Reporting moderation (T9.5): citizens read their own status; officers and
+   * console users moderate a case's reporter. Every rule is server-side.
+   * null in LOCAL_DEMO or when signed out.
+   */
+  moderation: ModerationApi | null;
 };
 
 export type ListItem<T extends AppListSpec> = T extends { kind: "citizenReports" }
@@ -311,7 +319,7 @@ function buildValue(args: {
   citizenProfile: ReporterDisplayProfile;
   actions: CoreActions;
   lists: ListAccess;
-  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin" | "plateRecognizer" | "pushDevices">;
+  base: Pick<AppContextValue, "dataSource" | "coreStatus" | "refreshCore" | "refreshCoreIfStale" | "capabilities" | "resetDemoData" | "admin" | "plateRecognizer" | "pushDevices" | "moderation">;
 }): AppContextValue {
   const { core, parking, citizenId, officerId, parkingOwnerId, derived } = args;
   const { now, officerCases } = derived;
@@ -429,6 +437,7 @@ function LocalAppProvider({ children }: { children: React.ReactNode }) {
             : null,
         plateRecognizer: null,
         pushDevices: null,
+        moderation: null,
       },
       lists: {
         getList,
@@ -614,6 +623,11 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
     const client = getSupabaseClient();
     return client.ok ? createPushDeviceApi(client.value) : null;
   }, [role, userId]);
+  const moderation = useMemo<ModerationApi | null>(() => {
+    if ((role !== "citizen" && role !== "officer" && role !== "admin") || !userId) return null;
+    const client = getSupabaseClient();
+    return client.ok ? createModerationApi(client.value) : null;
+  }, [role, userId]);
   const subscribe = useCallback((l: () => void) => (store ? store.subscribe(l) : () => undefined), [store]);
   const version = useSyncExternalStore(subscribe, () => store?.getVersion() ?? -1, () => store?.getVersion() ?? -1);
   const parking = useLocalStore();
@@ -669,6 +683,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         admin: adminApi,
         plateRecognizer,
         pushDevices,
+        moderation,
       },
       lists: {
         getList,
@@ -730,7 +745,7 @@ function BackendAppProvider({ children }: { children: React.ReactNode }) {
         markOfficerNotificationsRead: markRead,
       },
     });
-  }, [version, parking, store, userId, role, displayName, adminApi, plateRecognizer, pushDevices]);
+  }, [version, parking, store, userId, role, displayName, adminApi, plateRecognizer, pushDevices, moderation]);
 
   const refreshEvidenceUrl = useCallback(async (url: string) => (store ? store.refreshSignedUrl(url) : false), [store]);
 

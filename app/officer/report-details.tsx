@@ -12,6 +12,7 @@ import { StatusChip } from "../../src/components/StatusChip";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { LiveMap } from "../../src/components/map/LiveMap";
 import { useApp, useCaseDetailLoad } from "../../src/context/AppContext";
+import { ModerationPanel } from "../../src/moderation/ModerationPanel";
 import { DetailLoading } from "../../src/components/CoreDataGate";
 import { EvidencePhoto } from "../../src/components/EvidencePhoto";
 import { EvidenceGallery, EvidenceThumbnails } from "../../src/components/EvidenceGallery";
@@ -54,7 +55,7 @@ export default function ReportDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // Server mode: (re)load this case when the screen opens, so it is current even off the loaded pages.
   const caseLoad = useCaseDetailLoad(id);
-  const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase, ensureCase } = useApp();
+  const { getCaseDetail, officerId, acceptCase, startEnRoute, startInspection, completeCase, ensureCase, moderation } = useApp();
   const detail = getCaseDetail(id);
   const c = detail?.case;
   const location = useForegroundLocation();
@@ -218,6 +219,9 @@ export default function ReportDetails() {
             <Text style={[styles.reporterStat, { marginTop: 10 }]}>No reporter statistics yet. Verify the report on site.</Text>
           )}
         </Card>
+
+        {/* T9.5: restrict / restore the reporter (server-backed builds only) */}
+        {moderation ? <ModerationPanel api={moderation} caseId={c.id} /> : null}
 
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Card style={{ flex: 1 }}>

@@ -18,6 +18,7 @@ Settings → Delete Account → type DELETE → confirm. Server function
 | Push devices (tokens) | Deleted at once | Personal data, no further purpose |
 | Use of the account | Blocked at once: signing in shows "This account has been closed"; no new reports (database trigger) | The account is closed |
 | Reports, citizen photos, cases, officer photos, outcomes | Kept, linked only to the account's random id; the console shows citizens only as a pseudonymous reference | Records of parking-enforcement decisions held for the enforcement organization; retention period **to be decided** by the organization |
+| Reporting moderation history (T9.5) | Kept: restrictions, lifts, reasons and who acted are an append-only record that cannot be edited or deleted; staff notes are never shown to the citizen | Accountability for decisions about the account; retention period **to be decided** with the organization |
 | Reward ledger | Kept (append-only accounting record); unpaid rewards are forfeited (no payouts exist) | Accounting record |
 | Audit events | Kept (append-only); one `ACCOUNT_DELETION_REQUESTED` event is added | Accountability |
 | Unsent report draft, parking sessions (on the phone) | Stay on that phone until the app's data is cleared | Never sent to the server |

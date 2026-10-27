@@ -20,6 +20,10 @@ const SERVER_RULE_CODES: readonly DomainErrorCode[] = [
   "STALE_ASSIGNMENT",
   "NOT_ASSIGNABLE",
   "INVALID_OFFICER",
+  "REPORTING_RESTRICTED",
+  "ALREADY_RESTRICTED",
+  "NOT_ACTIVE",
+  "INVALID_INPUT",
 ];
 
 /** Only the fields we read from a supabase-js / PostgREST / Storage error. */

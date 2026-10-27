@@ -42,6 +42,9 @@ Safety rails:
 
 ## Pending on the development project
 
+* Migration `20261027000001_moderation.sql` (T9.5, reporting moderation) is **local only - not applied**
+  to the development project. Verified on PGlite (`npm run verify:migrations`) and the local mock
+  (`npm run e2e:mock:moderation`). Rollback: `supabase/rollback/20261027_moderation_rollback.sql`.
 * Migration `20261018000001_username.sql` (T9.4, citizen username) is **applied** (2026-10-18,
   approved by Atte; one transaction with its `schema_migrations` row). Real rolled-back QA
   `scripts/sql/t94-cloud-qa.sql`: **27/27 passed, 0 failed**; extra check: next_change_at is exactly

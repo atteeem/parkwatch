@@ -33,6 +33,11 @@ export type DomainErrorCode =
   | "NO_JURISDICTION"
   | "NETWORK_ERROR"
   | "BACKEND_ERROR"
+  // Reporting moderation (T9.5)
+  | "REPORTING_RESTRICTED"
+  | "ALREADY_RESTRICTED"
+  | "NOT_ACTIVE"
+  | "INVALID_INPUT"
   | "BACKEND_NOT_CONFIGURED"
   | "NOT_AVAILABLE"
   // The connection dropped and the server state could not be re-checked.

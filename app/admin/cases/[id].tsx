@@ -21,6 +21,7 @@ import { EvidenceThumbnails } from "../../../src/components/EvidenceGallery";
 import { LiveMap } from "../../../src/components/map/LiveMap";
 import type { AdminApi, AdminCaseDetail } from "../../../src/admin/adminTypes";
 import { CaseAssignmentPanel } from "../../../src/admin/CaseAssignmentPanel";
+import { ModerationPanel } from "../../../src/moderation/ModerationPanel";
 
 const CHECK_LABEL: Record<string, string> = {
   vehiclePresent: "Vehicle present",
@@ -32,7 +33,7 @@ const CHECK_LABEL: Record<string, string> = {
 export default function AdminCaseDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { admin } = useApp();
+  const { admin, moderation } = useApp();
   const load = useAdminLoad(() => admin!.getCase(String(id ?? "")), `case-${id}`);
   const back = { label: "Cases", onPress: () => (router.canGoBack() ? router.back() : router.replace("/admin/cases")) };
   const title = load.phase === "ready" && load.data ? `Case · Report #${load.data.report.publicNumber}` : "Case";
@@ -49,6 +50,12 @@ export default function AdminCaseDetailScreen() {
         // An expired photo URL re-loads this case once (fresh signed URLs, same scope).
         <AdminEvidenceRefresh urls={[...load.data.citizenEvidence, ...load.data.officerEvidence].map((e) => e.uri)} refresh={load.refresh}>
           <CaseBody d={load.data} admin={admin!} onChanged={load.refresh} openReport={(n) => router.push(`/admin/reports/${n}` as never)} />
+          {moderation ? (
+            <View style={{ marginTop: 16 }}>
+              {/* T9.5: the reporter of this case (pseudonymous reference only) */}
+              <ModerationPanel api={moderation} caseId={load.data.id} />
+            </View>
+          ) : null}
         </AdminEvidenceRefresh>
       )}
     </AdminPage>

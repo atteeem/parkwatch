@@ -8,6 +8,14 @@ import { afterStep, CITIZEN_PHOTO_SLOTS, nextMissingSlot } from "../../../src/pr
 import { CITIZEN_CAMERA_GUIDE, CITIZEN_SHOT_INSTRUCTION } from "../../../src/presentation/cameraGuides";
 import { haptics } from "../../../src/feedback/haptics";
 import { VehicleTypeChip, VehicleTypePicker } from "../../../src/components/cameraGuides/VehicleTypePicker";
+import { ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../../../src/components/Header";
+import { GreenButton } from "../../../src/components/GreenButton";
+import { colors } from "../../../src/constants/colors";
+import { useApp } from "../../../src/context/AppContext";
+import { RestrictionNotice, useMyModeration } from "../../../src/moderation/citizenModeration";
+import { isRestricted } from "../../../src/moderation/moderationTypes";
 
 export default function ReportPhotos() {
   const router = useRouter();
@@ -23,6 +31,22 @@ export default function ReportPhotos() {
     return { key: slot, label, done: !!photo && qualifiesAsRequiredEvidence(photo) };
   });
   const activeSlot = selected ?? nextMissingSlot(draft);
+  // T9.5: a restricted account sees why before the camera opens. The server refuses the report regardless;
+  // an unknown status (offline, demo) never blocks the camera.
+  const { moderation } = useApp();
+  const mod = useMyModeration(moderation);
+  const leave = () => (router.canGoBack() ? router.back() : router.replace("/user/home"));
+  if (mod.data && isRestricted(mod.data)) {
+    return (
+      <SafeAreaView style={gate.safe} edges={["top", "bottom"]}>
+        <ScrollView contentContainerStyle={gate.content}>
+          <BackHeader title="Report a Parking Violation" onBack={leave} />
+          <RestrictionNotice m={mod.data} />
+          <GreenButton label="Back" trailingIcon={null} onPress={leave} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <>
@@ -69,3 +93,8 @@ export default function ReportPhotos() {
     </>
   );
 }
+
+const gate = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 20, gap: 16 },
+});

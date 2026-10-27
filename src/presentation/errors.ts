@@ -79,6 +79,14 @@ export function describeDomainError(error: DomainError | { code: string; message
       return { kind: "BANNER", message: "The officer has already started this case, so it can't be moved from the console." };
     case "INVALID_OFFICER":
       return { kind: "BANNER", message: "Choose an active officer of this organization." };
+    case "REPORTING_RESTRICTED":
+      return { kind: "BANNER", message: "Reporting is restricted for your account. See Reporting status in your Profile for details." };
+    case "ALREADY_RESTRICTED":
+      return { kind: "BANNER", message: "This user's reporting is already restricted. The status has been refreshed." };
+    case "NOT_ACTIVE":
+      return { kind: "BANNER", message: "This restriction is no longer in force. The status has been refreshed." };
+    case "INVALID_INPUT":
+      return { kind: "BANNER", message: "Some details are missing or not valid. Please check and try again." };
     default:
       return { kind: "BANNER", message: GENERIC };
   }

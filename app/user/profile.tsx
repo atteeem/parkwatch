@@ -102,6 +102,13 @@ export default function UserProfile() {
           ) : (
             <SettingsRow icon="at" iconBg={colors.blueLight} iconColor={colors.blue} title="Username" subtitle={usernameRowSubtitle(profile?.username, profile?.usernameChangedAt)} onPress={() => router.push("/user/username")} />
           )}
+          {me.source === "DEMO" ? null : (
+            <>
+              <View style={styles.divider} />
+              {/* T9.5: own reporting access (restrictions, strikes) */}
+              <SettingsRow icon="shield-checkmark-outline" title="Reporting status" subtitle="Your access to submit reports" onPress={() => router.push("/user/moderation")} />
+            </>
+          )}
           <View style={styles.divider} />
           <SettingsRow icon="wallet" iconBg={colors.greenLight} iconColor={colors.greenDark} title="Wallet" subtitle="View your balance and earnings" right={<Text style={styles.rowValue}>{"\u20ac"}{walletAvailable.toFixed(2)}</Text>} onPress={() => router.push("/user/earnings")} />
           <View style={styles.divider} />
