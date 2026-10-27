@@ -26,7 +26,10 @@ import {
   strikeText,
 } from "./moderationTypes";
 
-type Sheet = { kind: "restrict"; requestId: string } | { kind: "revoke"; requestId: string; actionId: string };
+// The wording is fixed when the sheet opens, so the sheet still says what was
+// confirmed while it fades out over the updated state.
+type SheetCopy = { title: string; body: string; third: boolean; confirmLabel: string };
+type Sheet = ({ kind: "restrict"; requestId: string } | { kind: "revoke"; requestId: string; actionId: string }) & { copy: SheetCopy };
 
 export const MODERATION_PANEL_COPY = {
   heading: "Reporter moderation",
@@ -53,6 +56,9 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const mounted = useRef(true);
+  const lastSheet = useRef<Sheet | null>(null);
+  if (sheet) lastSheet.current = sheet;
+  const shown = sheet ?? lastSheet.current;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,8 +135,16 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
 
   const restricted = isRestricted(data);
   const indefinite = data.status === "INDEFINITELY_RESTRICTED";
-  const confirmCopy = sheet?.kind === "restrict" ? restrictConfirmCopy(data) : revokeConfirmCopy(data);
-  const third = sheet?.kind === "restrict" && restrictConfirmCopy(data).third;
+  const restrictCopy = (): SheetCopy => {
+    const c = restrictConfirmCopy(data);
+    return { title: c.title, body: c.body, third: c.third, confirmLabel: MODERATION_PANEL_COPY.confirmRestrict };
+  };
+  const revokeCopy = (): SheetCopy => {
+    const c = revokeConfirmCopy(data);
+    return { title: c.title, body: c.body, third: false, confirmLabel: indefinite ? MODERATION_PANEL_COPY.confirmRestore : MODERATION_PANEL_COPY.confirmLift };
+  };
+  const restricting = shown?.kind === "restrict";
+  const third = !!shown?.copy.third;
 
   return (
     <View style={styles.card}>
@@ -149,13 +163,13 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
         {!restricted ? (
           <Pressable
             style={[styles.btn, data.strikes + 1 >= MAX_STRIKES ? styles.btnDanger : styles.btnWarn]}
-            onPress={() => open({ kind: "restrict", requestId: newModerationRequestId() })}
+            onPress={() => open({ kind: "restrict", requestId: newModerationRequestId(), copy: restrictCopy() })}
             accessibilityRole="button"
           >
             <Text style={styles.btnText}>{data.strikes + 1 >= MAX_STRIKES ? MODERATION_PANEL_COPY.restrictThird : MODERATION_PANEL_COPY.restrict}</Text>
           </Pressable>
         ) : data.activeActionId ? (
-          <Pressable style={[styles.btn, styles.btnNeutral]} onPress={() => open({ kind: "revoke", requestId: newModerationRequestId(), actionId: data.activeActionId! })} accessibilityRole="button">
+          <Pressable style={[styles.btn, styles.btnNeutral]} onPress={() => open({ kind: "revoke", requestId: newModerationRequestId(), actionId: data.activeActionId!, copy: revokeCopy() })} accessibilityRole="button">
             <Text style={[styles.btnText, { color: colors.textPrimary }]}>{indefinite ? MODERATION_PANEL_COPY.restore : MODERATION_PANEL_COPY.lift}</Text>
           </Pressable>
         ) : null}
@@ -168,11 +182,11 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.sheetTitle}>{confirmCopy.title}</Text>
+              <Text style={styles.sheetTitle}>{shown?.copy.title}</Text>
               <Text style={[styles.sheetBody, third && styles.sheetBodyDanger]} accessibilityRole={third ? "alert" : undefined}>
-                {confirmCopy.body}
+                {shown?.copy.body}
               </Text>
-              {sheet?.kind === "restrict" ? (
+              {restricting ? (
                 <>
                   <Text style={styles.label}>Reason</Text>
                   <View style={styles.reasons}>
@@ -198,13 +212,13 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
                 style={styles.input}
                 value={note}
                 onChangeText={setNote}
-                placeholder={sheet?.kind === "restrict" ? "Visible to staff only" : "e.g. Reviewed: the reports were valid"}
+                placeholder={restricting ? "Visible to staff only" : "e.g. Reviewed: the reports were valid"}
                 placeholderTextColor={colors.textLight}
                 multiline
                 maxLength={500}
-                accessibilityLabel={sheet?.kind === "restrict" ? "Moderation note" : "Reason for lifting the restriction"}
+                accessibilityLabel={restricting ? "Moderation note" : "Reason for lifting the restriction"}
               />
-              {sheet?.kind === "restrict" ? <Text style={styles.hint}>Notes are visible to staff only, never to the user.</Text> : null}
+              {restricting ? <Text style={styles.hint}>Notes are visible to staff only, never to the user.</Text> : null}
               {inputError ? (
                 <Text style={styles.error} accessibilityRole="alert">
                   {inputError}
@@ -215,7 +229,7 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
                   <Text style={[styles.btnText, { color: colors.textPrimary }]}>{MODERATION_PANEL_COPY.cancel}</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.btn, sheet?.kind === "restrict" ? styles.btnDanger : styles.btnGreen, { flex: 1 }, busy && { opacity: 0.6 }]}
+                  style={[styles.btn, restricting ? styles.btnDanger : styles.btnGreen, { flex: 1 }, busy && { opacity: 0.6 }]}
                   onPress={() => void confirm()}
                   disabled={busy}
                   accessibilityRole="button"
@@ -225,7 +239,7 @@ export function ModerationPanel({ api, caseId }: { api: ModerationApi; caseId: s
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={styles.btnText}>
-                      {sheet?.kind === "restrict" ? MODERATION_PANEL_COPY.confirmRestrict : indefinite ? MODERATION_PANEL_COPY.confirmRestore : MODERATION_PANEL_COPY.confirmLift}
+                      {shown?.copy.confirmLabel}
                     </Text>
                   )}
                 </Pressable>

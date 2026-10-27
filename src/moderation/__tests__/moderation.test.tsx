@@ -220,6 +220,44 @@ describe("staff panel", () => {
     expect(texts(r)).toContain("Reporting allowed");
   });
 
+  it("a confirmed restriction's sheet keeps its own wording while it closes (never turns into the Lift sheet)", async () => {
+    const { api } = fakeApi(staff());
+    const r = await render(api);
+    await press(r, MODERATION_PANEL_COPY.restrict);
+    await press(r, "Deliberately false report");
+    act(() => r.root.findByType(TextInput).props.onChangeText("Staff-only note"));
+    await press(r, MODERATION_PANEL_COPY.confirmRestrict);
+    const modal = r.root.findByType(Modal);
+    expect(modal.props.visible).toBe(false);
+    // The Modal fades out with its last content; that content must still be the restriction sheet.
+    let closing!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      closing = TestRenderer.create(<>{modal.props.children}</>);
+    });
+    const shown = closing.root.findAllByType(Text).map((t) => [t.props.children].flat().join("")).join(" ");
+    expect(shown).toMatch(/Restrict this user's reporting access for 30 days\?/);
+    expect(shown).toMatch(/This will be strike 1 of 3/);
+    expect(shown).not.toMatch(/Lift this restriction|Reason for lifting/);
+  });
+
+  it("another organization's actions show only the role (the server sends no name, note or lift reason)", async () => {
+    const { api } = fakeApi(
+      staff({
+        strikes: 1,
+        lifetimeStrikes: 1,
+        history: [
+          { id: "r1", type: "RESTRICTION_REVOKED", createdAt: "2026-10-22T10:00:00Z", actorRole: "SUPERVISOR", sameOrganization: false, cycle: 1, indefinite: false, revokesActionId: "t1" },
+          { id: "t1", type: "RESTRICTION_ISSUED", createdAt: "2026-10-21T10:00:00Z", actorRole: "OFFICER", sameOrganization: false, reason: "SPAM_INVALID", cycle: 1, strikeInCycle: 1, lifetimeStrike: 1, indefinite: false, expiresAt: "2026-11-20T10:00:00Z", revokedAt: "2026-10-22T10:00:00Z" },
+        ],
+      })
+    );
+    const all = texts(await render(api)).join(" ");
+    expect(all).toMatch(/Supervisor, another organization/);
+    expect(all).toMatch(/Officer, another organization/);
+    expect(all).toMatch(/Reason: Spam \/ repeated invalid reports/);
+    expect(all).not.toMatch(/Note:|Reason for lifting:/);
+  });
+
   it("ALREADY_RESTRICTED from the server (another officer was faster) reloads the status", async () => {
     const { api, calls } = fakeApi(staff());
     const racing: ModerationApi = { ...api, restrict: async () => ({ ok: false, error: { code: "ALREADY_RESTRICTED", message: "ALREADY_RESTRICTED" } }) };

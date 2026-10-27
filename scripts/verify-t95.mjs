@@ -216,6 +216,12 @@ export async function runT95(ctx) {
     const st = await r(OB, "get_reporter_moderation", { p_case_id: k4.caseId });
     const h = st.history[0];
     if (h.actor_name !== null || h.internal_note !== null || h.same_organization !== false || st.status !== "TEMPORARILY_RESTRICTED") throw new Error(JSON.stringify(h));
+    // ...and so are the reason for lifting and who lifted it (lifted by the home organization)
+    await q(`update public.officer_cases set jurisdiction_id = 'helsinki-demo' where report_id = $1`, [own.rows[0].id]);
+    await r(SUP, "revoke_reporter_restriction", { p_case_id: k4.caseId, p_action_id: st.active_action_id, p_reason: "Lifted after org review", p_request_id: "t95-xorg-lift" });
+    await q(`update public.officer_cases set jurisdiction_id = 't95-other' where report_id = $1`, [own.rows[0].id]);
+    const lifted = (await r(OB, "get_reporter_moderation", { p_case_id: k4.caseId })).history[0];
+    if (lifted.type !== "RESTRICTION_REVOKED" || lifted.actor_name !== null || lifted.revoke_reason !== null || lifted.same_organization !== false) throw new Error(JSON.stringify(lifted));
     await q(`update public.officer_cases set jurisdiction_id = 'helsinki-demo' where report_id = $1`, [own.rows[0].id]);
   });
   await ok("T9.5: audit metadata never contains notes", async () => {
